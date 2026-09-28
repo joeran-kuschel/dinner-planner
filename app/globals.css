@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
+/*
+ * Colour tokens are defined once here and consumed through Tailwind utilities
+ * (bg-surface, text-muted, …). Add a token rather than hard-coding a hex value
+ * in a component, so dark mode stays a one-line change.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: oklch(0.985 0.008 85);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.968 0.01 85);
+  --border: oklch(0.9 0.012 85);
+  --foreground: oklch(0.22 0.02 60);
+  --muted: oklch(0.52 0.02 60);
+  --accent: oklch(0.55 0.16 32);
+  --accent-foreground: oklch(0.99 0.01 32);
+  /* Darker on hover, so the button text keeps at least 4.5:1 (WCAG 1.4.3). */
+  --accent-hover: oklch(0.5 0.16 32);
+  --accent-soft: oklch(0.94 0.04 40);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: oklch(0.18 0.012 60);
+    --surface: oklch(0.22 0.014 60);
+    --surface-muted: oklch(0.26 0.016 60);
+    --border: oklch(0.32 0.016 60);
+    --foreground: oklch(0.95 0.008 85);
+    --muted: oklch(0.72 0.016 75);
+    --accent: oklch(0.7 0.15 45);
+    --accent-foreground: oklch(0.2 0.03 45);
+    /* Lighter on hover, against the dark button text. */
+    --accent-hover: oklch(0.76 0.14 45);
+    --accent-soft: oklch(0.3 0.04 45);
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Shared primitives, so every form control does not repeat a utility soup.
+ * Tailwind v4 cannot `@apply` one custom class inside another, so the shared
+ * button base is written as a selector list rather than composed from `.btn`. */
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground
+      placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+      transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-accent-foreground hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply border border-border bg-surface text-foreground hover:bg-surface-muted;
+  }
+
+  .btn-ghost {
+    @apply text-muted hover:bg-surface-muted hover:text-foreground;
+  }
+
+  .card {
+    @apply rounded-xl border border-border bg-surface;
+  }
+
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wide text-muted;
+  }
 }

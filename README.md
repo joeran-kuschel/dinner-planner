@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dinner Planner
 
-## Getting Started
+Plan the week's dinners, keep your recipes in one place, and get a single grocery
+list for everything you need to buy.
 
-First, run the development server:
+- **This week** — one dinner slot per day. Pick a recipe, set how many people it
+  is for, add a note, or type your own entry for a takeaway night. Everything
+  saves as you go.
+- **Recipes** — name, servings, ingredients with amounts and units, and a method.
+  Quantities are written for a given number of people and scale automatically
+  when you plan for more.
+- **Groceries** — every ingredient from the week's meals, combined and
+  deduplicated, with tick-off boxes and room to add things the recipes miss.
+
+Runs entirely on your own machine: Postgres in Docker for development, and
+Docker Desktop's Kubernetes for the real thing. Nothing leaves your laptop and there
+are no accounts.
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env
+npm run db:up                       # Postgres in Docker, on host port 5433
+npm run db:migrate -- --name init   # create the schema
+npm run db:seed                     # optional: a few recipes to start from
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### In Kubernetes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Deploys to Docker Desktop's Kubernetes (turn it on in Docker Desktop under
+Settings → Kubernetes) in one command:
 
-## Learn More
+```bash
+npm run k8s:deploy   # builds the images, imports them into the cluster, applies k8s/
+npm run k8s:seed     # optional sample data
+```
 
-To learn more about Next.js, take a look at the following resources:
+The app is then at http://dinner.local. `k8s:deploy` prints the `/etc/hosts`
+lines to add if they are missing (they need sudo, so it will not do it for
+you). `npm run k8s:delete` removes it again, including its database.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The cluster's database is backed up every hour to `~/DinnerPlanerBackups` once
+you run `npm run k8s:backup:install`; see
+[documentation/backend/database-backups.md](documentation/backend/database-backups.md)
+for restoring.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Everyday commands
 
-## Deploy on Vercel
+| Command | What it does |
+| --- | --- |
+| `npm run db:up` / `npm run db:down` | Start / stop the development database |
+| `npm run dev` | Start the app on :3000 |
+| `npm run build` / `npm start` | Production build and serve |
+| `npm run db:studio` | Browse and edit the database in the browser |
+| `npm run db:seed` | Re-add the sample recipes (safe to re-run) |
+| `npm test` / `npm run test:e2e` | Unit and end-to-end tests |
+| `npm run typecheck` / `npm run lint` | Type and lint checks |
+| `npm run k8s:deploy` / `npm run k8s:status` | Deploy to Kubernetes / inspect it |
+| `npm run k8s:backup` / `npm run k8s:restore -- <file>` | Back up / restore the cluster's database |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Built with
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 ·
+Prisma 7 · Postgres · Docker · Kubernetes (Docker Desktop)
+
+See `CLAUDE.md` for the notes that matter when changing the code.

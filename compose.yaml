@@ -1,0 +1,24 @@
+# Postgres for local development. Kubernetes runs its own instance from
+# k8s/postgres.yaml — this is only so `npm run dev` has a database.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: dinner-planer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dinner
+      POSTGRES_PASSWORD: dinner
+      POSTGRES_DB: dinner_planer
+    ports:
+      # 5433 on the host, so this never fights a Postgres you already run on 5432.
+      - "5433:5432"
+    volumes:
+      - dinner-planer-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dinner -d dinner_planer"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  dinner-planer-pgdata:

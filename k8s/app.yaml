@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dinner-planer
+spec:
+  selector:
+    app: dinner-planer
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dinner-planer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dinner-planer
+  template:
+    metadata:
+      labels:
+        app: dinner-planer
+    spec:
+      initContainers:
+        # Runs on every rollout. `migrate deploy` only applies migrations that
+        # are not recorded yet, so repeating it is a no-op, and the app never
+        # starts against a schema it does not understand.
+        - name: migrate
+          image: dinner-planer-migrator:dev
+          imagePullPolicy: Never
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - secretRef:
+                name: dinner-planer-db
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      containers:
+        - name: app
+          image: dinner-planer:dev
+          # The image is imported into the node by k8s/deploy.sh; there is no
+          # registry to pull from, and Docker Desktop's pull mirror cannot see it.
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: dinner-planer-db
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            # Deliberately not /healthz: losing the database should take the pod
+            # out of the Service, not restart a perfectly healthy web process.
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 768Mi

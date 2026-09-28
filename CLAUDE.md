@@ -1,1 +1,224 @@
-@AGENTS.md
+# Dinner Planner
+
+A local-first weekly dinner planner: keep recipes, assign one dinner per day, and
+get a single consolidated grocery list for the week.
+
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind v4 ·
+Prisma 7 + Postgres. Single user, no auth.
+
+It runs in the developer's own machine only: Postgres in Docker for `npm run dev`
+and tests, and Docker Desktop's Kubernetes for the real thing. See "Kubernetes".
+
+## Commands
+
+```bash
+npm run db:up        # local Postgres in Docker (host port 5433) — needed by dev and tests
+npm run dev          # dev server on :3000
+npm run build        # production build (also type-checks)
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run db:down      # stop the local Postgres
+
+npm run db:migrate -- --name <what-changed>   # edit schema, then run this
+npm run db:generate  # regenerate the client without migrating
+npm run db:seed      # sample recipes + a few planned days (safe to re-run)
+npm run db:studio    # browse the database
+
+npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal deploy
+npm run k8s:seed     # sample data into the cluster's database (one-off Job)
+npm run k8s:backup   # dump the cluster's database to ~/DinnerPlanerBackups
+npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
+npm run k8s:status   # pods, services, ingress
+npm run k8s:logs     # follow the app's logs
+npm run k8s:delete   # tear the namespace down
+
+npm test             # Vitest: lib helpers, server actions, components
+npm run test:e2e     # Playwright: builds and starts its own server on :3100
+npx vitest run lib/week.test.ts -t "Monday"   # one file / one test during development
+```
+
+## Testing
+
+- **Vitest** (`vitest.config.mts`) has two projects. `server` (Node) runs `lib/` and
+  `app/` `*.test.ts` against the local Postgres (`DATABASE_URL`): every test file
+  gets its own schema with the migrations applied (`test/setup-server.ts`,
+  `test/migrate.ts`), emptied before each test and dropped afterwards; `next/cache` and `next/navigation` are mocked, use
+  `expectRedirect` from `test/next.ts` and `formData` from `test/db.ts`. `dom`
+  (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
+  actions the component imports and call `expectNoAxeViolations` from `test/axe.ts`.
+- Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
+- **Playwright** (`playwright.config.ts`, tests in `e2e/`) runs a production build
+  against the schema `e2e`, recreated from the migrations on every run, so it never
+  touches the development data in `public`. Tests share that database: create your own data with
+  `unique()` and check pages with `expectAccessible()` (axe incl. contrast) from
+  `e2e/helpers.ts`.
+- A test that documents a known bug is marked `it.fails` / `test.fail` with a
+  `// BUG:` comment until the bug is fixed.
+
+`AGENTS.md` is generated and re-added by `next dev` — leave it alone and commit it
+with your work rather than deleting it.
+
+## Layout
+
+```
+app/
+  page.tsx              week plan (the home page)
+  recipes/              list, new, [id] detail, [id]/edit
+  groceries/            derived shopping list
+  actions/              server actions: meals, recipes, groceries
+  healthz/route.ts      readiness probe — 503 while Postgres is unreachable
+components/             client components (day-card, recipe-form, grocery-list, site-nav)
+lib/
+  db.ts                 Prisma client singleton
+  database-url.ts       requireDatabaseUrl() — one clear error when it is unset
+  prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see below
+  week.ts               day/week helpers — see "Dates" below
+  grocery.ts            grocery aggregation + formatting
+  planner.ts            the CUSTOM_MEAL sentinel, shared by client and server
+  recipe-form.ts        recipe form state types (kept out of the "use server" file)
+prisma/
+  schema.prisma         Recipe, Ingredient, PlannedMeal, GroceryEntry
+  seed.ts
+generated/prisma/       generated client — never edit, never commit
+Dockerfile              two targets: `app` (Next standalone) and `migrator`
+compose.yaml            Postgres for local development only
+k8s/                    manifests + deploy.sh / seed.sh — see "Kubernetes"
+```
+
+## Things worth knowing before changing code
+
+**Dates are calendar days, not instants.** Every planner day is a `Date` pinned to
+UTC midnight, and `PlannedMeal.date` is the primary key. Build days with the
+helpers in `lib/week.ts` (`today()`, `parseDayKey()`, `startOfWeek()`) — a bare
+`new Date()` will land on a local-time instant that matches no row. All display
+formatting is pinned to `timeZone: "UTC"` for the same reason. Weeks start Monday.
+
+**The grocery list is derived, never stored.** `aggregateIngredients()` recomputes
+it from the week's planned meals on every render, scaling each recipe by
+`meal.servings / recipe.servings`. `GroceryEntry` rows persist only tick-off state
+and hand-added extras; a derived line has no row until it is first ticked. This is
+why editing a recipe corrects the list immediately. Ingredients merge only when
+both name and unit match, and one unquantified ingredient makes the whole line
+read "to taste" rather than silently under-reporting.
+
+**React 19 resets a form after its action resolves.** Keep this in mind when
+touching forms. What is already handled:
+
+- `DayCard` auto-saves while the user keeps typing, so it avoids the reset: its
+  `onSubmit` cancels the submit and calls the server action in a transition
+  (`useAutoSave`); the form's `action` props only serve browsers without
+  JavaScript. The controls stay uncontrolled, and when the server value changes
+  (e.g. the recipe was deleted) `useServerSync` updates every field except the
+  focused one. Don't re-key the fields instead: a remount drops the keyboard
+  focus after every auto-save.
+- Leaving "Something else…" with an empty title saves nothing: a blank custom
+  meal would clear the day.
+- On a validation error the reset throws away everything the user typed, so the
+  recipe actions echo the submitted values back in `RecipeFormState.values` and
+  the form re-fills from those, re-keyed on `attempt`.
+
+**A `"use server"` file may only export async functions.** Exporting a constant
+or an object from `app/actions/*` compiles and type-checks, then fails at
+runtime. Shared constants and types live in `lib/` (`planner.ts`,
+`recipe-form.ts`).
+
+**`CUSTOM_MEAL` travels in the `recipeId` field.** The day dropdown submits the
+sentinel when the user picks "Something else…", so `setPlannedMeal` must map it
+to `null` before writing — otherwise it is stored as a recipe id that matches no
+row.
+
+**Deleting a recipe clears the days that only pointed at it.** The schema says
+`onDelete: SetNull`, which on its own would leave days naming nothing at all:
+invisible in the week view but still counted as planned. `deleteRecipe` removes
+those rows in the same transaction.
+
+**Recipe edits replace the ingredient set.** Rows have no stable identity in the
+form, so `updateRecipe` does `deleteMany` + `create` and row order is
+authoritative.
+
+**Mutations must revalidate every view they touch.** The plan, the recipes and the
+grocery list all read the same data; each action calls `revalidatePath` for all
+the affected routes.
+
+**The `pg` driver adapter ignores `?schema=`.** Only the Prisma CLI honours that
+parameter; the driver treats it as an unknown connection option and silently
+uses `public`. Every `PrismaClient` must therefore get its adapter from
+`createPgAdapter()` in `lib/prisma-adapter.ts`, which parses the schema out of
+`DATABASE_URL` and passes it to `PrismaPg` explicitly. Building a client by hand
+is how the test suite ended up writing into the development data.
+
+## Kubernetes
+
+The app runs in **Docker Desktop's Kubernetes** (context `docker-desktop`), in
+the `dinner-planer` namespace. `npm run k8s:deploy` is the whole workflow: it
+checks the cluster and the ingress controller, builds both image targets,
+imports them into the cluster node and applies `k8s/`. Re-run it to push a code
+change.
+
+- **Images are imported into the node, not pulled.** Docker Desktop runs
+  Kubernetes as a kind node with its own image store, and it routes pulls
+  through a registry mirror that cannot see local images. So `deploy.sh` pipes
+  each image into the node (`docker save … | docker exec -i <node> ctr -n k8s.io
+  images import -`), and the manifests use `imagePullPolicy: Never`.
+  `test/k8s.test.ts` checks both.
+- **Every script pins `--context docker-desktop`.** Never let a deploy follow
+  whatever context happens to be current (`test/k8s.test.ts` checks this too).
+- **The nginx ingress controller is shared** with other apps on this cluster
+  (e.g. the time tracking tool). `deploy.sh` only checks that it exists and
+  prints the install command if not; it never installs or changes it.
+- **Migrations run as an init container**, not as a Job, so a pod can never
+  serve traffic against a schema it does not understand. `prisma migrate deploy`
+  only applies what is unrecorded, so repeating it is a no-op. Seeding is
+  separate and manual (`npm run k8s:seed`) — it must not resurrect sample
+  recipes on every restart.
+- **Postgres is a StatefulSet with a PersistentVolumeClaim.** `PGDATA` points at
+  a subdirectory because Postgres refuses to initialise into a volume that
+  already contains `lost+found`.
+- **Every build gets a fresh timestamp tag.** With a fixed `:dev` tag the pod
+  spec does not change, so Kubernetes sees nothing to roll out and the old pod
+  keeps running. `deploy.sh` builds `repo:<timestamp>` and substitutes it into
+  the rendered manifests; the checked-in manifests keep `:dev`. `k8s/seed.sh`
+  reads the tag back off the running Deployment rather than guessing.
+- **`prisma`, `tsx` and `dotenv` are runtime dependencies, not dev ones.** The
+  migrator image installs with `--omit=dev`; moving any of them to
+  `devDependencies` breaks migrations and seeding in the cluster with
+  `Cannot find module 'dotenv/config'`.
+- **Access is via Ingress at `http://dinner.local`.** Docker Desktop publishes
+  the ingress controller's LoadBalancer on `localhost:80`, so `/etc/hosts` needs
+  `127.0.0.1 dinner.local` **and** `::1 dinner.local`: without the IPv6 line,
+  macOS asks Bonjour about the `.local` name first and every request takes 5
+  seconds longer. `deploy.sh` prints missing lines; it never edits `/etc/hosts`.
+- **The database volume lives inside the kind node.** Resetting or updating
+  Docker Desktop's Kubernetes deletes it, and so does `npm run k8s:delete`,
+  which removes the whole namespace. A launchd job (`npm run k8s:backup:install`)
+  dumps it hourly to `~/DinnerPlanerBackups`; run `npm run k8s:backup` before
+  anything risky. Details and restore: `documentation/backend/database-backups.md`.
+- The two images are separate on purpose: the app image runs Next's standalone
+  output and carries no Prisma CLI, schema or `tsx`; the migrator image has
+  those and no Next server.
+
+## Styling
+
+Colours are CSS custom properties on `:root` in `app/globals.css`, redefined under
+`prefers-color-scheme: dark`, and exposed to Tailwind through `@theme inline`. Use
+the tokens (`bg-surface`, `text-muted`, `border-border`, `bg-accent`) and the
+`.card` / `.field` / `.btn-*` / `.label` primitives rather than hard-coding
+colours. Tailwind v4 cannot `@apply` one custom class inside another, which is why
+the shared button base is a selector list.
+
+## Rules
+
+- Plan first, ask before changing code
+- Don't refactor without permission
+- Data has to be persistently stored somewhere
+- The app must be deployable to Kubernetes (container image + manifests). The app itself stays stateless; persistent data lives in PostgreSQL, configured via `DATABASE_URL`
+- The app runs in the local Kubernetes environment: **Docker Desktop's Kubernetes** (context `docker-desktop`), namespace `dinner-planer`, reached at `http://dinner.local`. Deploy with `npm run k8s:deploy`; never target a context other than `docker-desktop`. Keep it working there — a change that cannot be deployed and reached in that cluster is not finished
+- Add test cases for everything we implement
+- The UI has to be accessible and adhere to W3C and WAI standards (target: WCAG 2.2 level AA)
+- Be lean in the code: avoid duplicated code and tight coupling
+- Documentation is key: document every feature in Markdown files in `documentation/`, in dedicated chapters, split into UI (`documentation/ui/`) and Backend (`documentation/backend/`)
+- The tool is available in German and English. Use a gettext-style translation tool; switching the language must not reload the page
+- During development, only run new tests and the tests affected by the changed code, not the entire test suite
+- Do not commit and push without being asked
+- Before every push and every merge, run the `test-engineer` agent (`.claude/agents/test-engineer.md`) in its pre-push/pre-merge check: it runs the entire test suite, typecheck and lint, and makes sure everything the push or merge brings in is tested. Push or merge only when it reports "ready"
+- Before every merge, also run the `code-reviewer` agent (`.claude/agents/code-reviewer.md`) on the new and changed code, i.e. everything the merge brings in. Fix its findings or discuss them before merging

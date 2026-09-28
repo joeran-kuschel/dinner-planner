@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dinner-planer
+
+# seed-job.yaml is intentionally left out: it is a one-off, applied by
+# `npm run k8s:seed` rather than on every deploy.
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - app.yaml
+  - ingress.yaml
+
+# `labels` rather than the deprecated `commonLabels`, and explicitly not in the
+# selectors: a Deployment's and StatefulSet's selector is immutable, so baking
+# extra labels into it makes later changes fail to apply.
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: dinner-planer

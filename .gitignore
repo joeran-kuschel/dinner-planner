@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+/generated
+/prisma/*.db
+/prisma/*.db-journal
+
+# keep the template so a fresh clone knows what to set
+!.env.example
+
+# tests
+/test-results
+/playwright-report
+/blob-report

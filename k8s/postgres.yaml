@@ -1,0 +1,81 @@
+# Postgres for the local cluster. Credentials are deliberately trivial: this
+# runs on a developer laptop and is never exposed outside the cluster.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dinner-planer-db
+stringData:
+  POSTGRES_USER: dinner
+  POSTGRES_PASSWORD: dinner
+  POSTGRES_DB: dinner_planer
+  # Read by the app and the migration job. The host is the Service below.
+  DATABASE_URL: postgresql://dinner:dinner@dinner-planer-db:5432/dinner_planer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dinner-planer-db
+spec:
+  selector:
+    app: dinner-planer-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dinner-planer-db
+spec:
+  serviceName: dinner-planer-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dinner-planer-db
+  template:
+    metadata:
+      labels:
+        app: dinner-planer-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: dinner-planer-db
+          env:
+            # postgres:17 refuses to initialise into a non-empty directory, and
+            # a PVC mount always contains lost+found, so data goes in a subdir.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planer"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planer"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

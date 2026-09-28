@@ -1,0 +1,84 @@
+// Dinner Planner schema. See CLAUDE.md for the workflow around changes here.
+// After editing this file run: npm run db:migrate -- --name <what-changed>
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A reusable dinner recipe.
+model Recipe {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  /// Number of people the ingredient quantities are written for.
+  servings     Int      @default(2)
+  prepMinutes  Int?
+  sourceUrl    String?
+  /// Free-form steps, one per line.
+  instructions String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ingredients Ingredient[]
+  plannedFor  PlannedMeal[]
+
+  @@index([name])
+}
+
+/// One ingredient line belonging to a recipe.
+model Ingredient {
+  id       String  @id @default(cuid())
+  recipeId String
+  name     String
+  /// Null means "to taste" / unquantified.
+  quantity Float?
+  /// Free-form unit such as g, ml, tbsp. Null for countables ("2 onions").
+  unit     String?
+  note     String?
+  /// Display order within the recipe.
+  position Int     @default(0)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+/// The dinner planned for one calendar day. At most one per day.
+model PlannedMeal {
+  /// UTC midnight of the day being planned. Use lib/week.ts helpers, never `new Date()` directly.
+  date        DateTime @id
+  recipeId    String?
+  /// Used instead of a recipe for one-off entries ("leftovers", "eating out").
+  customTitle String?
+  servings    Int      @default(2)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+}
+
+/// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
+model GroceryEntry {
+  id String @id @default(cuid())
+  /// UTC midnight of the Monday the list belongs to.
+  weekStart DateTime
+  /// Normalised "name|unit" key, produced by groceryKey() in lib/grocery.ts.
+  key      String
+  label    String
+  quantity Float?
+  unit     String?
+  /// True for lines the user typed in; false for rows that only carry `checked`.
+  manual  Boolean @default(false)
+  checked Boolean @default(false)
+
+  @@unique([weekStart, key])
+  @@index([weekStart])
+}

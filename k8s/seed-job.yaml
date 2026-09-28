@@ -1,0 +1,25 @@
+# One-off sample data. Run with `npm run k8s:seed`, which deletes any previous
+# Job first because a completed Job's pod template is immutable.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dinner-planer-seed
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: dinner-planer-migrator:dev
+          imagePullPolicy: Never
+          command: ["npx", "prisma", "db", "seed"]
+          envFrom:
+            - secretRef:
+                name: dinner-planer-db
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
