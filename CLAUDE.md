@@ -47,8 +47,10 @@ npx vitest run lib/week.test.ts -t "Monday"   # one file / one test during devel
   (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
   actions the component imports and call `expectNoAxeViolations` from `test/axe.ts`.
 - Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
-- **Playwright** (`playwright.config.ts`, tests in `e2e/`) runs a production build
-  against the schema `e2e`, recreated from the migrations on every run, so it never
+- **Playwright** (`playwright.config.ts`, tests in `e2e/`) runs the same
+  standalone server as the Docker image (`node .next/standalone/server.js`, with
+  `public/` and `.next/static` copied in; not `next start`, which Next.js does
+  not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
   touches the development data in `public`. Tests share that database: create your own data with
   `unique()` and check pages with `expectAccessible()` (axe incl. contrast) from
   `e2e/helpers.ts`.

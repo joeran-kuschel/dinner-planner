@@ -34,11 +34,25 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    // A production build, so the tests see what users get. Its build output is
-    // separate from `next dev`, which keeps running undisturbed.
-    command: `npx tsx e2e/prepare-db.ts && npx next build && npx next start --port ${PORT}`,
+    // The same standalone server the Docker image runs, laid out the same way:
+    // server.js with `public/` and `.next/static` copied next to it (see the
+    // Dockerfile). Its build output is separate from `next dev`, which keeps
+    // running undisturbed.
+    command: [
+      "npx tsx e2e/prepare-db.ts",
+      "npx next build",
+      "cp -R public .next/standalone/",
+      "cp -R .next/static .next/standalone/.next/",
+      "node .next/standalone/server.js",
+    ].join(" && "),
     url: `http://localhost:${PORT}`,
-    env: { DATABASE_URL: e2eDatabaseUrl(), TZ: "Europe/Berlin" },
+    env: {
+      DATABASE_URL: e2eDatabaseUrl(),
+      TZ: "Europe/Berlin",
+      NODE_ENV: "production",
+      PORT: String(PORT),
+      HOSTNAME: "localhost",
+    },
     // Never reuse a server someone else started: it could use the real database.
     reuseExistingServer: false,
     timeout: 240_000,
