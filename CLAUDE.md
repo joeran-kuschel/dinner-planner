@@ -82,7 +82,7 @@ lib/
   prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see below
   week.ts               day/week helpers — see "Dates" below
   grocery.ts            grocery aggregation + formatting
-  planner.ts            the CUSTOM_MEAL sentinel, shared by client and server
+  planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
 tests/
   unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
@@ -121,12 +121,19 @@ touching forms. What is already handled:
 - `DayCard` auto-saves while the user keeps typing, so it avoids the reset: its
   `onSubmit` cancels the submit and calls the server action in a transition
   (`useAutoSave`); the form's `action` props only serve browsers without
-  JavaScript. The controls stay uncontrolled, and when the server value changes
-  (e.g. the recipe was deleted) `useServerSync` updates every field except the
-  focused one. Don't re-key the fields instead: a remount drops the keyboard
-  focus after every auto-save.
-- Leaving "Something else…" with an empty title saves nothing: a blank custom
-  meal would clear the day.
+  JavaScript. Servings and note stay uncontrolled, and when the server value
+  changes `useServerSync` updates every field except the focused one. Don't
+  re-key the fields instead: a remount drops the keyboard focus after every
+  auto-save.
+- The dinner field is a Downshift combobox and the one controlled field: its
+  text must update in the input's own `onChange` (Downshift's
+  `onInputValueChange` comes a render late and fast typing drops characters).
+  Only picking a suggestion saves; leaving the field puts the planned dinner
+  back unless the text is exactly another recipe's name, so an emptied field
+  never clears the day. A failed save is caught in `useAutoSave`: the card
+  shows an alert, falls back to the saved dinner and refreshes the router.
+- The card's first submit button is a hidden one, so Enter in a text field
+  saves. Without it, Enter would submit through "Clear day" and wipe the day.
 - On a validation error the reset throws away everything the user typed, so the
   recipe actions echo the submitted values back in `RecipeFormState.values` and
   the form re-fills from those, re-keyed on `attempt`.
@@ -136,10 +143,12 @@ or an object from `app/actions/*` compiles and type-checks, then fails at
 runtime. Shared constants and types live in `lib/` (`planner.ts`,
 `recipe-form.ts`).
 
-**`CUSTOM_MEAL` travels in the `recipeId` field.** The day dropdown submits the
-sentinel when the user picks "Something else…", so `setPlannedMeal` must map it
-to `null` before writing — otherwise it is stored as a recipe id that matches no
-row.
+**A typed dinner name is resolved on the server.** The day card posts the text
+as `dinner`, the picked recipe as `recipeId` and `newRecipe=1` for "Add as a new
+recipe". `setPlannedMeal` prefers the picked recipe while the text still names
+it, then a recipe with that name (case-insensitive, `isSameDinner` in
+`lib/planner.ts`), then creates one if asked, and otherwise stores a one-off
+`customTitle`. Details: `documentation/backend/planned-meals.md`.
 
 **Deleting a recipe clears the days that only pointed at it.** The schema says
 `onDelete: SetNull`, which on its own would leave days naming nothing at all:

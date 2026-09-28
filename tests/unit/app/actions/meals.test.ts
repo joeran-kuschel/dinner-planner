@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
-import { CUSTOM_MEAL, MAX_SERVINGS } from "@/lib/planner";
+import { MAX_SERVINGS } from "@/lib/planner";
 import { addDays, dayKey, parseDayKey, startOfWeek, weekDays } from "@/lib/week";
 import { formData } from "@/tests/support/db";
 import { clearPlannedMeal, clearWeek, setPlannedMeal } from "@/app/actions/meals";
@@ -18,8 +18,9 @@ async function mealOn(day: Date) {
   return prisma.plannedMeal.findUnique({ where: { date: day } });
 }
 
+/** The plan, the grocery list and the recipe pages (which show where a recipe is planned). */
 function expectMealViewsRevalidated() {
-  expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/"], ["/groceries"]]);
+  expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/"], ["/groceries"], ["/recipes", "layout"]]);
 }
 
 beforeEach(() => {
@@ -39,29 +40,147 @@ describe("setPlannedMeal", () => {
     expectMealViewsRevalidated();
   });
 
-  it("maps the CUSTOM_MEAL sentinel to no recipe and keeps the custom title", async () => {
-    await setPlannedMeal(
-      formData({ day: dayKey(WEDNESDAY), recipeId: CUSTOM_MEAL, customTitle: "  Leftovers  " }),
-    );
+  it("plans a typed name that matches no recipe as a one-off dinner", async () => {
+    await createRecipe("Pasta");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "  Leftovers  " }));
 
     expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Leftovers" });
+    expect(await prisma.recipe.count()).toBe(1);
     expectMealViewsRevalidated();
   });
 
-  it("drops a submitted custom title when a real recipe is chosen", async () => {
-    const recipe = await createRecipe();
+  it("plans the picked recipe when the typed name still names it", async () => {
+    const recipe = await createRecipe("Pasta");
 
-    await setPlannedMeal(
-      formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id, customTitle: "Eating out" }),
-    );
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id, dinner: "pasta" }));
 
     expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: recipe.id, customTitle: null });
   });
 
-  it("treats a custom title without any recipe field as a custom meal", async () => {
-    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), customTitle: "Pizza night" }));
+  it("keeps the picked one of two recipes with the same name", async () => {
+    await createRecipe("Pasta");
+    const second = await createRecipe("Pasta");
 
-    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Pizza night" });
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: second.id, dinner: "Pasta" }));
+
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(second.id);
+  });
+
+  // Without JavaScript the hidden recipe id stays in the form while the user types.
+  it("plans the typed name instead of a picked recipe it no longer names", async () => {
+    const recipe = await createRecipe("Pasta");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id, dinner: "Eating out" }));
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Eating out" });
+  });
+
+  it("adds the typed name as a recipe when the picked recipe no longer names it", async () => {
+    const picked = await createRecipe("Pasta");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: picked.id, dinner: "Stew", newRecipe: "1" }));
+
+    const stew = await prisma.recipe.findFirstOrThrow({ where: { name: "Stew" } });
+    expect(await prisma.recipe.count()).toBe(2);
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: stew.id, customTitle: null });
+    expectMealViewsRevalidated();
+  });
+
+  it("plans the picked recipe when the dinner text is empty", async () => {
+    const recipe = await createRecipe("Pasta");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id, dinner: "  " }));
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: recipe.id, customTitle: null });
+  });
+
+  it("links a typed name to the recipe of that name, ignoring case and spaces", async () => {
+    const recipe = await createRecipe("Mushroom Risotto");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "  mushroom risotto " }));
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: recipe.id, customTitle: null });
+    expect(await prisma.recipe.count()).toBe(1);
+  });
+
+  // A case-insensitive `equals` is an ILIKE, where these are wildcards.
+  it.each([
+    ["an underscore", "Shak_huka"],
+    ["a percent sign", "Shak%"],
+    ["only a percent sign", "%"],
+  ])("does not treat %s in the typed name as a wildcard", async (_label, dinner) => {
+    await createRecipe("Shakshuka");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner, newRecipe: "1" }));
+
+    const meal = await prisma.plannedMeal.findUnique({ where: { date: WEDNESDAY }, include: { recipe: true } });
+    expect(meal?.recipe?.name).toBe(dinner);
+    expect(await prisma.recipe.count()).toBe(2);
+  });
+
+  // Unescaped, ILIKE reads a backslash as an escape: "Shak\huka" would plan "Shakhuka".
+  it("does not treat a backslash in the typed name as an escape", async () => {
+    await createRecipe("Shakhuka");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Shak\\huka" }));
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Shak\\huka" });
+  });
+
+  it("plans a typed name with wildcard characters as a one-off dinner, not as a similar recipe", async () => {
+    await createRecipe("Shakshuka");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Shak_huka" }));
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Shak_huka" });
+  });
+
+  it("links a typed name with wildcard characters to the recipe of exactly that name", async () => {
+    await createRecipe("Shakshuka");
+    const literal = await createRecipe("100% Shak_huka");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "100% shak_HUKA" }));
+
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(literal.id);
+  });
+
+  it("links a typed name to the oldest of several recipes with that name", async () => {
+    const oldest = await createRecipe("Pasta");
+    await createRecipe("Pasta");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Pasta" }));
+
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(oldest.id);
+  });
+
+  it("adds a new recipe with just the name and plans it, when asked to", async () => {
+    await setPlannedMeal(
+      formData({ day: dayKey(WEDNESDAY), dinner: "  Shakshuka ", newRecipe: "1", servings: "3" }),
+    );
+
+    const recipes = await prisma.recipe.findMany({ include: { ingredients: true } });
+    expect(recipes).toHaveLength(1);
+    expect(recipes[0]).toMatchObject({ name: "Shakshuka", servings: 2, ingredients: [] });
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: recipes[0].id, customTitle: null, servings: 3 });
+    expectMealViewsRevalidated();
+  });
+
+  it("plans the existing recipe instead of adding a duplicate", async () => {
+    const recipe = await createRecipe("Shakshuka");
+
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "SHAKSHUKA", newRecipe: "1" }));
+
+    expect(await prisma.recipe.count()).toBe(1);
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(recipe.id);
+    expectMealViewsRevalidated();
+  });
+
+  it("adds no recipe for anything but newRecipe=1", async () => {
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Shakshuka", newRecipe: "yes" }));
+
+    expect(await prisma.recipe.count()).toBe(0);
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ customTitle: "Shakshuka" });
   });
 
   it("stores trimmed notes, and null for whitespace-only notes", async () => {
@@ -88,13 +207,11 @@ describe("setPlannedMeal", () => {
     expect(rows[0]).toMatchObject({ recipeId: second.id, servings: 3, notes: null });
   });
 
-  it("switching a day from a recipe to a custom title clears the recipe", async () => {
+  it("switching a day from a recipe to a one-off dinner clears the recipe", async () => {
     const recipe = await createRecipe();
     await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id }));
 
-    await setPlannedMeal(
-      formData({ day: dayKey(WEDNESDAY), recipeId: CUSTOM_MEAL, customTitle: "Eating out" }),
-    );
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Eating out" }));
 
     expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: null, customTitle: "Eating out" });
   });
@@ -125,10 +242,8 @@ describe("setPlannedMeal", () => {
     expect((await mealOn(WEDNESDAY))?.servings).toBe(MAX_SERVINGS);
   });
 
-  it("drops NUL characters from the custom title and the note instead of crashing", async () => {
-    await setPlannedMeal(
-      formData({ day: dayKey(WEDNESDAY), recipeId: CUSTOM_MEAL, customTitle: "Take\u0000away", notes: "late\u0000" }),
-    );
+  it("drops NUL characters from the dinner and the note instead of crashing", async () => {
+    await setPlannedMeal(formData({ day: dayKey(WEDNESDAY), dinner: "Take\u0000away", notes: "late\u0000" }));
 
     expect(await mealOn(WEDNESDAY)).toMatchObject({ customTitle: "Takeaway", notes: "late" });
   });
@@ -142,10 +257,10 @@ describe("setPlannedMeal", () => {
   });
 
   it.each([
-    ["an empty choice", { recipeId: "" }],
+    ["an empty choice", { recipeId: "", dinner: "" }],
     ["no choice field at all", {}],
-    ["a whitespace-only choice", { recipeId: "   " }],
-    ["the custom sentinel without a title", { recipeId: CUSTOM_MEAL, customTitle: "   " }],
+    ["a whitespace-only dinner", { dinner: "   " }],
+    ["a blank name to add as a recipe", { dinner: " ", newRecipe: "1" }],
   ])("clears the day on %s", async (_label, fields) => {
     await prisma.plannedMeal.create({ data: { date: WEDNESDAY, customTitle: "Leftovers" } });
     await prisma.plannedMeal.create({ data: { date: MONDAY, customTitle: "Soup" } });
@@ -191,6 +306,15 @@ describe("setPlannedMeal", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("adds no recipe when the picked recipe id is unknown", async () => {
+    await expect(
+      setPlannedMeal(formData({ day: dayKey(WEDNESDAY), recipeId: "no-such-recipe", dinner: "Stew", newRecipe: "1" })),
+    ).rejects.toThrow(/`recipeId`/);
+
+    expect(await prisma.recipe.count()).toBe(0);
+    expect(await prisma.plannedMeal.count()).toBe(0);
+  });
+
   it.each([
     ["missing", undefined],
     ["empty", ""],
@@ -199,7 +323,7 @@ describe("setPlannedMeal", () => {
     ["an overflowing date", "2026-02-31"],
     ["in the wrong order", "30-09-2026"],
   ])("throws when the day is %s", async (_label, day) => {
-    const fields: Record<string, string> = { customTitle: "Leftovers" };
+    const fields: Record<string, string> = { dinner: "Leftovers" };
     if (day !== undefined) fields.day = day;
 
     await expect(setPlannedMeal(formData(fields))).rejects.toThrow(/`day`/);
@@ -209,7 +333,7 @@ describe("setPlannedMeal", () => {
   });
 
   it("accepts a day key padded with whitespace", async () => {
-    await setPlannedMeal(formData({ day: ` ${dayKey(WEDNESDAY)} `, customTitle: "Leftovers" }));
+    await setPlannedMeal(formData({ day: ` ${dayKey(WEDNESDAY)} `, dinner: "Leftovers" }));
 
     expect(await mealOn(WEDNESDAY)).not.toBeNull();
   });
