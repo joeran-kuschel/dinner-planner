@@ -234,5 +234,6 @@ the shared button base is a selector list.
 - The tool is available in German and English. Use a gettext-style translation tool; switching the language must not reload the page
 - During development, only run new tests and the tests affected by the changed code, not the entire test suite
 - Do not commit and push without being asked
+- Every code change (fix, new feature, refactoring) goes into its own branch, which is merged back into main once finished. Never commit code changes to main directly
 - Before every push and every merge, run the `test-engineer` agent (`.claude/agents/test-engineer.md`) in its pre-push/pre-merge check: it runs the entire test suite, typecheck and lint, and makes sure everything the push or merge brings in is tested. Push or merge only when it reports "ready"
 - Before every merge, also run the `code-reviewer` agent (`.claude/agents/code-reviewer.md`) on the new and changed code, i.e. everything the merge brings in. Fix its findings or discuss them before merging
