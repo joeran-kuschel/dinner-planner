@@ -44,7 +44,10 @@ export default async function RecipesPage() {
                   <p className="line-clamp-2 text-sm text-muted">{recipe.description}</p>
                 )}
                 <p className="mt-auto text-xs text-muted">
-                  Serves {recipe.servings} · {recipe._count.ingredients} ingredients
+                  Serves {recipe.servings} ·{" "}
+                  {recipe._count.ingredients === 1
+                    ? "1 ingredient"
+                    : `${recipe._count.ingredients} ingredients`}
                   {recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ""}
                   {recipe._count.plannedFor > 0 ? ` · planned ${recipe._count.plannedFor}×` : ""}
                 </p>
