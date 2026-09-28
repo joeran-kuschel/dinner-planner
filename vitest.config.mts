@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+// All test cases live in tests/: unit/ mirrors the source tree, infra/ covers the
+// scripts and manifests, e2e/ holds the Playwright specs (not run by Vitest).
 // Two projects: server code (lib helpers, server actions) runs in Node against
-// a throwaway Postgres schema per test file (see test/setup-server.ts); client components run in jsdom. End-to-end
-// tests live in e2e/ and run with Playwright, not Vitest.
+// a throwaway Postgres schema per test file (see tests/support/setup-server.ts); client
+// components (*.test.tsx) run in jsdom.
 export default defineConfig({
   plugins: [react()],
   resolve: { tsconfigPaths: true },
@@ -18,8 +20,8 @@ export default defineConfig({
         test: {
           name: "server",
           environment: "node",
-          include: ["lib/**/*.test.ts", "app/**/*.test.ts", "prisma/**/*.test.ts", "test/**/*.test.ts"],
-          setupFiles: ["test/setup-server.ts"],
+          include: ["tests/unit/**/*.test.ts", "tests/infra/**/*.test.ts"],
+          setupFiles: ["tests/support/setup-server.ts"],
         },
       },
       {
@@ -27,8 +29,8 @@ export default defineConfig({
         test: {
           name: "dom",
           environment: "jsdom",
-          include: ["components/**/*.test.tsx", "app/**/*.test.tsx"],
-          setupFiles: ["test/setup-dom.ts"],
+          include: ["tests/unit/**/*.test.tsx"],
+          setupFiles: ["tests/support/setup-dom.ts"],
         },
       },
     ],

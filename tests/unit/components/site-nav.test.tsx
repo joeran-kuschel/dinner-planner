@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { expectNoAxeViolations } from "@/test/axe";
-import { SiteNav } from "./site-nav";
+import { expectNoAxeViolations } from "@/tests/support/axe";
+import { SiteNav } from "@/components/site-nav";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));

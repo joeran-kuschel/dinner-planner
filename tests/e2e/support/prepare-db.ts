@@ -1,6 +1,6 @@
 import { config as loadEnv } from "dotenv";
-import { E2E_SCHEMA } from "../playwright.config";
-import { createMigratedSchema } from "../test/migrate";
+import { E2E_SCHEMA } from "../../../playwright.config";
+import { createMigratedSchema } from "../../support/migrate";
 
 // Run by playwright.config.ts before the server starts. Wrapped in a function
 // rather than using top-level await: tsx compiles this to CommonJS, which does

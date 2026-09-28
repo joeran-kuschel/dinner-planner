@@ -6,7 +6,7 @@ loadEnv({ quiet: true });
 const PORT = 3100;
 
 // The end-to-end server gets its own schema in the development database,
-// created fresh from the migrations on every run (e2e/prepare-db.ts), so tests
+// created fresh from the migrations on every run (tests/e2e/support/prepare-db.ts), so tests
 // never see or change the `public` data. Tests share that schema and run one
 // after another; each test creates the data it needs under a unique name.
 export const E2E_SCHEMA = "e2e";
@@ -21,7 +21,8 @@ function e2eDatabaseUrl(): string {
 }
 
 export default defineConfig({
-  testDir: "e2e",
+  testDir: "tests/e2e",
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
@@ -39,7 +40,7 @@ export default defineConfig({
     // Dockerfile). Its build output is separate from `next dev`, which keeps
     // running undisturbed.
     command: [
-      "npx tsx e2e/prepare-db.ts",
+      "npx tsx tests/e2e/support/prepare-db.ts",
       "npx next build",
       "cp -R public .next/standalone/",
       "cp -R .next/static .next/standalone/.next/",

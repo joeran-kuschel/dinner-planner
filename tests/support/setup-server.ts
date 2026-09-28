@@ -28,7 +28,7 @@ clearCachedPrismaClient();
 
 // Server actions call these. revalidatePath needs a running Next.js server, and
 // redirect works by throwing; the mock throws a recognizable error instead, so
-// tests can assert the target with `expectRedirect` from test/next.ts.
+// tests can assert the target with `expectRedirect` from tests/support/next.ts.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("next/navigation", async () => {
   const { RedirectError } = await import("./next");

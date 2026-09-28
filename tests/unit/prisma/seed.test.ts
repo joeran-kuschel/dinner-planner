@@ -6,7 +6,7 @@ import { addDays, dayKey, startOfWeek, today } from "@/lib/week";
 
 // Runs prisma/seed.ts the way `npm run db:seed` and the k8s seed Job do (tsx),
 // against this test file's own schema: the child inherits DATABASE_URL, which
-// test/setup-server.ts has pointed at that schema.
+// tests/support/setup-server.ts has pointed at that schema.
 function seed() {
   const result = spawnSync(path.join(process.cwd(), "node_modules", ".bin", "tsx"), ["prisma/seed.ts"], {
     encoding: "utf8",

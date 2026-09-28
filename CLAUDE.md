@@ -34,26 +34,32 @@ npm run k8s:delete   # tear the namespace down
 
 npm test             # Vitest: lib helpers, server actions, components
 npm run test:e2e     # Playwright: builds and starts its own server on :3100
-npx vitest run lib/week.test.ts -t "Monday"   # one file / one test during development
+npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test during development
 ```
 
 ## Testing
 
-- **Vitest** (`vitest.config.mts`) has two projects. `server` (Node) runs `lib/` and
-  `app/` `*.test.ts` against the local Postgres (`DATABASE_URL`): every test file
-  gets its own schema with the migrations applied (`test/setup-server.ts`,
-  `test/migrate.ts`), emptied before each test and dropped afterwards; `next/cache` and `next/navigation` are mocked, use
-  `expectRedirect` from `test/next.ts` and `formData` from `test/db.ts`. `dom`
+- **Every test case lives in `tests/`**, never next to the code:
+  `tests/unit/` mirrors the source tree (`tests/unit/lib/week.test.ts` tests
+  `lib/week.ts`), `tests/infra/` covers the scripts and manifests, and
+  `tests/e2e/` holds the Playwright specs. Tests import the code under test via
+  `@/…`. Vitest setup and helpers are in `tests/support/`, Playwright helpers
+  in `tests/e2e/support/`.
+- **Vitest** (`vitest.config.mts`) has two projects. `server` (Node) runs the
+  `*.test.ts` files in `tests/unit/` and `tests/infra/` against the local Postgres (`DATABASE_URL`): every test file
+  gets its own schema with the migrations applied (`tests/support/setup-server.ts`,
+  `tests/support/migrate.ts`), emptied before each test and dropped afterwards; `next/cache` and `next/navigation` are mocked, use
+  `expectRedirect` from `tests/support/next.ts` and `formData` from `tests/support/db.ts`. `dom`
   (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
-  actions the component imports and call `expectNoAxeViolations` from `test/axe.ts`.
+  actions the component imports and call `expectNoAxeViolations` from `tests/support/axe.ts`.
 - Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
-- **Playwright** (`playwright.config.ts`, tests in `e2e/`) runs the same
+- **Playwright** (`playwright.config.ts`, specs in `tests/e2e/`) runs the same
   standalone server as the Docker image (`node .next/standalone/server.js`, with
   `public/` and `.next/static` copied in; not `next start`, which Next.js does
   not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
   touches the development data in `public`. Tests share that database: create your own data with
   `unique()` and check pages with `expectAccessible()` (axe incl. contrast) from
-  `e2e/helpers.ts`.
+  `tests/e2e/support/helpers.ts`.
 - A test that documents a known bug is marked `it.fails` / `test.fail` with a
   `// BUG:` comment until the bug is fixed.
 
@@ -78,6 +84,12 @@ lib/
   grocery.ts            grocery aggregation + formatting
   planner.ts            the CUSTOM_MEAL sentinel, shared by client and server
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
+tests/
+  unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
+  infra/                Vitest: k8s manifests, deploy/backup scripts, test setup
+  support/              Vitest setup and helpers (db, axe, next mocks, migrations)
+  e2e/                  Playwright specs
+    support/            Playwright helpers and prepare-db.ts
 prisma/
   schema.prisma         Recipe, Ingredient, PlannedMeal, GroceryEntry
   seed.ts
@@ -162,9 +174,9 @@ change.
   through a registry mirror that cannot see local images. So `deploy.sh` pipes
   each image into the node (`docker save … | docker exec -i <node> ctr -n k8s.io
   images import -`), and the manifests use `imagePullPolicy: Never`.
-  `test/k8s.test.ts` checks both.
+  `tests/infra/k8s.test.ts` checks both.
 - **Every script pins `--context docker-desktop`.** Never let a deploy follow
-  whatever context happens to be current (`test/k8s.test.ts` checks this too).
+  whatever context happens to be current (`tests/infra/k8s.test.ts` checks this too).
 - **The nginx ingress controller is shared** with other apps on this cluster
   (e.g. the time tracking tool). `deploy.sh` only checks that it exists and
   prints the install command if not; it never installs or changes it.

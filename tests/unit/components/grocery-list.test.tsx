@@ -1,8 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { expectNoAxeViolations } from "@/test/axe";
-import { GroceryList, type GroceryListProps } from "./grocery-list";
+import { expectNoAxeViolations } from "@/tests/support/axe";
+import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
 
 const actions = vi.hoisted(() => ({
   toggleGroceryLine: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),

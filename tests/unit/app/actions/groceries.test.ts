@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { groceryKey } from "@/lib/grocery";
 import { addDays, dayKey, parseDayKey, startOfWeek } from "@/lib/week";
-import { formData } from "@/test/db";
-import { addGroceryExtra, removeGroceryExtra, resetGroceryTicks, toggleGroceryLine } from "./groceries";
+import { formData } from "@/tests/support/db";
+import { addGroceryExtra, removeGroceryExtra, resetGroceryTicks, toggleGroceryLine } from "@/app/actions/groceries";
 
 // Fixed Mondays, so the tests never depend on the real clock.
 const WEEK = parseDayKey("2026-09-28")!;

@@ -72,5 +72,5 @@ launchctl print gui/$(id -u)/com.dinnerplaner.db-backup | grep -E "state|last ex
 
 ## Tests
 
-`test/db-backup-scripts.test.ts` runs the scripts against a fake `kubectl` and `launchctl`. It covers complete and
+`tests/infra/db-backup-scripts.test.ts` runs the scripts against a fake `kubectl` and `launchctl`. It covers complete and
 incomplete dumps, an unreachable cluster, retention, the restore confirmation and the launchd job.

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createRecipe, fillIngredients, unique } from "./helpers";
+import { createRecipe, fillIngredients, unique } from "@/tests/e2e/support/helpers";
 
 function ingredientItems(page: Page) {
   return page

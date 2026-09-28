@@ -7,7 +7,7 @@ import {
   planRecipe,
   tabTo,
   unique,
-} from "./helpers";
+} from "@/tests/e2e/support/helpers";
 
 // axe on every page in its filled state (the empty states are covered in
 // navigation.spec.ts), plus keyboard-only use and focus after saving.

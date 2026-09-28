@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { CUSTOM_MEAL, MAX_SERVINGS } from "@/lib/planner";
 import { addDays, dayKey, parseDayKey, startOfWeek, weekDays } from "@/lib/week";
-import { formData } from "@/test/db";
-import { clearPlannedMeal, clearWeek, setPlannedMeal } from "./meals";
+import { formData } from "@/tests/support/db";
+import { clearPlannedMeal, clearWeek, setPlannedMeal } from "@/app/actions/meals";
 
 // A fixed Monday, so the tests never depend on the real clock.
 const MONDAY = parseDayKey("2026-09-28")!;

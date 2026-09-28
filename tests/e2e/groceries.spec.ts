@@ -8,7 +8,7 @@ import {
   planRecipe,
   setServings,
   unique,
-} from "./helpers";
+} from "@/tests/e2e/support/helpers";
 
 // Each test works in a week of its own, so the list holds only its own lines.
 

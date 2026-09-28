@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
-import { dynamic, GET } from "./route";
+import { dynamic, GET } from "@/app/healthz/route";
 
 describe("GET /healthz", () => {
   it("answers 200 while the database is reachable", async () => {

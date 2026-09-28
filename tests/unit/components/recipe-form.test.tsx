@@ -2,8 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState, type RecipeFormValues } from "@/lib/recipe-form";
-import { expectNoAxeViolations } from "@/test/axe";
-import { RecipeForm, type RecipeFormProps } from "./recipe-form";
+import { expectNoAxeViolations } from "@/tests/support/axe";
+import { RecipeForm, type RecipeFormProps } from "@/components/recipe-form";
 
 type Action = RecipeFormProps["action"];
 type Recipe = NonNullable<RecipeFormProps["recipe"]>;

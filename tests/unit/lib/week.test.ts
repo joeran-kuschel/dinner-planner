@@ -11,7 +11,7 @@ import {
   startOfWeek,
   today,
   weekDays,
-} from "./week";
+} from "@/lib/week";
 
 /** A planner day: UTC midnight of the given calendar date. */
 const day = (key: string) => new Date(`${key}T00:00:00.000Z`);

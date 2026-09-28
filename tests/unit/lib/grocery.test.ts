@@ -6,7 +6,7 @@ import {
   groceryKey,
   type IngredientInput,
   type MealInput,
-} from "./grocery";
+} from "@/lib/grocery";
 
 const ing = (name: string, quantity: number | null, unit: string | null = null): IngredientInput => ({
   name,

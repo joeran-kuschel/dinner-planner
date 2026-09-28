@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_RECIPE_FORM_STATE, isWebUrl } from "./recipe-form";
+import { EMPTY_RECIPE_FORM_STATE, isWebUrl } from "@/lib/recipe-form";
 
 describe("EMPTY_RECIPE_FORM_STATE", () => {
   it("starts without an error, without echoed values and at attempt 0", () => {

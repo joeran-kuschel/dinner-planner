@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createRecipe, planRecipe, unique } from "./helpers";
+import { createRecipe, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The recipe detail and edit pages beyond creating and editing (recipes.spec.ts):
 // unknown ids, the upcoming-plan line, the list's plan count and empty sections.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requireDatabaseUrl } from "./database-url";
+import { requireDatabaseUrl } from "@/lib/database-url";
 
 afterEach(() => {
   vi.unstubAllEnvs();

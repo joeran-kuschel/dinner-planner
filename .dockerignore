@@ -8,10 +8,7 @@ generated
 
 # tests never run in the image, and leaving them out keeps `next build`'s type
 # check from tripping over test-only imports that are not copied in
-test
-e2e
-**/*.test.ts
-**/*.test.tsx
+tests
 playwright.config.ts
 vitest.config.mts
 test-results

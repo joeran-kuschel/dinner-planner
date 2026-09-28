@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState } from "@/lib/recipe-form";
 import { addDays, parseDayKey } from "@/lib/week";
-import { formData } from "@/test/db";
-import { expectRedirect, RedirectError } from "@/test/next";
-import { createRecipe, deleteRecipe, updateRecipe } from "./recipes";
+import { formData } from "@/tests/support/db";
+import { expectRedirect, RedirectError } from "@/tests/support/next";
+import { createRecipe, deleteRecipe, updateRecipe } from "@/app/actions/recipes";
 
 const MONDAY = parseDayKey("2026-09-28")!;
 

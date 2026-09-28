@@ -29,13 +29,13 @@ The setup is described in the "Testing" section of `CLAUDE.md`; use its helpers 
   `dom` (jsdom). Both run in `Europe/Berlin`.
 - **React Testing Library** and `@testing-library/user-event` for client components; query by role and label, as a
   user would, which also proves the markup is accessible.
-- **vitest-axe** through `expectNoAxeViolations` (`test/axe.ts`) on every component. axe in jsdom can't check
+- **vitest-axe** through `expectNoAxeViolations` (`tests/support/axe.ts`) on every component. axe in jsdom can't check
   contrast; that happens in Playwright.
-- **Playwright** (`npm run test:e2e`) with `@axe-core/playwright` (`expectAccessible` in `e2e/helpers.ts`) for flows
+- **Playwright** (`npm run test:e2e`) with `@axe-core/playwright` (`expectAccessible` in `tests/e2e/support/helpers.ts`) for flows
   that only work in a real Next.js server: server components, server actions with `redirect` and `revalidatePath`,
   navigation, focus after submits, contrast, and a language switch without reload.
 
-Place unit and component tests next to the code (`*.test.ts`, `*.test.tsx`) and end-to-end tests in `e2e/`. A test
+Place every test case in `tests/`, never next to the code: unit and component tests (`*.test.ts`, `*.test.tsx`) in `tests/unit/` at the path mirroring the source file, script and manifest tests in `tests/infra/`, and end-to-end specs in `tests/e2e/`. Import the code under test via `@/…`. A test
 that documents a known bug is marked `it.fails` / `test.fail` with a `// BUG:` comment; when the bug is fixed, the
 test starts failing as a reminder to turn it into a normal test.
 
@@ -45,7 +45,7 @@ test starts failing as a reminder to turn it into a normal test.
   table-driven cases. Cover boundaries: empty input, week and month edges, days that shift across midnight UTC and
   daylight saving time (pin the time zone and use fake timers), decimal commas, units that need merging.
 - **Server actions in `app/actions/`:** call the exported function with a real `FormData` against the real, isolated
-  Postgres schema that `test/setup-server.ts` creates for each test file (migrations applied, emptied before each
+  Postgres schema that `tests/support/setup-server.ts` creates for each test file (migrations applied, emptied before each
   test), through the `prisma` client from `lib/db.ts`. Don't mock Prisma for this; the queries,
   constraints, `onDelete` rules and transactions are what you are testing. Mock only `next/cache` and
   `next/navigation`, and assert which paths are revalidated and where `redirect` goes (it throws, so expect the

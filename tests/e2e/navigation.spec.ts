@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectAccessible } from "./helpers";
+import { expectAccessible } from "@/tests/e2e/support/helpers";
 
 test.describe("navigation", () => {
   for (const [name, path] of [

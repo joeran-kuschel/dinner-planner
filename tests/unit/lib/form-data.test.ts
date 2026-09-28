@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formData } from "@/test/db";
-import { parsePositiveInt, parseQuantity, rawText, readText } from "./form-data";
+import { formData } from "@/tests/support/db";
+import { parsePositiveInt, parseQuantity, rawText, readText } from "@/lib/form-data";
 
 describe("rawText", () => {
   it("keeps typed text as it is, including surrounding spaces", () => {

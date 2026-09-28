@@ -6,7 +6,7 @@ import {
   planRecipe,
   setServings,
   unique,
-} from "./helpers";
+} from "@/tests/e2e/support/helpers";
 
 // Every test plans in a week of its own, far from "today", so tests neither
 // depend on the clock nor on each other.

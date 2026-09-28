@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CUSTOM_MEAL } from "@/lib/planner";
-import { expectNoAxeViolations } from "@/test/axe";
-import { DayCard, type DayCardMeal, type DayCardProps } from "./day-card";
+import { expectNoAxeViolations } from "@/tests/support/axe";
+import { DayCard, type DayCardMeal, type DayCardProps } from "@/components/day-card";
 
 const actions = vi.hoisted(() => ({
   setPlannedMeal: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
