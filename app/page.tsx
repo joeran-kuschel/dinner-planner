@@ -72,7 +72,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
           <Link href="/recipes/new" className="font-medium text-accent underline">
             Add your first one
           </Link>{" "}
-          and it will show up in every day’s dropdown.
+          and it will be suggested for every day.
         </p>
       )}
 

@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import {
   afterServerAction,
   createRecipe,
-  dayCard,
+  dinnerField,
   expectAccessible,
+  planOnce,
   planRecipe,
   tabTo,
   unique,
@@ -13,20 +14,22 @@ import {
 // navigation.spec.ts), plus keyboard-only use and focus after saving.
 
 test.describe("accessibility", () => {
-  test("the week plan with a recipe, a custom meal and today passes axe", async ({ page }) => {
+  test("the week plan with a recipe, a one-off dinner and today passes axe", async ({ page }) => {
     const name = unique("Chili");
     await createRecipe(page, { name, ingredients: [{ quantity: "400", unit: "g", name: "Beans" }] });
 
     await page.goto("/?week=2027-06-07");
     await planRecipe(page, "Monday", name);
-    await dayCard(page, "Tuesday")
-      .getByLabel("Dinner for Tuesday", { exact: true })
-      .selectOption({ label: "Something else…" });
-    await page.getByPlaceholder("Leftovers, takeaway, eating out…").fill("Leftovers");
-    // Tab leaves the title field, which saves it.
-    await afterServerAction(page, () => page.keyboard.press("Tab"));
+    await planOnce(page, "Tuesday", unique("Leftovers"));
     await expect(page.getByText(/ of 7 planned$/)).toHaveText(/· 2 of 7 planned$/);
     await expectAccessible(page);
+
+    // The suggestions, open with one highlighted.
+    await dinnerField(page, "Wednesday").fill("Chil");
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await expectAccessible(page);
+    await page.keyboard.press("Escape");
 
     // The current week highlights today.
     await page.goto("/");
@@ -168,16 +171,23 @@ test.describe("accessibility", () => {
     await expect(page.getByRole("heading", { name: "In the basket (1)" })).toBeVisible();
   });
 
-  test("the dinner select keeps focus after its auto-save", async ({ page }) => {
+  test("a dinner is planned with the keyboard alone and keeps focus after its auto-save", async ({ page }) => {
     const name = unique("Focus pie");
     await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Pastry" }] });
     await page.goto("/?week=2027-06-28");
 
-    const select = page.getByLabel("Dinner for Monday", { exact: true });
-    await tabTo(page, select);
-    await afterServerAction(page, () => select.selectOption({ label: name }));
+    const field = dinnerField(page, "Monday");
+    await tabTo(page, field);
+    // Key by key, as fast as the browser takes them: a controlled field that
+    // updates a render late drops characters here.
+    await page.keyboard.type(name);
+    await expect(page.getByRole("option", { name, exact: true })).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await afterServerAction(page, () => page.keyboard.press("Enter"));
     await expect(page.getByText(/ of 7 planned$/)).toHaveText(/· 1 of 7 planned$/);
 
-    await expect(page.getByLabel("Dinner for Monday", { exact: true })).toBeFocused();
+    await expect(field).toBeFocused();
+    await expect(field).toHaveValue(name);
+    await expect(page.getByRole("option")).toHaveCount(0);
   });
 });

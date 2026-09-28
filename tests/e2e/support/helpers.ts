@@ -50,9 +50,7 @@ export async function createRecipe(
 
 /** The card (a form) for one weekday in the week view. */
 export function dayCard(page: Page, weekday: string): Locator {
-  return page
-    .locator("form")
-    .filter({ has: page.getByLabel(`Dinner for ${weekday}`, { exact: true }) });
+  return page.locator("form").filter({ has: dinnerField(page, weekday) });
 }
 
 /**
@@ -70,11 +68,30 @@ export async function afterServerAction(page: Page, trigger: () => Promise<unkno
   await expect(page.getByText("Saving…", { exact: true })).toHaveCount(0);
 }
 
+/** The dinner field (a combobox with suggestions) of one weekday. */
+export function dinnerField(page: Page, weekday: string): Locator {
+  return page.getByRole("combobox", { name: `Dinner for ${weekday}`, exact: true });
+}
+
+/** Type into a day's dinner field and pick the suggestion `option`, waiting for the auto-save. */
+export async function pickDinner(page: Page, weekday: string, typed: string, option: string): Promise<void> {
+  const field = dinnerField(page, weekday);
+  await field.fill(typed);
+  await afterServerAction(page, () =>
+    page.getByRole("option", { name: option, exact: true }).click(),
+  );
+}
+
 /** Pick a recipe (by name) for a day and wait for the auto-save. */
 export async function planRecipe(page: Page, weekday: string, recipeName: string): Promise<void> {
-  const select = dayCard(page, weekday).getByLabel(`Dinner for ${weekday}`, { exact: true });
-  await afterServerAction(page, () => select.selectOption({ label: recipeName }));
-  await expect(select.locator("option:checked")).toHaveText(recipeName);
+  await pickDinner(page, weekday, recipeName, recipeName);
+  await expect(dinnerField(page, weekday)).toHaveValue(recipeName);
+}
+
+/** Plan a dinner that is no recipe for one day only, and wait for the auto-save. */
+export async function planOnce(page: Page, weekday: string, title: string): Promise<void> {
+  await pickDinner(page, weekday, title, `Plan “${title}” for this day only`);
+  await expect(dinnerField(page, weekday)).toHaveValue(title);
 }
 
 /** Change the servings of a planned day and wait for the save on blur. */

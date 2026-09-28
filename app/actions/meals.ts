@@ -3,50 +3,70 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, readText } from "@/lib/form-data";
-import { CUSTOM_MEAL, MAX_SERVINGS } from "@/lib/planner";
+import { isSameDinner, MAX_SERVINGS } from "@/lib/planner";
 import { parseDayKey, startOfWeek } from "@/lib/week";
 
 /**
  * Assign, change or clear the dinner for one day.
  *
  * Called from a plain `<form action={...}>` so the week view keeps working
- * without JavaScript; the day is passed as a `YYYY-MM-DD` key.
+ * without JavaScript; the day is passed as a `YYYY-MM-DD` key. The form posts
+ * what the user typed as `dinner`, the recipe they picked from the suggestions
+ * as `recipeId`, and `newRecipe=1` when they chose to add the name as a recipe.
+ * See documentation/backend/planned-meals.md for how these combine.
  */
 export async function setPlannedMeal(formData: FormData) {
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("setPlannedMeal: missing or malformed `day`");
 
-  // The select submits the sentinel when the user is typing their own title;
-  // storing it as a recipe id would dangle against a row that does not exist.
-  const choice = readText(formData, "recipeId");
-  const recipeId = choice === CUSTOM_MEAL ? null : choice || null;
-  const customTitle = readText(formData, "customTitle") || null;
+  const dinner = readText(formData, "dinner");
+  const pickedId = readText(formData, "recipeId");
+  const addAsRecipe = readText(formData, "newRecipe") === "1";
   // The day saves by itself and has nowhere to show an error, so an amount
   // beyond the input's `max` is capped rather than rejected.
   const servings = Math.min(parsePositiveInt(readText(formData, "servings")) ?? 2, MAX_SERVINGS);
   const notes = readText(formData, "notes") || null;
 
-  // An empty choice means "clear this day" rather than "save a blank meal".
-  if (!recipeId && !customTitle) {
-    await prisma.plannedMeal.deleteMany({ where: { date: day } });
-    revalidateMealViews();
-    return;
-  }
+  await prisma.$transaction(async (tx) => {
+    let recipe = pickedId ? await tx.recipe.findUnique({ where: { id: pickedId }, select: { id: true, name: true } }) : null;
+    if (pickedId && !recipe) throw new Error("setPlannedMeal: unknown `recipeId`");
+    // Without JavaScript the picked id stays in the form while the user types
+    // another name, so the id only counts while the text still names it.
+    if (recipe && dinner && !isSameDinner(recipe.name, dinner)) recipe = null;
 
-  const data = {
-    recipeId: recipeId ?? null,
-    customTitle: recipeId ? null : customTitle,
-    servings,
-    notes: notes ?? null,
-  };
+    // A typed name that matches a recipe plans that recipe: no duplicate, no
+    // one-off title shadowing it.
+    recipe ??= dinner
+      ? await tx.recipe.findFirst({
+          where: { name: { equals: likeLiteral(dinner), mode: "insensitive" } },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, name: true },
+        })
+      : null;
 
-  await prisma.plannedMeal.upsert({
-    where: { date: day },
-    update: data,
-    create: { date: day, ...data },
+    if (!recipe && dinner && addAsRecipe) {
+      recipe = await tx.recipe.create({ data: { name: dinner }, select: { id: true, name: true } });
+    }
+
+    // Nothing named at all means "clear this day" rather than "save a blank meal".
+    if (!recipe && !dinner) {
+      await tx.plannedMeal.deleteMany({ where: { date: day } });
+      return;
+    }
+
+    const data = { recipeId: recipe?.id ?? null, customTitle: recipe ? null : dinner, servings, notes };
+    await tx.plannedMeal.upsert({ where: { date: day }, update: data, create: { date: day, ...data } });
   });
 
   revalidateMealViews();
+}
+
+/**
+ * Prisma runs a case-insensitive `equals` as `ILIKE`, where `%` and `_` are
+ * wildcards: "Shak_huka" would plan "Shakshuka". Escaped, they match themselves.
+ */
+function likeLiteral(text: string): string {
+  return text.replace(/[\\%_]/g, "\\$&");
 }
 
 export async function clearPlannedMeal(formData: FormData) {
@@ -72,8 +92,12 @@ export async function clearWeek(formData: FormData) {
   revalidateMealViews();
 }
 
-/** The plan drives the grocery list, so both views have to be refreshed. */
+/**
+ * The plan drives the grocery list, and the recipe pages show where each
+ * recipe is planned (and list a recipe added from a day card).
+ */
 function revalidateMealViews() {
   revalidatePath("/");
   revalidatePath("/groceries");
+  revalidatePath("/recipes", "layout");
 }

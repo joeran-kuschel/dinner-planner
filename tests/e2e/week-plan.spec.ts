@@ -3,6 +3,9 @@ import {
   afterServerAction,
   createRecipe,
   dayCard,
+  dinnerField,
+  pickDinner,
+  planOnce,
   planRecipe,
   setServings,
   unique,
@@ -10,14 +13,9 @@ import {
 
 // Every test plans in a week of its own, far from "today", so tests neither
 // depend on the clock nor on each other.
-const CUSTOM_PLACEHOLDER = "Leftovers, takeaway, eating out…";
 
 function summary(page: Page) {
   return page.getByText(/ of 7 planned$/);
-}
-
-function dinnerSelect(page: Page, weekday: string) {
-  return dayCard(page, weekday).getByLabel(`Dinner for ${weekday}`, { exact: true });
 }
 
 test.describe("week plan", () => {
@@ -31,55 +29,99 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText("4 Jan – 10 Jan 2027 · 1 of 7 planned");
 
     await page.reload();
-    await expect(dinnerSelect(page, "Monday").locator("option:checked")).toHaveText(name);
+    await expect(dinnerField(page, "Monday")).toHaveValue(name);
     await expect(dayCard(page, "Monday").getByLabel("Serves", { exact: true })).toHaveValue("2");
-    await expect(dinnerSelect(page, "Tuesday").locator("option:checked")).toHaveText(
-      "— nothing planned —",
-    );
+    await expect(dinnerField(page, "Tuesday")).toHaveValue("");
     await expect(summary(page)).toHaveText("4 Jan – 10 Jan 2027 · 1 of 7 planned");
   });
 
-  test("plans a custom meal with “Something else…”", async ({ page }) => {
+  test("plans a dinner that is no recipe for one day only", async ({ page }) => {
     const title = unique("Takeaway");
     await page.goto("/?week=2027-01-11");
-    const card = dayCard(page, "Tuesday");
 
-    // Choosing the option only reveals the title field; nothing is saved yet.
-    await dinnerSelect(page, "Tuesday").selectOption({ label: "Something else…" });
-    const titleField = card.getByPlaceholder(CUSTOM_PLACEHOLDER);
-    await expect(titleField).toBeFocused();
+    // Typing only suggests; nothing is saved until a suggestion is picked.
+    await dinnerField(page, "Tuesday").fill(title);
+    await expect(page.getByRole("option", { name: `Add “${title}” as a new recipe`, exact: true })).toBeVisible();
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
 
-    await titleField.fill(title);
-    await afterServerAction(page, () => page.keyboard.press("Tab"));
+    await planOnce(page, "Tuesday", title);
     await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
 
     await page.reload();
-    await expect(dinnerSelect(page, "Tuesday").locator("option:checked")).toHaveText(
-      "Something else…",
-    );
-    await expect(dayCard(page, "Tuesday").getByPlaceholder(CUSTOM_PLACEHOLDER)).toHaveValue(title);
+    await expect(dinnerField(page, "Tuesday")).toHaveValue(title);
+    await page.goto("/recipes");
+    await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
   });
 
-  test("focus stays where the user tabbed to after a custom title is saved", async ({ page }) => {
+  test("adds a name as a new recipe from the day card", async ({ page }) => {
+    const name = unique("Shakshuka");
+    await page.goto("/?week=2027-08-09");
+
+    await pickDinner(page, "Thursday", name, `Add “${name}” as a new recipe`);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+
+    await page.reload();
+    await expect(dinnerField(page, "Thursday")).toHaveValue(name);
+    // It is suggested on other days now, as a recipe.
+    await dinnerField(page, "Friday").fill(name);
+    await expect(page.getByRole("option", { name, exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: `Add “${name}” as a new recipe`, exact: true })).toHaveCount(0);
+
+    await page.goto("/recipes");
+    await page.getByRole("heading", { name, exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+  });
+
+  test("leaving the field with a name that is no recipe saves nothing", async ({ page }) => {
     await page.goto("/?week=2027-03-01");
-    const card = dayCard(page, "Friday");
-    await dinnerSelect(page, "Friday").selectOption({ label: "Something else…" });
-    await card.getByPlaceholder(CUSTOM_PLACEHOLDER).fill(unique("Eating out"));
-    await afterServerAction(page, () => page.keyboard.press("Tab"));
-    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+    const field = dinnerField(page, "Friday");
+    await field.fill(unique("Half-typed"));
+    await page.keyboard.press("Tab");
 
-    await expect(card.getByLabel("Serves", { exact: true })).toBeFocused();
+    await expect(field).toHaveValue("");
+    await page.reload();
+    await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
   });
 
-  test("a saved custom meal does not take focus when the week opens", async ({ page }) => {
-    await page.goto("/?week=2027-03-08");
-    await dinnerSelect(page, "Saturday").selectOption({ label: "Something else…" });
-    await dayCard(page, "Saturday").getByPlaceholder(CUSTOM_PLACEHOLDER).fill(unique("Picnic"));
+  test("leaving the field with a recipe's exact name plans that recipe", async ({ page }) => {
+    const name = unique("Ramen");
+    await createRecipe(page, { name, ingredients: [{ quantity: "2", name: "Noodle nests" }] });
+
+    await page.goto("/?week=2027-08-16");
+    await dinnerField(page, "Monday").fill(name.toUpperCase());
     await afterServerAction(page, () => page.keyboard.press("Tab"));
 
     await page.reload();
-    await expect(dayCard(page, "Saturday").getByPlaceholder(CUSTOM_PLACEHOLDER)).toBeVisible();
+    await expect(dinnerField(page, "Monday")).toHaveValue(name);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+  });
+
+  test("focus stays on the servings after leaving the dinner field switches the recipe", async ({ page }) => {
+    const first = unique("Pho");
+    const second = unique("Bibimbap");
+    await createRecipe(page, { name: first, ingredients: [{ quantity: "1", name: "Rice noodles" }] });
+    await createRecipe(page, { name: second, ingredients: [{ quantity: "1", name: "Rice" }] });
+
+    await page.goto("/?week=2027-08-23");
+    await planRecipe(page, "Wednesday", first);
+    const field = dinnerField(page, "Wednesday");
+    await field.fill(second.toLowerCase());
+    // Tab leaves the field for the servings, and the exact name saves the recipe.
+    await afterServerAction(page, () => page.keyboard.press("Tab"));
+
+    await expect(field).toHaveValue(second);
+    await expect(dayCard(page, "Wednesday").getByLabel("Serves", { exact: true })).toBeFocused();
+    await page.reload();
+    await expect(dinnerField(page, "Wednesday")).toHaveValue(second);
+  });
+
+  test("a saved one-off dinner does not take focus when the week opens", async ({ page }) => {
+    await page.goto("/?week=2027-03-08");
+    const title = unique("Picnic");
+    await planOnce(page, "Saturday", title);
+
+    await page.reload();
+    await expect(dinnerField(page, "Saturday")).toHaveValue(title);
     await expect(page.locator("body")).toBeFocused();
   });
 
@@ -98,7 +140,24 @@ test.describe("week plan", () => {
     const card = dayCard(page, "Wednesday");
     await expect(card.getByLabel("Serves", { exact: true })).toHaveValue("5");
     await expect(card.getByPlaceholder("Note (optional)")).toHaveValue("Make it spicy");
-    await expect(dinnerSelect(page, "Wednesday").locator("option:checked")).toHaveText(name);
+    await expect(dinnerField(page, "Wednesday")).toHaveValue(name);
+  });
+
+  // "Clear day" used to be the card's first submit button, so Enter in a text
+  // field submitted the form through it and wiped the day.
+  test("pressing Enter in the note saves it and keeps the day planned", async ({ page }) => {
+    const name = unique("Gnocchi");
+    await createRecipe(page, { name, ingredients: [{ quantity: "500", unit: "g", name: "Gnocchi" }] });
+
+    await page.goto("/?week=2027-08-02");
+    await planRecipe(page, "Tuesday", name);
+    const note = dayCard(page, "Tuesday").getByPlaceholder("Note (optional)");
+    await note.fill("Brown butter");
+    await afterServerAction(page, () => note.press("Enter"));
+
+    await page.reload();
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+    await expect(dayCard(page, "Tuesday").getByPlaceholder("Note (optional)")).toHaveValue("Brown butter");
   });
 
   test("clears a day", async ({ page }) => {
@@ -112,15 +171,11 @@ test.describe("week plan", () => {
     const card = dayCard(page, "Thursday");
     await afterServerAction(page, () => card.getByRole("button", { name: "Clear day" }).click());
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
-    await expect(dinnerSelect(page, "Thursday").locator("option:checked")).toHaveText(
-      "— nothing planned —",
-    );
+    await expect(dinnerField(page, "Thursday")).toHaveValue("");
     await expect(card.getByLabel("Serves", { exact: true })).toHaveCount(0);
 
     await page.reload();
-    await expect(dinnerSelect(page, "Thursday").locator("option:checked")).toHaveText(
-      "— nothing planned —",
-    );
+    await expect(dinnerField(page, "Thursday")).toHaveValue("");
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
   });
 
@@ -131,21 +186,17 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText(/^1 Feb – 7 Feb 2027 · /);
     await expect(dayCard(page, "Monday")).toContainText("1 Feb");
 
-    await dinnerSelect(page, "Monday").selectOption({ label: "Something else…" });
-    await dayCard(page, "Monday").getByPlaceholder(CUSTOM_PLACEHOLDER).fill(title);
-    await afterServerAction(page, () => page.keyboard.press("Tab"));
+    await planOnce(page, "Monday", title);
 
     await page.getByRole("link", { name: "Next week" }).click();
     await expect(page).toHaveURL("/?week=2027-02-08");
     await expect(summary(page)).toHaveText(/^8 Feb – 14 Feb 2027 · /);
-    await expect(dinnerSelect(page, "Monday").locator("option:checked")).toHaveText(
-      "— nothing planned —",
-    );
+    await expect(dinnerField(page, "Monday")).toHaveValue("");
 
     await page.getByRole("link", { name: "Previous week" }).click();
     await expect(page).toHaveURL("/?week=2027-02-01");
     await expect(summary(page)).toHaveText("1 Feb – 7 Feb 2027 · 1 of 7 planned");
-    await expect(dayCard(page, "Monday").getByPlaceholder(CUSTOM_PLACEHOLDER)).toHaveValue(title);
+    await expect(dinnerField(page, "Monday")).toHaveValue(title);
 
     await page.getByRole("link", { name: "Previous week" }).click();
     await expect(page).toHaveURL("/?week=2027-01-25");
@@ -180,12 +231,12 @@ test.describe("week plan", () => {
     await page.goto("/?week=2027-02-15");
     await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
     for (const weekday of ["Monday", "Wednesday"]) {
-      await expect(dinnerSelect(page, weekday).locator("option:checked")).toHaveText(
-        "— nothing planned —",
-      );
+      await expect(dinnerField(page, weekday)).toHaveValue("");
     }
-    await expect(dinnerSelect(page, "Friday").locator("option:checked")).toHaveText(keep);
-    await expect(dinnerSelect(page, "Monday").getByRole("option", { name, exact: true })).toHaveCount(0);
+    await expect(dinnerField(page, "Friday")).toHaveValue(keep);
+    await dinnerField(page, "Monday").fill(name);
+    await expect(page.getByRole("option", { name: `Add “${name}” as a new recipe`, exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name, exact: true })).toHaveCount(0);
 
     await page.goto("/groceries?week=2027-02-15");
     await expect(page.getByRole("checkbox", { name: "Tick off Beef", exact: true })).toHaveCount(0);

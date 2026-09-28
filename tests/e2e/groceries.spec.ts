@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
-  afterServerAction,
   createRecipe,
-  dayCard,
   fillIngredients,
   groceryRow,
+  planOnce,
   planRecipe,
   setServings,
   unique,
@@ -41,12 +40,8 @@ test.describe("groceries", () => {
     await planRecipe(page, "Monday", risotto);
     await setServings(page, "Monday", 3); // x1.5
     await planRecipe(page, "Tuesday", pilaf); // 2 of 4: x0.5
-    // A custom meal adds nothing to the list.
-    await dayCard(page, "Wednesday")
-      .getByLabel("Dinner for Wednesday", { exact: true })
-      .selectOption({ label: "Something else…" });
-    await page.getByPlaceholder("Leftovers, takeaway, eating out…").fill("Eating out");
-    await afterServerAction(page, () => page.keyboard.press("Tab"));
+    // A one-off dinner adds nothing to the list.
+    await planOnce(page, "Wednesday", unique("Eating out"));
 
     await page.getByRole("link", { name: "Grocery list for this week" }).click();
     await expect(page).toHaveURL("/groceries?week=2027-04-05");

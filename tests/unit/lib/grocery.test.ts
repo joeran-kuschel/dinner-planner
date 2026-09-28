@@ -23,7 +23,7 @@ const meal = (
   recipe: { name: recipeName, servings: recipeServings, ingredients },
 });
 
-/** Custom meal ("Something else…"): no recipe, nothing to buy. */
+/** A one-off dinner planned "for this day only": no recipe, nothing to buy. */
 const customMeal = (servings = 2): MealInput => ({ servings, recipe: null });
 
 describe("groceryKey", () => {
