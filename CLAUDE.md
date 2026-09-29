@@ -79,12 +79,15 @@ with your work rather than deleting it.
 ```
 app/
   page.tsx              week plan (the home page)
-  recipes/              list, new, [id] detail, [id]/edit
+  recipes/              list, new, [id] detail, [id]/edit, [id]/photo/route.ts (serves a photo)
   groceries/            derived shopping list
   actions/              server actions: meals, recipes, groceries, locale
   healthz/route.ts      readiness probe — 503 while Postgres is unreachable
 components/             client components (day-card, recipe-form, grocery-list, site-nav,
-                        language-switcher, i18n-provider)
+                        language-switcher, i18n-provider, confirm-action — the question
+                        before a destructive action); week-nav (previous/this/next week,
+                        shared by the plan and the grocery list) and recipe-photo (the
+                        <img>) are plain components that server pages use too
 lib/
   db.ts                 Prisma client singleton
   database-url.ts       requireDatabaseUrl() — one clear error when it is unset
@@ -94,6 +97,8 @@ lib/
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
   recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
+  recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
+  recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
   i18n/                 languages, locale detection, catalogs — see "Translations" below
 locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
 tests/
@@ -103,7 +108,7 @@ tests/
   e2e/                  Playwright specs
     support/            Playwright helpers and prepare-db.ts
 prisma/
-  schema.prisma         Recipe, Ingredient, PlannedMeal, GroceryEntry
+  schema.prisma         Recipe, RecipePhoto, Ingredient, PlannedMeal, GroceryEntry
   seed.ts
 generated/prisma/       generated client — never edit, never commit
 Dockerfile              two targets: `app` (Next standalone) and `migrator`
@@ -170,6 +175,27 @@ those rows in the same transaction.
 **Recipe edits replace the ingredient set.** Rows have no stable identity in the
 form, so `updateRecipe` does `deleteMany` + `create` and row order is
 authoritative.
+
+**Recipe photos live in the database, and nothing uploaded is served as it came
+in.** A photo is a `RecipePhoto` row (`bytea`), not a file: the app stays stateless
+and every backup covers it. `processPhoto()` (`lib/recipe-photo.ts`) decodes each
+upload with `sharp` and encodes it again as WebP — a 1200 px image and a 480x320
+3:2 thumbnail. That checks the real image type (JPEG, PNG, WebP only), drops EXIF
+such as the GPS position, and means an uploaded SVG or script can never reach a
+visitor. Never store or serve the uploaded bytes. Pages reach a photo only through
+`recipePhotoUrl()` (`/recipes/[id]/photo?size=…&v=<updatedAt>`, cached for good
+because the version is in the address), and queries must not select `full` or
+`thumb` except to serve the image, so listing recipes never reads image bytes.
+A photo travels in the recipe form's request, so three limits must stay in order:
+`MAX_PHOTO_BYTES` (5 MB) < `serverActions.bodySizeLimit` (6 MB, `next.config.ts`)
+<= `proxy-body-size` (8 MB, on this app's Ingress only — nginx's default of 1 MB
+answers 413, and the controller is shared and never changed);
+`tests/infra/k8s.test.ts` checks it. `RecipeForm` submits through a transition so
+React 19's form reset does not empty the file field, which a browser cannot fill in
+again; without that, a refused form loses the photo and the retry saves the recipe
+without one. Keep that when touching the form. `sharp` is a runtime dependency (its
+native binary ships in the Alpine app image). Details:
+`documentation/backend/recipe-photos.md`.
 
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all
@@ -238,7 +264,9 @@ change.
 - **The database volume lives inside the kind node.** Resetting or updating
   Docker Desktop's Kubernetes deletes it, and so does `npm run k8s:delete`,
   which removes the whole namespace. A launchd job (`npm run k8s:backup:install`)
-  dumps it hourly to `~/DinnerPlannerBackups`; run `npm run k8s:backup` before
+  dumps it hourly to `~/DinnerPlannerBackups`, keeping every dump of the last 24
+  hours and then one a day for 30 days (photos do not compress, so keeping every
+  hourly dump would grow with every recipe); run `npm run k8s:backup` before
   anything risky. Details and restore: `documentation/backend/database-backups.md`.
 - The two images are separate on purpose: the app image runs Next's standalone
   output and carries no Prisma CLI, schema or `tsx`; the migrator image has
