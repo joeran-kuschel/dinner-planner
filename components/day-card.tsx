@@ -13,6 +13,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearPlannedMeal, setPlannedMeal } from "@/app/actions/meals";
 import { isSameDinner, MAX_SERVINGS, suggestsRecipe } from "@/lib/planner";
@@ -96,7 +97,9 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
         }}
       />
 
-      {choice.dinner !== "" && <PlannedDetails day={day} meal={meal} pending={pending} onSave={save} />}
+      {choice.dinner !== "" && (
+        <PlannedDetails day={day} meal={meal} recipeId={choice.recipeId} pending={pending} onSave={save} />
+      )}
     </form>
   );
 }
@@ -402,11 +405,14 @@ function SuggestionList({
 function PlannedDetails({
   day,
   meal,
+  recipeId,
   pending,
   onSave,
 }: {
   day: Day;
   meal: DayCardMeal | null;
+  /** The recipe the dinner field shows; empty for a one-off dinner. */
+  recipeId: string;
   pending: boolean;
   onSave: () => void;
 }) {
@@ -445,14 +451,25 @@ function PlannedDetails({
         onBlur={onSave}
       />
 
-      <button
-        type="submit"
-        formAction={clearPlannedMeal}
-        data-intent="clear"
-        className="btn-ghost self-start px-0 text-xs hover:bg-transparent"
-      >
-        {t(i18n)`Clear day`}
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="submit"
+          formAction={clearPlannedMeal}
+          data-intent="clear"
+          className="btn-ghost px-0 text-xs hover:bg-transparent"
+        >
+          {t(i18n)`Clear day`}
+        </button>
+        {recipeId && (
+          <Link
+            href={`/recipes/${recipeId}`}
+            className="text-xs font-medium text-accent underline"
+            aria-label={t(i18n)`View recipe for ${weekday}`}
+          >
+            {t(i18n)`View recipe`}
+          </Link>
+        )}
+      </div>
     </>
   );
 }

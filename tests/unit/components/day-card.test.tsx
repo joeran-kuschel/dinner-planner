@@ -111,6 +111,47 @@ describe("DayCard", () => {
     });
   });
 
+  describe("recipe link", () => {
+    it("links a planned recipe to its page, named after the weekday", () => {
+      renderCard({ meal: PLANNED });
+      const link = screen.getByRole("link", { name: "View recipe for Monday" });
+      expect(link).toHaveAttribute("href", "/recipes/r-risotto");
+      expect(link).toHaveTextContent("View recipe");
+    });
+
+    it("has no link on an empty day or for a one-off dinner", () => {
+      const { unmount } = renderCard();
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      unmount();
+
+      renderCard({ meal: ONE_OFF });
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("follows the recipe picked in the field", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await user.click(dinnerField());
+      await user.click(screen.getByRole("option", { name: "Chickpea curry" }));
+
+      expect(screen.getByRole("link", { name: "View recipe for Monday" })).toHaveAttribute("href", "/recipes/r-curry");
+    });
+
+    it("has no link after picking a one-off dinner", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await user.click(dinnerField());
+      await user.clear(dinnerField());
+      await user.type(dinnerField(), "Leftovers");
+      await user.click(screen.getByRole("option", { name: "Plan “Leftovers” for this day only" }));
+
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("has no accessibility violations", async () => {
+      const { container } = renderCard({ meal: PLANNED });
+      await expectNoAxeViolations(container);
+    });
+  });
+
   describe("suggestions", () => {
     it("shows no suggestions until the user types or opens the field", () => {
       renderCard();
@@ -773,6 +814,12 @@ describe("DayCard", () => {
       expect(screen.getByLabelText("Personen")).toHaveValue(3);
       expect(screen.getByRole("textbox", { name: "Notiz für Montag" })).toHaveAttribute("placeholder", "Notiz (optional)");
       expect(screen.getByRole("button", { name: "Tag leeren" })).toBeInTheDocument();
+    });
+
+    it("names the recipe link after the weekday, starting with its visible text", () => {
+      renderGerman({ meal: PLANNED });
+      const link = screen.getByRole("link", { name: "Rezept ansehen für Montag" });
+      expect(link).toHaveTextContent("Rezept ansehen");
     });
 
     it("offers to plan a new name once or as a recipe, in German", async () => {

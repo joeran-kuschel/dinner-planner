@@ -50,6 +50,14 @@ Enter in the servings or note field saves the day, like leaving the field does.
 Once a dinner is planned, the card shows **Serves** (1–99) and **Note**. Both save when you leave the field or press
 Enter. The servings scale the recipe's ingredients on the grocery list.
 
+## Opening the recipe
+
+A day planned with a recipe has a **View recipe** link at the bottom of its card, next to **Clear day**. It opens the
+recipe's page (ingredients and method), so the recipe is one click away while cooking. The link follows the dinner field:
+it changes when another recipe is picked and is not shown for a one-off dinner, which has no recipe. For screen
+readers the link is named after the day ("View recipe for Monday"), so the seven links can be told apart; the spoken
+name starts with the visible text (WCAG 2.5.3).
+
 ## When a save fails
 
 If a save does not go through, for example because the picked recipe was just deleted in another tab, the card says

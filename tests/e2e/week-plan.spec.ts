@@ -179,6 +179,24 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
   });
 
+  test("opens the planned recipe from its day card", async ({ page }) => {
+    const name = unique("Ramen");
+    await createRecipe(page, { name, ingredients: [{ quantity: "2", name: "Noodle nests" }] });
+
+    await page.goto("/?week=2027-03-01");
+    await planRecipe(page, "Friday", name);
+    await dayCard(page, "Friday").getByRole("link", { name: "View recipe for Friday" }).click();
+
+    await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+  });
+
+  test("has no recipe link on a one-off dinner", async ({ page }) => {
+    await page.goto("/?week=2027-03-08");
+    await planOnce(page, "Friday", unique("Takeaway"));
+
+    await expect(dayCard(page, "Friday").getByRole("link")).toHaveCount(0);
+  });
+
   test("moves between weeks with the week query parameter", async ({ page }) => {
     const title = unique("Pizza night");
     // Any day of the week opens the week from its Monday.
