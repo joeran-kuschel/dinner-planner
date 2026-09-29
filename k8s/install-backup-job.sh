@@ -3,7 +3,7 @@
 # Usage: k8s/install-backup-job.sh [--uninstall]
 set -euo pipefail
 source "$(dirname "$0")/db-common.sh"
-LABEL="com.dinnerplaner.db-backup"
+LABEL="com.dinnerplanner.db-backup"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/backup-db.sh"
 

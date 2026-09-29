@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: dinner-planer
+  name: dinner-planner
 spec:
   selector:
-    app: dinner-planer
+    app: dinner-planner
   ports:
     - name: http
       port: 80
@@ -13,28 +13,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dinner-planer
+  name: dinner-planner
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dinner-planer
+      app: dinner-planner
   template:
     metadata:
       labels:
-        app: dinner-planer
+        app: dinner-planner
     spec:
       initContainers:
         # Runs on every rollout. `migrate deploy` only applies migrations that
         # are not recorded yet, so repeating it is a no-op, and the app never
         # starts against a schema it does not understand.
         - name: migrate
-          image: dinner-planer-migrator:dev
+          image: dinner-planner-migrator:dev
           imagePullPolicy: Never
           command: ["npx", "prisma", "migrate", "deploy"]
           envFrom:
             - secretRef:
-                name: dinner-planer-db
+                name: dinner-planner-db
           resources:
             requests:
               cpu: 50m
@@ -43,7 +43,7 @@ spec:
               memory: 512Mi
       containers:
         - name: app
-          image: dinner-planer:dev
+          image: dinner-planner:dev
           # The image is imported into the node by k8s/deploy.sh; there is no
           # registry to pull from, and Docker Desktop's pull mirror cannot see it.
           imagePullPolicy: Never
@@ -52,7 +52,7 @@ spec:
               containerPort: 3000
           envFrom:
             - secretRef:
-                name: dinner-planer-db
+                name: dinner-planner-db
           readinessProbe:
             httpGet:
               path: /healthz

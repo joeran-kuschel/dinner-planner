@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: dinner-planer
+namespace: dinner-planner
 
 # seed-job.yaml is intentionally left out: it is a one-off, applied by
 # `npm run k8s:seed` rather than on every deploy.
@@ -17,4 +17,4 @@ resources:
 labels:
   - includeSelectors: false
     pairs:
-      app.kubernetes.io/part-of: dinner-planer
+      app.kubernetes.io/part-of: dinner-planner

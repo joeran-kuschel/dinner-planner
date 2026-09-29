@@ -7,7 +7,7 @@ afterEach(() => {
 
 describe("requireDatabaseUrl", () => {
   it.each([
-    "postgresql://dinner:secret@localhost:5432/dinner_planer",
+    "postgresql://dinner:secret@localhost:5432/dinner_planner",
     "postgres://user@db.example.com/app?sslmode=require",
     "postgresql://user:p%40ss@[::1]:5432/db",
   ])("returns DATABASE_URL %j unchanged", (url) => {

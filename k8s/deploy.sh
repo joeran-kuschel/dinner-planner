@@ -6,10 +6,10 @@
 set -euo pipefail
 
 CLUSTER=docker-desktop
-NAMESPACE=dinner-planer
+NAMESPACE=dinner-planner
 HOST=dinner.local
-APP_REPO=dinner-planer
-MIGRATOR_REPO=dinner-planer-migrator
+APP_REPO=dinner-planner
+MIGRATOR_REPO=dinner-planner-migrator
 
 # A fresh tag per build: with an unchanged pod spec Kubernetes sees nothing to
 # roll out, so the old pod would keep running the old image.
@@ -64,18 +64,18 @@ step "Applying manifests"
   | "${KUBECTL[@]}" apply -f -
 
 step "Waiting for Postgres"
-"${KUBECTL[@]}" -n "$NAMESPACE" rollout status statefulset/dinner-planer-db --timeout=300s
+"${KUBECTL[@]}" -n "$NAMESPACE" rollout status statefulset/dinner-planner-db --timeout=300s
 
 step "Waiting for the app"
 # The pod runs `prisma migrate deploy` in an init container before it starts,
 # so this also covers the migration.
-if ! "${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/dinner-planer --timeout=300s; then
+if ! "${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/dinner-planner --timeout=300s; then
   echo
   echo "Rollout failed. Recent events:"
   "${KUBECTL[@]}" -n "$NAMESPACE" get events --sort-by=.lastTimestamp | tail -15
   echo
   echo "Migration log:"
-  "${KUBECTL[@]}" -n "$NAMESPACE" logs deployment/dinner-planer -c migrate --tail=40 || true
+  "${KUBECTL[@]}" -n "$NAMESPACE" logs deployment/dinner-planner -c migrate --tail=40 || true
   exit 1
 fi
 

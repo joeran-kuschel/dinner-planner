@@ -3,21 +3,21 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: dinner-planer-db
+  name: dinner-planner-db
 stringData:
   POSTGRES_USER: dinner
   POSTGRES_PASSWORD: dinner
-  POSTGRES_DB: dinner_planer
+  POSTGRES_DB: dinner_planner
   # Read by the app and the migration job. The host is the Service below.
-  DATABASE_URL: postgresql://dinner:dinner@dinner-planer-db:5432/dinner_planer
+  DATABASE_URL: postgresql://dinner:dinner@dinner-planner-db:5432/dinner_planner
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dinner-planer-db
+  name: dinner-planner-db
 spec:
   selector:
-    app: dinner-planer-db
+    app: dinner-planner-db
   ports:
     - name: postgres
       port: 5432
@@ -26,17 +26,17 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: dinner-planer-db
+  name: dinner-planner-db
 spec:
-  serviceName: dinner-planer-db
+  serviceName: dinner-planner-db
   replicas: 1
   selector:
     matchLabels:
-      app: dinner-planer-db
+      app: dinner-planner-db
   template:
     metadata:
       labels:
-        app: dinner-planer-db
+        app: dinner-planner-db
     spec:
       containers:
         - name: postgres
@@ -46,7 +46,7 @@ spec:
               containerPort: 5432
           envFrom:
             - secretRef:
-                name: dinner-planer-db
+                name: dinner-planner-db
           env:
             # postgres:17 refuses to initialise into a non-empty directory, and
             # a PVC mount always contains lost+found, so data goes in a subdir.
@@ -57,12 +57,12 @@ spec:
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planer"]
+              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planner"]
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planer"]
+              command: ["pg_isready", "-U", "dinner", "-d", "dinner_planner"]
             initialDelaySeconds: 30
             periodSeconds: 15
           resources:

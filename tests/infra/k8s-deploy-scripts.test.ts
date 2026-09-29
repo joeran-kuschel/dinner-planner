@@ -21,7 +21,7 @@ case "$args" in
   *"kustomize k8s"*) cat k8s/app.yaml ;;
   *"apply -f -"*) cat > "$FAKE_DIR/applied.yaml" ;;
   *"rollout status deployment/"*) exit "\${FAIL_ROLLOUT:-0}" ;;
-  *"get deployment dinner-planer -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planer-migrator:20260928101500}" ;;
+  *"get deployment dinner-planner -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planner-migrator:20260928101500}" ;;
   *"wait --for=condition=complete"*) exit "\${FAIL_WAIT:-0}" ;;
   *"logs "*) echo "LOGS: $args" ;;
 esac
@@ -77,30 +77,30 @@ describe("deploy.sh", () => {
     expect(result.status).toBe(0);
     const builds = log("docker.log").match(/^build --target (\w+) --tag (\S+) \.$/gm) ?? [];
     expect(builds).toHaveLength(2);
-    const [, appTag] = /--target app --tag dinner-planer:(\d{14}) /.exec(log("docker.log"))!;
-    expect(log("docker.log")).toContain(`build --target migrator --tag dinner-planer-migrator:${appTag} .`);
+    const [, appTag] = /--target app --tag dinner-planner:(\d{14}) /.exec(log("docker.log"))!;
+    expect(log("docker.log")).toContain(`build --target migrator --tag dinner-planner-migrator:${appTag} .`);
     expect(log("docker.log")).toContain("exec -i desktop-control-plane ctr --namespace k8s.io images import -");
-    expect(log("imported")).toBe(`IMAGE dinner-planer:${appTag}\nIMAGE dinner-planer-migrator:${appTag}\n`);
+    expect(log("imported")).toBe(`IMAGE dinner-planner:${appTag}\nIMAGE dinner-planner-migrator:${appTag}\n`);
   });
 
   it("applies the manifests with the new tag on both the app and the migrator", () => {
     run("deploy.sh");
 
-    const tag = /dinner-planer:(\d{14})/.exec(log("docker.log"))![1];
+    const tag = /dinner-planner:(\d{14})/.exec(log("docker.log"))![1];
     const applied = log("applied.yaml");
-    expect(applied).toContain(`image: dinner-planer-migrator:${tag}`);
-    expect(applied).toContain(`image: dinner-planer:${tag}`);
+    expect(applied).toContain(`image: dinner-planner-migrator:${tag}`);
+    expect(applied).toContain(`image: dinner-planner:${tag}`);
     // The migrator's repository name contains the app's; the order of the
     // substitutions keeps it from being rewritten twice.
     expect(applied).not.toContain(":dev");
-    expect(applied).not.toMatch(/dinner-planer:\d{14}-migrator/);
+    expect(applied).not.toMatch(/dinner-planner:\d{14}-migrator/);
   });
 
   it("waits for Postgres and the app, then reports the address once the ingress answers", () => {
     const result = run("deploy.sh");
 
-    expect(log("kubectl.log")).toContain("-n dinner-planer rollout status statefulset/dinner-planer-db");
-    expect(log("kubectl.log")).toContain("-n dinner-planer rollout status deployment/dinner-planer");
+    expect(log("kubectl.log")).toContain("-n dinner-planner rollout status statefulset/dinner-planner-db");
+    expect(log("kubectl.log")).toContain("-n dinner-planner rollout status deployment/dinner-planner");
     expect(log("curl.log")).toContain("-H Host: dinner.local http://127.0.0.1/");
     expect(result.stdout).toContain("Open http://dinner.local");
   });
@@ -127,8 +127,8 @@ describe("deploy.sh", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain("Rollout failed");
-    expect(log("kubectl.log")).toContain("-n dinner-planer get events --sort-by=.lastTimestamp");
-    expect(log("kubectl.log")).toContain("-n dinner-planer logs deployment/dinner-planer -c migrate --tail=40");
+    expect(log("kubectl.log")).toContain("-n dinner-planner get events --sort-by=.lastTimestamp");
+    expect(log("kubectl.log")).toContain("-n dinner-planner logs deployment/dinner-planner -c migrate --tail=40");
     expect(log("curl.log")).toBe("");
   });
 
@@ -148,12 +148,12 @@ describe("seed.sh", () => {
     expect(result.status).toBe(0);
     const calls = log("kubectl.log");
     expect(calls).toContain(
-      "--context docker-desktop -n dinner-planer get deployment dinner-planer -o jsonpath={.spec.template.spec.initContainers[?(@.name==\"migrate\")].image}",
+      "--context docker-desktop -n dinner-planner get deployment dinner-planner -o jsonpath={.spec.template.spec.initContainers[?(@.name==\"migrate\")].image}",
     );
-    expect(calls.indexOf("delete job dinner-planer-seed --ignore-not-found")).toBeLessThan(calls.indexOf("apply -f -"));
-    expect(log("applied.yaml")).toContain("image: dinner-planer-migrator:20260928101500");
+    expect(calls.indexOf("delete job dinner-planner-seed --ignore-not-found")).toBeLessThan(calls.indexOf("apply -f -"));
+    expect(log("applied.yaml")).toContain("image: dinner-planner-migrator:20260928101500");
     expect(log("applied.yaml")).not.toContain(":dev");
-    expect(result.stdout).toContain("LOGS: --context docker-desktop -n dinner-planer logs job/dinner-planer-seed");
+    expect(result.stdout).toContain("LOGS: --context docker-desktop -n dinner-planner logs job/dinner-planner-seed");
   });
 
   it("stops without touching the Job when the app is not deployed", () => {
@@ -170,6 +170,6 @@ describe("seed.sh", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain("Seeding failed");
-    expect(log("kubectl.log")).toContain("logs job/dinner-planer-seed --tail=30");
+    expect(log("kubectl.log")).toContain("logs job/dinner-planner-seed --tail=30");
   });
 });
