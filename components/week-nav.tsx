@@ -16,7 +16,7 @@ export type WeekNavProps = {
 export function WeekNav({ basePath, weekStart, i18n, thisWeekLabel }: WeekNavProps) {
   const weekHref = (offset: number) => `${basePath}?week=${dayKey(addDays(weekStart, offset))}`;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Link href={weekHref(-7)} className="btn-secondary" aria-label={t(i18n)`Previous week`}>
         ←
       </Link>
