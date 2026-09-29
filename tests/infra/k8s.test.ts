@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseAllDocuments } from "yaml";
+import { MAX_PHOTO_BYTES } from "@/lib/recipe-photo-shared";
 
 const K8S = path.join(process.cwd(), "k8s");
 const CLUSTER = "docker-desktop";
@@ -111,5 +112,33 @@ describe("Kubernetes setup for Docker Desktop", () => {
     const files = [...fs.readdirSync(K8S).map((file) => `k8s/${file}`), "package.json"];
 
     for (const file of files) expect(read(file), file).not.toMatch(/minikube/i);
+  });
+});
+
+describe("upload limits for recipe photos", () => {
+  const MEGABYTE = 1024 * 1024;
+
+  /** "8m" or "6mb" as bytes. */
+  const megabytes = (size: string) => Number(/^(\d+)m/i.exec(size)![1]) * MEGABYTE;
+
+  const ingressLimit = () => {
+    const [ingress] = resources("ingress.yaml").filter((r) => r?.kind === "Ingress");
+    return megabytes(ingress.metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"]);
+  };
+  const serverActionLimit = () => megabytes(/bodySizeLimit:\s*"([^"]+)"/.exec(read("next.config.ts"))![1]);
+
+  it("lets a photo through Next's server-action limit, which is above the photo limit", () => {
+    expect(serverActionLimit()).toBeGreaterThan(MAX_PHOTO_BYTES);
+  });
+
+  it("lets the whole request through the ingress: nginx's default of 1 MB would answer with 413", () => {
+    expect(ingressLimit()).toBeGreaterThan(MAX_PHOTO_BYTES);
+    expect(ingressLimit()).toBeGreaterThanOrEqual(serverActionLimit());
+  });
+
+  it("sets the limit on this app's Ingress only, never on the shared controller", () => {
+    const controllerFiles = fs.readdirSync(K8S).filter((file) => /ingress-nginx|controller/i.test(file));
+    expect(controllerFiles).toEqual([]);
+    expect(read("k8s/deploy.sh")).not.toMatch(/ingress-nginx.*(apply|patch|annotate)/);
   });
 });

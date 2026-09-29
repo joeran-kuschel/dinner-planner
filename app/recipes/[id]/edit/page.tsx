@@ -12,7 +12,11 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
 
   const recipe = await prisma.recipe.findUnique({
     where: { id },
-    include: { ingredients: { orderBy: { position: "asc" } } },
+    include: {
+      ingredients: { orderBy: { position: "asc" } },
+      // Not the image bytes: the form shows the photo through its address.
+      photo: { select: { alt: true, updatedAt: true } },
+    },
   });
 
   if (!recipe) notFound();
@@ -35,6 +39,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
           prepMinutes: recipe.prepMinutes,
           sourceUrl: recipe.sourceUrl,
           instructions: recipe.instructions,
+          photo: recipe.photo && { alt: recipe.photo.alt, version: recipe.photo.updatedAt.getTime() },
           ingredients: recipe.ingredients.map(({ name, quantity, unit }) => ({
             name,
             quantity,

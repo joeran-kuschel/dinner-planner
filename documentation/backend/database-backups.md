@@ -12,7 +12,9 @@ The development database from `npm run db:up` is not backed up; it only holds te
   gzip-compressed dump to the backup folder.
 - A dump is only kept if it is complete. `pg_dump` ends every full dump with `PostgreSQL database dump complete`; a dump
   without that line is discarded and the previous backups stay untouched.
-- The newest 168 dumps are kept (one week of hourly backups). Older ones are deleted.
+- Older dumps are thinned out: every dump of the last 24 hours is kept, then only the newest dump of each day for 30 days
+  (about 54 dumps at most). Anything older is deleted. Recipe photos live in the database and do not compress, so keeping
+  a week of hourly dumps would grow with every recipe added; see [Recipe photos](recipe-photos.md).
 - A launchd job runs the backup every hour and right after the Mac wakes up. It only succeeds while Docker Desktop and the
   cluster are running; failed runs are logged and retried at the next interval.
 - The credentials never leave the cluster: the commands run inside the Postgres pod, which gets them from the
@@ -50,7 +52,8 @@ All scripts read these environment variables (shared defaults in `k8s/db-common.
 | Variable | Default | Meaning |
 |---|---|---|
 | `BACKUP_DIR` | `~/DinnerPlannerBackups` | Folder for dumps and `backup.log` |
-| `BACKUP_KEEP` | `168` | Number of dumps to keep |
+| `BACKUP_KEEP_HOURLY_HOURS` | `24` | Keep every dump of this many hours |
+| `BACKUP_KEEP_DAILY_DAYS` | `30` | Then keep the newest dump of each day for this many days |
 | `KUBE_CONTEXT` | `docker-desktop` | kubectl context of the cluster |
 | `NAMESPACE` | `dinner-planner` | Namespace of the Postgres StatefulSet |
 
@@ -73,4 +76,5 @@ launchctl print gui/$(id -u)/com.dinnerplanner.db-backup | grep -E "state|last e
 ## Tests
 
 `tests/infra/db-backup-scripts.test.ts` runs the scripts against a fake `kubectl` and `launchctl`. It covers complete and
-incomplete dumps, an unreachable cluster, retention, the restore confirmation and the launchd job.
+incomplete dumps, an unreachable cluster, the retention (the last day in full, one dump per older day, nothing older, and
+the two settings), the restore confirmation and the launchd job.

@@ -5,12 +5,13 @@ Feature documentation, split into the user interface and the backend.
 ## UI
 
 - [Week plan](ui/week-plan.md): the day cards, the dinner field with its suggestions, and keyboard use
-- [Recipes](ui/recipes.md): the recipe list and pages, the form, and deleting a recipe
+- [Recipes](ui/recipes.md): the recipe list and pages, the form with its photo, and deleting a recipe
 - [Grocery list](ui/groceries.md): the weekly shopping list, moving between weeks, ticking off and extras
 - [Language](ui/language.md): switching between English and German, which language you get, dates and numbers
 
 ## Backend
 
+- [Recipe photos](backend/recipe-photos.md): where photos are kept and why, what is stored, serving and caching, upload limits, backup size
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
 

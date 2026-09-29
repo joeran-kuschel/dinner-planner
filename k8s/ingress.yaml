@@ -5,6 +5,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dinner-planner
+  annotations:
+    # nginx allows 1 MB per request by default, which would answer a recipe photo
+    # with 413 before it reaches the app. Set on this Ingress only: the controller
+    # is shared with other apps and must not be changed. Above the app's own
+    # 5 MB photo limit and the 6 MB server-action limit in next.config.ts.
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m
 spec:
   ingressClassName: nginx
   rules:

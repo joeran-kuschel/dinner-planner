@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteRecipe } from "@/app/actions/recipes";
 import { ConfirmAction } from "@/components/confirm-action";
+import { RecipePhoto } from "@/components/recipe-photo";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import { formatQuantity } from "@/lib/grocery";
@@ -18,6 +19,8 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
     where: { id },
     include: {
       ingredients: { orderBy: { position: "asc" } },
+      // Not the image bytes: the page shows the photo through its address.
+      photo: { select: { alt: true, updatedAt: true, fullWidth: true, fullHeight: true } },
       // Only upcoming appearances are worth showing; past ones are history.
       plannedFor: { where: { date: { gte: startOfWeek(today()) } }, orderBy: { date: "asc" } },
     },
@@ -82,6 +85,18 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
         <p className="text-sm text-muted">
           {t(i18n)`Planned for ${plannedDays}.`}
         </p>
+      )}
+
+      {recipe.photo && (
+        <RecipePhoto
+          recipeId={recipe.id}
+          version={recipe.photo.updatedAt.getTime()}
+          alt={recipe.photo.alt}
+          size="full"
+          width={recipe.photo.fullWidth}
+          height={recipe.photo.fullHeight}
+          className="h-auto max-h-[28rem] w-full rounded-xl border border-border object-cover"
+        />
       )}
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,18rem)_1fr]">

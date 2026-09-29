@@ -1,6 +1,8 @@
 import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
+import { RecipePhoto } from "@/components/recipe-photo";
 import { prisma } from "@/lib/db";
+import { PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared";
 import { recipeFacts } from "@/lib/recipe-facts";
 import { getServerI18n } from "@/lib/i18n/server";
 
@@ -17,7 +19,11 @@ export default async function RecipesPage() {
   const { i18n } = await getServerI18n();
   const recipes = await prisma.recipe.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { ingredients: true, plannedFor: true } } },
+    include: {
+      _count: { select: { ingredients: true, plannedFor: true } },
+      // Not the image bytes: the card shows the thumbnail through its address.
+      photo: { select: { alt: true, updatedAt: true } },
+    },
   });
   const recipeCount = recipes.length;
 
@@ -45,20 +51,34 @@ export default async function RecipesPage() {
             <li key={recipe.id}>
               <Link
                 href={`/recipes/${recipe.id}`}
-                className="card flex h-full flex-col gap-2 p-4 transition-colors hover:bg-surface-muted"
+                className="card flex h-full flex-col overflow-hidden transition-colors hover:bg-surface-muted"
               >
-                <h2 className="font-medium">{recipe.name}</h2>
-                {recipe.description && (
-                  <p className="line-clamp-2 text-sm text-muted">{recipe.description}</p>
+                {recipe.photo && (
+                  <RecipePhoto
+                    recipeId={recipe.id}
+                    version={recipe.photo.updatedAt.getTime()}
+                    alt={recipe.photo.alt}
+                    size="thumb"
+                    width={PHOTO_THUMB_WIDTH}
+                    height={PHOTO_THUMB_HEIGHT}
+                    className="aspect-[3/2] w-full border-b border-border object-cover"
+                    lazy
+                  />
                 )}
-                <p className="mt-auto text-xs text-muted">
-                  {recipeFacts(i18n, {
-                    servings: recipe.servings,
-                    prepMinutes: recipe.prepMinutes,
-                    ingredients: recipe._count.ingredients,
-                    plannedFor: recipe._count.plannedFor,
-                  }).join(" · ")}
-                </p>
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <h2 className="font-medium">{recipe.name}</h2>
+                  {recipe.description && (
+                    <p className="line-clamp-2 text-sm text-muted">{recipe.description}</p>
+                  )}
+                  <p className="mt-auto text-xs text-muted">
+                    {recipeFacts(i18n, {
+                      servings: recipe.servings,
+                      prepMinutes: recipe.prepMinutes,
+                      ingredients: recipe._count.ingredients,
+                      plannedFor: recipe._count.plannedFor,
+                    }).join(" · ")}
+                  </p>
+                </div>
               </Link>
             </li>
           ))}

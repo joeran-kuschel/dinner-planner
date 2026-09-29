@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, parseQuantity, rawText } from "@/lib/form-data";
 import { MAX_SERVINGS } from "@/lib/planner";
+import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
+import { MAX_PHOTO_ALT_LENGTH } from "@/lib/recipe-photo-shared";
 import {
   isWebUrl,
   MAX_PREP_MINUTES,
@@ -31,6 +33,7 @@ function readValues(formData: FormData): RecipeFormValues {
     prepMinutes: rawText(formData.get("prepMinutes")),
     sourceUrl: rawText(formData.get("sourceUrl")),
     instructions: rawText(formData.get("instructions")),
+    photoAlt: rawText(formData.get("photoAlt")),
     ingredients: names.map((name, index) => ({
       name,
       quantity: quantities[index] ?? "",
@@ -80,8 +83,58 @@ function toIngredientData(values: RecipeFormValues) {
   });
 }
 
+/** The photo file the form posted, if one was chosen (an untouched file field posts an empty one). */
+function uploadedPhoto(formData: FormData): File | null {
+  const upload = formData.get("photo");
+  return upload instanceof File && upload.size > 0 ? upload : null;
+}
+
 function reject(prev: RecipeFormState, values: RecipeFormValues, error: MessageDescriptor): RecipeFormState {
   return { error, values, attempt: prev.attempt + 1 };
+}
+
+/** What the form asks to happen to the recipe's photo. */
+type PhotoChange =
+  | { kind: "keep" }
+  | { kind: "remove" }
+  | { kind: "describe"; alt: string }
+  | { kind: "set"; photo: ProcessedPhoto; alt: string };
+
+/**
+ * Read the photo part of the form. `existing` is the photo the recipe has now, if
+ * any. A new file replaces it (and wins over "Remove photo"); without one, the
+ * photo can be removed or only described again. Every photo needs its description.
+ */
+async function readPhotoChange(
+  formData: FormData,
+  values: RecipeFormValues,
+  existing: { alt: string } | null,
+): Promise<PhotoChange | { error: MessageDescriptor }> {
+  const file = uploadedPhoto(formData);
+  const alt = values.photoAlt.trim();
+
+  if (!file && !existing) return { kind: "keep" };
+  if (!file && existing && formData.get("removePhoto") === "1") return { kind: "remove" };
+
+  if (!alt) return { error: msg`Describe the photo in a few words, for people who cannot see it.` };
+  if (alt.length > MAX_PHOTO_ALT_LENGTH) {
+    return { error: msg`The description of the photo can be at most ${MAX_PHOTO_ALT_LENGTH} characters.` };
+  }
+  if (!file) return alt === existing?.alt ? { kind: "keep" } : { kind: "describe", alt };
+
+  const result = await processPhoto(file);
+  return "error" in result ? result : { kind: "set", photo: result.photo, alt };
+}
+
+/** The photo row for a processed upload; Prisma wants plain byte arrays. */
+function toPhotoData({ photo, alt }: { photo: ProcessedPhoto; alt: string }) {
+  return {
+    full: new Uint8Array(photo.full),
+    fullWidth: photo.fullWidth,
+    fullHeight: photo.fullHeight,
+    thumb: new Uint8Array(photo.thumb),
+    alt,
+  };
 }
 
 export async function createRecipe(
@@ -92,8 +145,15 @@ export async function createRecipe(
   const error = validationError(values);
   if (error) return reject(prev, values, error);
 
+  const change = await readPhotoChange(formData, values, null);
+  if ("error" in change) return reject(prev, values, change.error);
+
   const recipe = await prisma.recipe.create({
-    data: { ...toRecipeData(values), ingredients: { create: toIngredientData(values) } },
+    data: {
+      ...toRecipeData(values),
+      ingredients: { create: toIngredientData(values) },
+      ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
+    },
   });
 
   revalidateRecipeViews();
@@ -111,6 +171,10 @@ export async function updateRecipe(
   const error = validationError(values);
   if (error) return reject(prev, values, error);
 
+  const existing = await prisma.recipePhoto.findUnique({ where: { recipeId: id }, select: { alt: true } });
+  const change = await readPhotoChange(formData, values, existing);
+  if ("error" in change) return reject(prev, values, change.error);
+
   // Ingredient rows have no stable identity in the form, so the whole set is
   // replaced. Cheaper than diffing, and it keeps row order authoritative.
   await prisma.recipe.update({
@@ -118,11 +182,28 @@ export async function updateRecipe(
     data: {
       ...toRecipeData(values),
       ingredients: { deleteMany: {}, create: toIngredientData(values) },
+      ...photoUpdate(change),
     },
   });
 
   revalidateRecipeViews();
   redirect(`/recipes/${id}`);
+}
+
+/** The nested write for the recipe's photo row; nothing when the photo stays as it is. */
+function photoUpdate(change: PhotoChange) {
+  switch (change.kind) {
+    case "set": {
+      const data = toPhotoData(change);
+      return { photo: { upsert: { create: data, update: data } } };
+    }
+    case "describe":
+      return { photo: { update: { alt: change.alt } } };
+    case "remove":
+      return { photo: { delete: true } };
+    case "keep":
+      return {};
+  }
 }
 
 export async function deleteRecipe(formData: FormData) {

@@ -27,6 +27,10 @@ msgstr "{prepMinutes} Min."
 msgid "{recipeCount, plural, one {# recipe} other {# recipes}} to plan from"
 msgstr "{recipeCount, plural, one {# Rezept} other {# Rezepte}} zur Auswahl"
 
+#: components/recipe-form.tsx
+msgid "A bowl of red lentil dal with coriander"
+msgstr "Eine Schüssel rotes Linsen-Dal mit Koriander"
+
 #: app/actions/recipes.ts
 msgid "A recipe can serve at most {MAX_SERVINGS} people."
 msgstr "Ein Rezept reicht für höchstens {MAX_SERVINGS} Personen."
@@ -105,9 +109,17 @@ msgstr "„{recipeName}“ löschen? Tage, an denen nur dieses Rezept geplant is
 msgid "Delete recipe"
 msgstr "Rezept löschen"
 
+#: app/actions/recipes.ts
+msgid "Describe the photo in a few words, for people who cannot see it."
+msgstr "Beschreibe das Foto in wenigen Worten, für Menschen, die es nicht sehen können."
+
 #: components/recipe-form.tsx
 msgid "Description"
 msgstr "Beschreibung"
+
+#: components/recipe-form.tsx
+msgid "Description of the photo"
+msgstr "Beschreibung des Fotos"
 
 #: components/day-card.tsx
 msgid "Dinner for {weekday}"
@@ -176,6 +188,10 @@ msgstr "Zutaten"
 #: app/groceries/page.tsx
 msgid "Item"
 msgstr "Artikel"
+
+#: components/recipe-form.tsx
+msgid "JPEG, PNG or WebP, up to {MAX_PHOTO_MEGABYTES} MB."
+msgstr "JPEG, PNG oder WebP, bis zu {MAX_PHOTO_MEGABYTES} MB."
 
 #: components/language-switcher.tsx
 msgid "Language"
@@ -267,6 +283,14 @@ msgstr "Ein Schritt pro Zeile.\n"
 msgid "Page not found"
 msgstr "Seite nicht gefunden"
 
+#: components/recipe-form.tsx
+msgid "Photo"
+msgstr "Foto"
+
+#: components/recipe-form.tsx
+msgid "Photo file"
+msgstr "Fotodatei"
+
 #: components/day-card.tsx
 msgid "Pick a recipe or type a dinner…"
 msgstr "Rezept wählen oder Gericht eingeben…"
@@ -319,6 +343,14 @@ msgid "Remove ingredient {number}"
 msgstr "Zutat {number} entfernen"
 
 #: components/recipe-form.tsx
+msgid "Remove photo"
+msgstr "Foto entfernen"
+
+#: components/recipe-form.tsx
+msgid "Replace photo"
+msgstr "Foto ersetzen"
+
+#: components/recipe-form.tsx
 msgid "Save changes"
 msgstr "Änderungen speichern"
 
@@ -330,6 +362,10 @@ msgstr "Gespeichert"
 #: components/recipe-form.tsx
 msgid "Saving…"
 msgstr "Wird gespeichert…"
+
+#: components/recipe-form.tsx
+msgid "Say what it shows, for people who cannot see it. Needed for every photo."
+msgstr "Sag, was es zeigt, für Menschen, die es nicht sehen können. Für jedes Foto nötig."
 
 #: components/day-card.tsx
 #: components/recipe-form.tsx
@@ -347,6 +383,27 @@ msgstr "Quelle"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Quelle"
+
+#: app/actions/recipes.ts
+msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
+msgstr "Die Beschreibung des Fotos darf höchstens {MAX_PHOTO_ALT_LENGTH} Zeichen lang sein."
+
+#: lib/recipe-photo.ts
+msgid "The photo could not be read. Choose another image."
+msgstr "Das Foto konnte nicht gelesen werden. Wähle ein anderes Bild."
+
+#: lib/recipe-photo.ts
+msgid "The photo has to be a JPEG, PNG or WebP image."
+msgstr "Das Foto muss ein JPEG-, PNG- oder WebP-Bild sein."
+
+#: lib/recipe-photo.ts
+msgid "The photo has too many pixels. Choose a smaller image."
+msgstr "Das Foto hat zu viele Pixel. Wähle ein kleineres Bild."
+
+#: components/recipe-form.tsx
+#: lib/recipe-photo.ts
+msgid "The photo is too large: {maxMegabytes} MB at most."
+msgstr "Das Foto ist zu groß: höchstens {maxMegabytes} MB."
 
 #: app/actions/recipes.ts
 msgid "The source has to be a web address starting with http:// or https://."

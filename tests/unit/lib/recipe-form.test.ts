@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_RECIPE_FORM_STATE, isWebUrl } from "@/lib/recipe-form";
 
 describe("EMPTY_RECIPE_FORM_STATE", () => {
-  it("starts without an error, without echoed values and at attempt 0", () => {
+  it("starts without an error, without echoed values, at attempt 0", () => {
     expect(EMPTY_RECIPE_FORM_STATE).toEqual({ error: null, values: null, attempt: 0 });
   });
 });
