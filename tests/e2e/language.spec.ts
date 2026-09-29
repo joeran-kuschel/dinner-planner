@@ -220,7 +220,7 @@ test.describe("language", () => {
     await expectAccessible(page);
   });
 
-  test("on a narrow screen, the keyboard goes switcher before links, and no focused field hides under the header", async ({ page }) => {
+  test("on a narrow screen, the keyboard goes from the switcher to the links", async ({ page }) => {
     await useGerman(page);
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto("/recipes/new");
@@ -231,15 +231,38 @@ test.describe("language", () => {
     await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Diese Woche" })).toBeFocused();
-
-    // Scroll the name field out of view, then reach it backwards from the next field.
-    await page.getByLabel("Beschreibung", { exact: true }).focus();
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.keyboard.press("Shift+Tab");
-    const name = page.getByLabel("Name", { exact: true });
-    await expect(name).toBeFocused();
-    const header = await page.locator("header").first().boundingBox();
-    const field = await name.boundingBox();
-    expect(field!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
   });
+
+  // The scroll padding has to cover the sticky header at every width, in both
+  // languages. Chromium centres a field it scrolls to on Tab, which hides the
+  // question; Firefox and Safari align it to the top edge, as scrollIntoView
+  // does here, and that is where scroll-padding-top decides.
+  for (const { locale, width } of [
+    { locale: "en", width: 320 },
+    { locale: "en", width: 639 },
+    { locale: "en", width: 640 },
+    { locale: "en", width: 1280 },
+    { locale: "de", width: 320 },
+    { locale: "de", width: 375 },
+    { locale: "de", width: 639 },
+    { locale: "de", width: 640 },
+    { locale: "de", width: 1280 },
+  ]) {
+    test(`a field scrolled to the top stays below the sticky header (${locale}, ${width} px)`, async ({ page }) => {
+      await page.context().addCookies([{ name: "locale", value: locale, url: "http://localhost:3100" }]);
+      await expectFieldBelowHeader(page, width);
+    });
+  }
 });
+
+/** Scroll the recipe form's name field to the top edge and check the header leaves it visible. */
+async function expectFieldBelowHeader(page: Page, width: number) {
+  await page.setViewportSize({ width, height: 640 });
+  await page.goto("/recipes/new");
+  const name = page.getByLabel(/^Name$/);
+  await name.evaluate((field) => field.scrollIntoView({ block: "start" }));
+  const header = await page.locator("header").first().boundingBox();
+  const field = await name.boundingBox();
+  expect(await page.evaluate(() => window.scrollY), "the page scrolled").toBeGreaterThan(0);
+  expect(field!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+}
