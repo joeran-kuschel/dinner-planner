@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createRecipe, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The recipe detail and edit pages beyond creating and editing (recipes.spec.ts):
 // unknown ids, the upcoming-plan line, the list's plan count and empty sections.
@@ -9,6 +9,10 @@ test.describe("recipe detail", () => {
     for (const url of ["/recipes/does-not-exist", "/recipes/does-not-exist/edit"]) {
       const response = await page.goto(url);
       expect(response?.status(), url).toBe(404);
+      await expect(page.getByRole("heading", { level: 1 }), url).toHaveText("Page not found");
+      await expect(page.getByText("This page does not exist, or the recipe was deleted.")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Back to the plan" })).toHaveAttribute("href", "/");
+      await expectAccessible(page);
     }
   });
 

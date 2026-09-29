@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
 import Link from "next/link";
 import { type InputHTMLAttributes, useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -61,6 +63,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
 
 export function RecipeForm({ action, recipe }: RecipeFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
+  const { i18n } = useLingui();
 
   // React resets the form once the action resolves, so a rejected submission is
   // re-filled from the values the action handed back rather than from the props.
@@ -73,7 +76,7 @@ export function RecipeForm({ action, recipe }: RecipeFormProps) {
 
       {state.error && (
         <p role="alert" className="card border-accent bg-accent-soft p-3 text-sm">
-          {state.error}
+          {i18n._(state.error)}
         </p>
       )}
 
@@ -83,9 +86,9 @@ export function RecipeForm({ action, recipe }: RecipeFormProps) {
       <MethodField key={`method-${state.attempt}`} instructions={values.instructions} />
 
       <div className="flex items-center gap-3">
-        <SubmitButton label={recipe ? "Save changes" : "Create recipe"} />
+        <SubmitButton label={recipe ? t(i18n)`Save changes` : t(i18n)`Create recipe`} />
         <Link href={recipe ? `/recipes/${recipe.id}` : "/recipes"} className="btn-ghost">
-          Cancel
+          {t(i18n)`Cancel`}
         </Link>
       </div>
     </form>
@@ -128,36 +131,57 @@ function seedRows(ingredients: IngredientValues[]): Row[] {
 }
 
 function RecipeFields({ values }: { values: RecipeFormValues }) {
+  const { i18n } = useLingui();
   return (
     <section className="card flex flex-col gap-4 p-4">
-      <Field label="Name" name="name" required defaultValue={values.name} placeholder="Mushroom risotto" />
       <Field
-        label="Description"
+        label={t(i18n)`Name`}
+        name="name"
+        required
+        defaultValue={values.name}
+        placeholder={t(i18n)`Mushroom risotto`}
+      />
+      <Field
+        label={t(i18n)`Description`}
         name="description"
         defaultValue={values.description}
-        placeholder="One line on why you make this"
+        placeholder={t(i18n)`One line on why you make this`}
       />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field
-          label="Serves"
-          name="servings"
-          type="number"
-          min={1}
-          max={MAX_SERVINGS}
-          defaultValue={values.servings}
-          hint="Quantities below are for this many people."
-        />
-        <Field
-          label="Minutes"
-          name="prepMinutes"
-          type="number"
-          min={1}
-          max={MAX_PREP_MINUTES}
-          defaultValue={values.prepMinutes}
-        />
-        <Field label="Source" name="sourceUrl" type="url" defaultValue={values.sourceUrl} placeholder="https://…" />
-      </div>
+      <RecipeNumbers values={values} />
     </section>
+  );
+}
+
+/** Servings, prep time and source, side by side from `sm`. */
+function RecipeNumbers({ values }: { values: RecipeFormValues }) {
+  const { i18n } = useLingui();
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <Field
+        label={t(i18n)`Serves`}
+        name="servings"
+        type="number"
+        min={1}
+        max={MAX_SERVINGS}
+        defaultValue={values.servings}
+        hint={t(i18n)`Quantities below are for this many people.`}
+      />
+      <Field
+        label={t(i18n)`Minutes`}
+        name="prepMinutes"
+        type="number"
+        min={1}
+        max={MAX_PREP_MINUTES}
+        defaultValue={values.prepMinutes}
+      />
+      <Field
+        label={t(i18n)`Source`}
+        name="sourceUrl"
+        type="url"
+        defaultValue={values.sourceUrl}
+        placeholder="https://…"
+      />
+    </div>
   );
 }
 
@@ -184,11 +208,12 @@ function IngredientRows({
   addRow,
   removeRow,
 }: ReturnType<typeof useIngredientRows>) {
+  const { i18n } = useLingui();
   return (
     <section className="card flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Ingredients</h2>
-        <p className="text-xs text-muted">Leave the amount blank for “to taste”.</p>
+        <h2 className="text-sm font-semibold">{t(i18n)`Ingredients`}</h2>
+        <p className="text-xs text-muted">{t(i18n)`Leave the amount blank for “to taste”.`}</p>
       </div>
 
       <ul className="flex flex-col gap-2">
@@ -198,42 +223,43 @@ function IngredientRows({
       </ul>
 
       <button type="button" onClick={addRow} className="btn-secondary self-start">
-        Add ingredient
+        {t(i18n)`Add ingredient`}
       </button>
     </section>
   );
 }
 
 function IngredientRow({ row, number, onRemove }: { row: Row; number: number; onRemove: () => void }) {
+  const { i18n } = useLingui();
   return (
     <li className="flex items-start gap-2">
       <input
         name="ingredientQuantity"
         className="field w-20"
         inputMode="decimal"
-        aria-label={`Amount for ingredient ${number}`}
+        aria-label={t(i18n)`Amount for ingredient ${number}`}
         defaultValue={row.value.quantity}
         placeholder="200"
       />
       <input
         name="ingredientUnit"
         className="field w-20"
-        aria-label={`Unit for ingredient ${number}`}
+        aria-label={t(i18n)`Unit for ingredient ${number}`}
         defaultValue={row.value.unit}
-        placeholder="g"
+        placeholder={t(i18n)`g`}
       />
       <input
         name="ingredientName"
         className="field flex-1"
-        aria-label={`Name of ingredient ${number}`}
+        aria-label={t(i18n)`Name of ingredient ${number}`}
         defaultValue={row.value.name}
-        placeholder="Arborio rice"
+        placeholder={t(i18n)`Arborio rice`}
       />
       <button
         type="button"
         onClick={onRemove}
         className="btn-ghost px-2"
-        aria-label={`Remove ingredient ${number}`}
+        aria-label={t(i18n)`Remove ingredient ${number}`}
       >
         ✕
       </button>
@@ -242,10 +268,11 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
 }
 
 function MethodField({ instructions }: { instructions: string }) {
+  const { i18n } = useLingui();
   return (
     <section className="card flex flex-col gap-2 p-4">
       <label className="label" htmlFor="instructions">
-        Method
+        {t(i18n)`Method`}
       </label>
       <textarea
         id="instructions"
@@ -253,7 +280,9 @@ function MethodField({ instructions }: { instructions: string }) {
         rows={8}
         className="field font-mono text-xs leading-relaxed"
         defaultValue={instructions}
-        placeholder={"One step per line.\nSoften the onion…\nToast the rice…"}
+        placeholder={t(i18n)`One step per line.
+Soften the onion…
+Toast the rice…`}
       />
     </section>
   );
@@ -261,9 +290,10 @@ function MethodField({ instructions }: { instructions: string }) {
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const { i18n } = useLingui();
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t(i18n)`Saving…` : label}
     </button>
   );
 }

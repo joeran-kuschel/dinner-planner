@@ -3,6 +3,8 @@
 The home page (`/`) shows one week, Monday to Sunday, as a card per day. Each card holds the day's dinner, how many
 people it is for, an optional note, and a button to clear the day. Everything saves by itself; there is no save button.
 
+The labels below are the English ones; see [Language](language.md) for the German interface.
+
 ## Planning a dinner
 
 Each day has a single dinner field that suggests as you type.

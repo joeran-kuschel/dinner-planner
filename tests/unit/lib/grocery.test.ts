@@ -7,6 +7,10 @@ import {
   type IngredientInput,
   type MealInput,
 } from "@/lib/grocery";
+import { testI18n } from "@/tests/support/i18n";
+
+const en = testI18n("en");
+const de = testI18n("de");
 
 const ing = (name: string, quantity: number | null, unit: string | null = null): IngredientInput => ({
   name,
@@ -178,17 +182,22 @@ describe("aggregateIngredients", () => {
         meal("Bread", [ing("Flour", 500, "g")]),
         meal("Sauce", [ing("Flour", null, "g")]),
       ]);
-      expect(formatGroceryQuantity(line)).toBe("to taste");
+      expect(formatGroceryQuantity(line, en)).toBe("to taste");
     });
 
     it("shows a quantified grocery line like formatQuantity", () => {
-      expect(formatGroceryQuantity({ quantity: 1.5, unit: "kg", sources: ["Soup"] })).toBe("1.5 kg");
-      expect(formatGroceryQuantity({ quantity: 2, unit: null, sources: [] })).toBe("2");
+      expect(formatGroceryQuantity({ quantity: 1.5, unit: "kg", sources: ["Soup"] }, en)).toBe("1.5 kg");
+      expect(formatGroceryQuantity({ quantity: 2, unit: null, sources: [] }, en)).toBe("2");
+    });
+
+    it("says \"to taste\" in German too", () => {
+      expect(formatGroceryQuantity({ quantity: null, unit: "g", sources: ["Soup"] }, de)).toBe("nach Geschmack");
+      expect(formatGroceryQuantity({ quantity: 1.5, unit: "kg", sources: ["Soup"] }, de)).toBe("1,5 kg");
     });
 
     it("keeps the unit of a hand-added extra without an amount", () => {
-      expect(formatGroceryQuantity({ quantity: null, unit: "bottles", sources: [] })).toBe("bottles");
-      expect(formatGroceryQuantity({ quantity: null, unit: null, sources: [] })).toBe("to taste");
+      expect(formatGroceryQuantity({ quantity: null, unit: "bottles", sources: [] }, en)).toBe("bottles");
+      expect(formatGroceryQuantity({ quantity: null, unit: null, sources: [] }, en)).toBe("to taste");
     });
   });
 
@@ -260,11 +269,22 @@ describe("formatQuantity", () => {
     [0, null, "0"],
     [1e6, "g", "1000000 g"],
   ])("formatQuantity(%d, %j) is %j", (quantity, unit, expected) => {
-    expect(formatQuantity(quantity, unit)).toBe(expected);
+    expect(formatQuantity(quantity, unit, en)).toBe(expected);
   });
 
-  it("uses a decimal point, not a comma", () => {
-    expect(formatQuantity(2.5, null)).toBe("2.5");
+  it("uses the language's decimal separator", () => {
+    expect(formatQuantity(2.5, null, en)).toBe("2.5");
+    expect(formatQuantity(2.5, null, de)).toBe("2,5");
+  });
+
+  it.each([
+    [1 / 3, "Tasse", "0,33 Tasse"],
+    [1234.5678, "g", "1234,57 g"],
+    [1e6, "g", "1000000 g"],
+    [null, null, "nach Geschmack"],
+    [null, "Prise", "Prise"],
+  ])("in German, formatQuantity(%j, %j) is %j", (quantity, unit, expected) => {
+    expect(formatQuantity(quantity, unit, de)).toBe(expected);
   });
 
   it.each([
@@ -272,10 +292,10 @@ describe("formatQuantity", () => {
     [null, "", "to taste"],
     [null, "pinch", "pinch"],
   ])("formatQuantity(%j, %j) is %j", (quantity, unit, expected) => {
-    expect(formatQuantity(quantity, unit)).toBe(expected);
+    expect(formatQuantity(quantity, unit, en)).toBe(expected);
   });
 
   it("treats an empty unit like no unit", () => {
-    expect(formatQuantity(3, "")).toBe("3");
+    expect(formatQuantity(3, "", en)).toBe("3");
   });
 });

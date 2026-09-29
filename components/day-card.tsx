@@ -1,5 +1,8 @@
 "use client";
 
+import type { I18n } from "@lingui/core";
+import { plural, t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
 import { useCombobox, type UseComboboxReturnValue } from "downshift";
 import {
   type FormEvent,
@@ -38,6 +41,7 @@ type Choice = { dinner: string; recipeId: string; newRecipe: boolean };
 
 export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, meal }: DayCardProps) {
   const day: Day = { key: dayKey, weekday: weekdayLabel };
+  const { i18n } = useLingui();
   const [choice, setChoice, resyncChoice] = useChoice(meal, recipes);
   const formRef = useServerSync(meal);
   const router = useRouter();
@@ -78,7 +82,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
       <DayHeading weekdayLabel={weekdayLabel} dateLabel={dateLabel} isToday={isToday} />
       {failed && (
         <p role="alert" className="text-xs text-accent">
-          This day could not be saved. It shows what is saved now; please try again.
+          {t(i18n)`This day could not be saved. It shows what is saved now; please try again.`}
         </p>
       )}
 
@@ -180,6 +184,7 @@ function DayHeading({
   dateLabel,
   isToday,
 }: Pick<DayCardProps, "weekdayLabel" | "dateLabel" | "isToday">) {
+  const { i18n } = useLingui();
   return (
     <div className="flex items-baseline justify-between gap-2">
       <h3 className="text-sm font-semibold">
@@ -188,7 +193,7 @@ function DayHeading({
         {isToday && (
           <>
             {" "}
-            <span className="ml-1 text-xs font-normal text-accent">today</span>
+            <span className="ml-1 text-xs font-normal text-accent">{t(i18n)`today`}</span>
           </>
         )}
       </h3>
@@ -203,14 +208,15 @@ type Suggestion =
   | { kind: "once"; name: string }
   | { kind: "new"; name: string };
 
-function suggestionLabel(suggestion: Suggestion): string {
+function suggestionLabel(suggestion: Suggestion, i18n: I18n): string {
+  const { name } = suggestion;
   switch (suggestion.kind) {
     case "recipe":
-      return suggestion.name;
+      return name;
     case "once":
-      return `Plan “${suggestion.name}” for this day only`;
+      return t(i18n)`Plan “${name}” for this day only`;
     case "new":
-      return `Add “${suggestion.name}” as a new recipe`;
+      return t(i18n)`Add “${name}” as a new recipe`;
   }
 }
 
@@ -254,6 +260,8 @@ function DinnerCombobox({
 }) {
   const [text, setText] = useDinnerText(choice.dinner);
   const suggestions = suggestionsFor(text, choice.dinner, recipes);
+  const { i18n } = useLingui();
+  const { weekday } = day;
 
   const choose = (next: Choice) => {
     setText(next.dinner);
@@ -280,12 +288,14 @@ function DinnerCombobox({
     inputValue: text,
     // Nothing stays "selected": every pick is a fresh choice, saved at once.
     selectedItem: null,
-    itemToString: (suggestion) => (suggestion ? suggestionLabel(suggestion) : ""),
+    itemToString: (suggestion) => (suggestion ? suggestionLabel(suggestion, i18n) : ""),
     inputId: `dinner-${day.key}`,
     labelId: `dinner-label-${day.key}`,
     menuId: `dinner-options-${day.key}`,
-    getA11yStatusMessage: ({ isOpen }) =>
-      isOpen ? `${suggestions.length} ${suggestions.length === 1 ? "suggestion" : "suggestions"}` : "",
+    getA11yStatusMessage: ({ isOpen }) => {
+      const count = suggestions.length;
+      return isOpen ? t(i18n)`${plural(count, { one: "# suggestion", other: "# suggestions" })}` : "";
+    },
     onSelectedItemChange: ({ selectedItem }) => {
       if (selectedItem) choose(choiceFor(selectedItem));
     },
@@ -320,7 +330,7 @@ function DinnerCombobox({
   return (
     <div className="relative">
       <label {...getLabelProps()} className="sr-only">
-        Dinner for {day.weekday}
+        {t(i18n)`Dinner for ${weekday}`}
       </label>
       <input
         // The text follows every keystroke here rather than in Downshift's
@@ -333,7 +343,7 @@ function DinnerCombobox({
         })}
         className="field"
         name="dinner"
-        placeholder="Pick a recipe or type a dinner…"
+        placeholder={t(i18n)`Pick a recipe or type a dinner…`}
         autoComplete="off"
       />
       <SuggestionList combobox={combobox} suggestions={suggestions} />
@@ -364,6 +374,7 @@ function SuggestionList({
   combobox: UseComboboxReturnValue<Suggestion>;
   suggestions: Suggestion[];
 }) {
+  const { i18n } = useLingui();
   return (
     <ul
       // A press on the list's padding or scrollbar must not blur the field,
@@ -381,7 +392,7 @@ function SuggestionList({
               suggestion.kind === "once" && index > 0 ? "border-t border-border" : ""
             }`}
           >
-            {suggestionLabel(suggestion)}
+            {suggestionLabel(suggestion, i18n)}
           </li>
         ))}
     </ul>
@@ -399,11 +410,13 @@ function PlannedDetails({
   pending: boolean;
   onSave: () => void;
 }) {
+  const { i18n } = useLingui();
+  const { weekday } = day;
   return (
     <>
       <div className="flex items-center gap-2">
         <label className="text-xs text-muted" htmlFor={`servings-${day.key}`}>
-          Serves
+          {t(i18n)`Serves`}
         </label>
         <input
           id={`servings-${day.key}`}
@@ -416,18 +429,18 @@ function PlannedDetails({
           onBlur={onSave}
         />
         <span aria-live="polite" className="ml-auto text-xs text-muted">
-          {pending ? "Saving…" : ""}
+          {pending ? t(i18n)`Saving…` : ""}
         </span>
       </div>
 
       <label className="sr-only" htmlFor={`notes-${day.key}`}>
-        Note for {day.weekday}
+        {t(i18n)`Note for ${weekday}`}
       </label>
       <input
         id={`notes-${day.key}`}
         className="field text-xs"
         name="notes"
-        placeholder="Note (optional)"
+        placeholder={t(i18n)`Note (optional)`}
         defaultValue={meal?.notes ?? ""}
         onBlur={onSave}
       />
@@ -438,7 +451,7 @@ function PlannedDetails({
         data-intent="clear"
         className="btn-ghost self-start px-0 text-xs hover:bg-transparent"
       >
-        Clear day
+        {t(i18n)`Clear day`}
       </button>
     </>
   );

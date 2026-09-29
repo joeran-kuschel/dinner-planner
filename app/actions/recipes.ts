@@ -1,5 +1,7 @@
 "use server";
 
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -41,17 +43,17 @@ function readValues(formData: FormData): RecipeFormValues {
  * The first problem with the typed values, or `null`. Blank or non-positive
  * numbers are not errors: they fall back to defaults in `toRecipeData`.
  */
-function validationError(values: RecipeFormValues): string | null {
-  if (!values.name.trim()) return "Give the recipe a name.";
+function validationError(values: RecipeFormValues): MessageDescriptor | null {
+  if (!values.name.trim()) return msg`Give the recipe a name.`;
   if ((parsePositiveInt(values.servings) ?? 0) > MAX_SERVINGS) {
-    return `A recipe can serve at most ${MAX_SERVINGS} people.`;
+    return msg`A recipe can serve at most ${MAX_SERVINGS} people.`;
   }
   if ((parsePositiveInt(values.prepMinutes) ?? 0) > MAX_PREP_MINUTES) {
-    return `Prep time can be at most ${MAX_PREP_MINUTES} minutes.`;
+    return msg`Prep time can be at most ${MAX_PREP_MINUTES} minutes.`;
   }
   const sourceUrl = values.sourceUrl.trim();
   if (sourceUrl && !isWebUrl(sourceUrl)) {
-    return "The source has to be a web address starting with http:// or https://.";
+    return msg`The source has to be a web address starting with http:// or https://.`;
   }
   return null;
 }
@@ -78,7 +80,7 @@ function toIngredientData(values: RecipeFormValues) {
   });
 }
 
-function reject(prev: RecipeFormState, values: RecipeFormValues, error: string): RecipeFormState {
+function reject(prev: RecipeFormState, values: RecipeFormValues, error: MessageDescriptor): RecipeFormState {
   return { error, values, attempt: prev.attempt + 1 };
 }
 
@@ -104,7 +106,7 @@ export async function updateRecipe(
 ): Promise<RecipeFormState> {
   const id = rawText(formData.get("id")).trim();
   const values = readValues(formData);
-  if (!id) return reject(prev, values, "Missing recipe id.");
+  if (!id) return reject(prev, values, msg`Missing recipe id.`);
 
   const error = validationError(values);
   if (error) return reject(prev, values, error);

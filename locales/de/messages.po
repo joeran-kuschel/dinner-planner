@@ -1,0 +1,370 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-09-28 17:26+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: de\n"
+
+#: components/day-card.tsx
+msgid "{count, plural, one {# suggestion} other {# suggestions}}"
+msgstr "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
+
+#: lib/recipe-facts.ts
+msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
+msgstr "{ingredients, plural, one {# Zutat} other {# Zutaten}}"
+
+#: app/page.tsx
+msgid "{plannedCount} of 7 planned"
+msgstr "{plannedCount} von 7 geplant"
+
+#: lib/recipe-facts.ts
+msgid "{prepMinutes} min"
+msgstr "{prepMinutes} Min."
+
+#: app/recipes/page.tsx
+msgid "{recipeCount, plural, one {# recipe} other {# recipes}} to plan from"
+msgstr "{recipeCount, plural, one {# Rezept} other {# Rezepte}} zur Auswahl"
+
+#: app/actions/recipes.ts
+msgid "A recipe can serve at most {MAX_SERVINGS} people."
+msgstr "Ein Rezept reicht für höchstens {MAX_SERVINGS} Personen."
+
+#: app/groceries/page.tsx
+msgid "Add"
+msgstr "Hinzufügen"
+
+#: components/day-card.tsx
+msgid "Add “{name}” as a new recipe"
+msgstr "„{name}“ als neues Rezept anlegen"
+
+#: components/recipe-form.tsx
+msgid "Add ingredient"
+msgstr "Zutat hinzufügen"
+
+#: app/groceries/page.tsx
+msgid "Add something else"
+msgstr "Etwas anderes hinzufügen"
+
+#: components/grocery-list.tsx
+msgid "added by hand"
+msgstr "von Hand hinzugefügt"
+
+#: app/groceries/page.tsx
+msgid "Amount"
+msgstr "Menge"
+
+#: components/recipe-form.tsx
+msgid "Amount for ingredient {number}"
+msgstr "Menge für Zutat {number}"
+
+#: components/recipe-form.tsx
+msgid "Arborio rice"
+msgstr "Risottoreis"
+
+#: app/not-found.tsx
+#: app/recipes/[id]/page.tsx
+msgid "Back to the plan"
+msgstr "Zurück zum Plan"
+
+#: components/recipe-form.tsx
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: components/day-card.tsx
+msgid "Clear day"
+msgstr "Tag leeren"
+
+#: app/page.tsx
+msgid "Clear the whole week"
+msgstr "Ganze Woche leeren"
+
+#: components/recipe-form.tsx
+msgid "Create recipe"
+msgstr "Rezept anlegen"
+
+#: app/recipes/[id]/page.tsx
+msgid "Delete"
+msgstr "Löschen"
+
+#: components/recipe-form.tsx
+msgid "Description"
+msgstr "Beschreibung"
+
+#: components/day-card.tsx
+msgid "Dinner for {weekday}"
+msgstr "Abendessen am {weekday}"
+
+#: app/page.tsx
+msgid "Dinner plan"
+msgstr "Essensplan"
+
+#: app/layout.tsx
+#: components/site-nav.tsx
+msgid "Dinner Planner"
+msgstr "Abendessen-Planer"
+
+#: app/recipes/[id]/page.tsx
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: app/recipes/[id]/edit/page.tsx
+msgid "Edit recipe"
+msgstr "Rezept bearbeiten"
+
+#: app/groceries/page.tsx
+msgid "Edit the plan"
+msgstr "Plan bearbeiten"
+
+#: components/grocery-list.tsx
+msgid "Everything ticked off."
+msgstr "Alles abgehakt."
+
+#: app/groceries/page.tsx
+msgid "from {plannedMeals, plural, one {# recipe} other {# recipes}}"
+msgstr "aus {plannedMeals, plural, one {# Rezept} other {# Rezepten}}"
+
+#: app/groceries/page.tsx
+#: components/recipe-form.tsx
+msgid "g"
+msgstr "g"
+
+#: app/actions/recipes.ts
+msgid "Give the recipe a name."
+msgstr "Gib dem Rezept einen Namen."
+
+#: app/groceries/page.tsx
+#: components/site-nav.tsx
+msgid "Groceries"
+msgstr "Einkauf"
+
+#: app/groceries/page.tsx
+msgid "Grocery list"
+msgstr "Einkaufsliste"
+
+#: app/page.tsx
+msgid "Grocery list for this week"
+msgstr "Einkaufsliste für diese Woche"
+
+#: components/grocery-list.tsx
+msgid "In the basket ({doneCount})"
+msgstr "Im Korb ({doneCount})"
+
+#: app/recipes/[id]/page.tsx
+#: components/recipe-form.tsx
+msgid "Ingredients"
+msgstr "Zutaten"
+
+#: app/groceries/page.tsx
+msgid "Item"
+msgstr "Artikel"
+
+#: components/language-switcher.tsx
+msgid "Language"
+msgstr "Sprache"
+
+#: components/recipe-form.tsx
+msgid "Leave the amount blank for “to taste”."
+msgstr "Lass die Menge leer für „nach Geschmack“."
+
+#: components/site-nav.tsx
+msgid "Main"
+msgstr "Hauptnavigation"
+
+#: app/recipes/[id]/page.tsx
+#: components/recipe-form.tsx
+msgid "Method"
+msgstr "Zubereitung"
+
+#: components/recipe-form.tsx
+msgid "Minutes"
+msgstr "Minuten"
+
+#: app/actions/recipes.ts
+msgid "Missing recipe id."
+msgstr "Die Rezept-ID fehlt."
+
+#: components/recipe-form.tsx
+msgid "Mushroom risotto"
+msgstr "Pilzrisotto"
+
+#: components/recipe-form.tsx
+msgid "Name"
+msgstr "Name"
+
+#: components/recipe-form.tsx
+msgid "Name of ingredient {number}"
+msgstr "Name von Zutat {number}"
+
+#: app/recipes/new/page.tsx
+#: app/recipes/page.tsx
+msgid "New recipe"
+msgstr "Neues Rezept"
+
+#: app/groceries/page.tsx
+#: app/page.tsx
+msgid "Next week"
+msgstr "Nächste Woche"
+
+#: app/page.tsx
+msgid "No recipes yet. <0>Add your first one</0> and it will be suggested for every day."
+msgstr "Noch keine Rezepte. <0>Leg dein erstes an</0>, dann wird es für jeden Tag vorgeschlagen."
+
+#: app/recipes/[id]/page.tsx
+msgid "No steps written down yet."
+msgstr "Noch keine Schritte aufgeschrieben."
+
+#: app/recipes/[id]/page.tsx
+msgid "None listed."
+msgstr "Keine angegeben."
+
+#: components/day-card.tsx
+msgid "Note (optional)"
+msgstr "Notiz (optional)"
+
+#: components/day-card.tsx
+msgid "Note for {weekday}"
+msgstr "Notiz für {weekday}"
+
+#: app/recipes/page.tsx
+msgid "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
+msgstr "Noch nichts da. Ein Rezept braucht einen Namen und seine Zutaten – die Zubereitung ist optional."
+
+#: components/grocery-list.tsx
+msgid "Nothing to buy yet. Plan some dinners and their ingredients land here."
+msgstr "Noch nichts zu kaufen. Plane ein paar Abendessen, dann landen ihre Zutaten hier."
+
+#: components/recipe-form.tsx
+msgid "One line on why you make this"
+msgstr "Eine Zeile dazu, warum du es kochst"
+
+#: components/recipe-form.tsx
+msgid "One step per line.\n"
+"Soften the onion…\n"
+"Toast the rice…"
+msgstr "Ein Schritt pro Zeile.\n"
+"Zwiebel glasig dünsten…\n"
+"Reis anrösten…"
+
+#: app/not-found.tsx
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
+
+#: components/day-card.tsx
+msgid "Pick a recipe or type a dinner…"
+msgstr "Rezept wählen oder Gericht eingeben…"
+
+#: components/day-card.tsx
+msgid "Plan “{name}” for this day only"
+msgstr "„{name}“ nur für diesen Tag planen"
+
+#: app/layout.tsx
+msgid "Plan the week's dinners, keep recipes, and get one grocery list."
+msgstr "Plane die Abendessen der Woche, sammle Rezepte und bekomme eine gemeinsame Einkaufsliste."
+
+#: lib/recipe-facts.ts
+msgid "planned {plannedFor}×"
+msgstr "{plannedFor}× geplant"
+
+#: app/recipes/[id]/page.tsx
+msgid "Planned for {plannedDays}."
+msgstr "Geplant: {plannedDays}"
+
+#: app/actions/recipes.ts
+msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
+msgstr "Die Zubereitungszeit darf höchstens {MAX_PREP_MINUTES} Minuten betragen."
+
+#: app/page.tsx
+msgid "Previous week"
+msgstr "Vorige Woche"
+
+#: components/recipe-form.tsx
+msgid "Quantities below are for this many people."
+msgstr "Die Mengen unten gelten für so viele Personen."
+
+#: app/recipes/[id]/page.tsx
+#: app/recipes/new/page.tsx
+#: app/recipes/page.tsx
+#: components/site-nav.tsx
+msgid "Recipes"
+msgstr "Rezepte"
+
+#: components/grocery-list.tsx
+msgid "Remove {label}"
+msgstr "{label} entfernen"
+
+#: components/recipe-form.tsx
+msgid "Remove ingredient {number}"
+msgstr "Zutat {number} entfernen"
+
+#: components/recipe-form.tsx
+msgid "Save changes"
+msgstr "Änderungen speichern"
+
+#: components/day-card.tsx
+#: components/recipe-form.tsx
+msgid "Saving…"
+msgstr "Wird gespeichert…"
+
+#: components/day-card.tsx
+#: components/recipe-form.tsx
+msgid "Serves"
+msgstr "Personen"
+
+#: lib/recipe-facts.ts
+msgid "Serves {servings}"
+msgstr "{servings, plural, one {Für # Person} other {Für # Personen}}"
+
+#: app/recipes/[id]/page.tsx
+msgid "source"
+msgstr "Quelle"
+
+#: components/recipe-form.tsx
+msgid "Source"
+msgstr "Quelle"
+
+#: app/actions/recipes.ts
+msgid "The source has to be a web address starting with http:// or https://."
+msgstr "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// beginnt."
+
+#: components/day-card.tsx
+msgid "This day could not be saved. It shows what is saved now; please try again."
+msgstr "Dieser Tag konnte nicht gespeichert werden. Er zeigt jetzt, was gespeichert ist; bitte versuch es noch einmal."
+
+#: app/not-found.tsx
+msgid "This page does not exist, or the recipe was deleted."
+msgstr "Diese Seite gibt es nicht, oder das Rezept wurde gelöscht."
+
+#: app/page.tsx
+#: components/site-nav.tsx
+msgid "This week"
+msgstr "Diese Woche"
+
+#: components/grocery-list.tsx
+msgid "Tick off {label}"
+msgstr "{label} abhaken"
+
+#: lib/grocery.ts
+msgid "to taste"
+msgstr "nach Geschmack"
+
+#: components/day-card.tsx
+msgid "today"
+msgstr "heute"
+
+#: app/groceries/page.tsx
+msgid "Unit"
+msgstr "Einheit"
+
+#: components/recipe-form.tsx
+msgid "Unit for ingredient {number}"
+msgstr "Einheit für Zutat {number}"
+
+#: app/groceries/page.tsx
+msgid "Untick everything"
+msgstr "Alle Haken entfernen"
+
+#: app/groceries/page.tsx
+msgid "Washing-up liquid"
+msgstr "Spülmittel"

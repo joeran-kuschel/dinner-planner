@@ -1,7 +1,10 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import Link from "next/link";
 import { clearWeek } from "@/app/actions/meals";
 import { DayCard } from "@/components/day-card";
 import { prisma } from "@/lib/db";
+import { getServerI18n } from "@/lib/i18n/server";
 import {
   addDays,
   dayKey,
@@ -16,6 +19,7 @@ import {
 
 export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
   const { week } = await searchParams;
+  const { i18n, locale } = await getServerI18n();
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const days = weekDays(weekStart);
   const currentDay = today();
@@ -39,9 +43,10 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dinner plan</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Dinner plan`}</h1>
           <p className="mt-1 text-sm text-muted">
-            {formatWeekRange(weekStart)} · {plannedCount} of 7 planned
+            {formatWeekRange(weekStart, locale)} ·{" "}
+            {t(i18n)`${plannedCount} of 7 planned`}
           </p>
         </div>
 
@@ -49,17 +54,17 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
           <Link
             href={`/?week=${dayKey(addDays(weekStart, -7))}`}
             className="btn-secondary"
-            aria-label="Previous week"
+            aria-label={t(i18n)`Previous week`}
           >
             ←
           </Link>
           <Link href="/" className="btn-secondary">
-            This week
+            {t(i18n)`This week`}
           </Link>
           <Link
             href={`/?week=${dayKey(addDays(weekStart, 7))}`}
             className="btn-secondary"
-            aria-label="Next week"
+            aria-label={t(i18n)`Next week`}
           >
             →
           </Link>
@@ -68,11 +73,13 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
 
       {recipes.length === 0 && (
         <p className="card p-4 text-sm text-muted">
-          No recipes yet.{" "}
-          <Link href="/recipes/new" className="font-medium text-accent underline">
-            Add your first one
-          </Link>{" "}
-          and it will be suggested for every day.
+          <Trans>
+            No recipes yet.{" "}
+            <Link href="/recipes/new" className="font-medium text-accent underline">
+              Add your first one
+            </Link>{" "}
+            and it will be suggested for every day.
+          </Trans>
         </p>
       )}
 
@@ -84,8 +91,8 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
             <DayCard
               key={key}
               dayKey={key}
-              weekdayLabel={formatWeekday(day)}
-              dateLabel={formatDayMonth(day)}
+              weekdayLabel={formatWeekday(day, locale)}
+              dateLabel={formatDayMonth(day, locale)}
               isToday={isSameDay(day, currentDay)}
               recipes={recipes}
               meal={
@@ -103,13 +110,13 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <Link href={`/groceries?week=${dayKey(weekStart)}`} className="btn-primary">
-          Grocery list for this week
+          {t(i18n)`Grocery list for this week`}
         </Link>
         {plannedCount > 0 && (
           <form action={clearWeek}>
             <input type="hidden" name="weekStart" value={dayKey(weekStart)} />
             <button type="submit" className="btn-ghost">
-              Clear the whole week
+              {t(i18n)`Clear the whole week`}
             </button>
           </form>
         )}

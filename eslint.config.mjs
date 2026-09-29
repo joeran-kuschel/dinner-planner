@@ -14,9 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Other Claude Code sessions' git worktrees, each a full checkout with its own build.
     ".claude/**",
-    // Generated, not authored: the Prisma client and the artifacts Playwright
-    // writes after a run.
+    // Generated, not authored: the Prisma client, the compiled translation
+    // catalogs and the artifacts Playwright writes after a run.
     "generated/**",
+    "locales/*/messages.ts",
     "playwright-report/**",
     "test-results/**",
   ]),
