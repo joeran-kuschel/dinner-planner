@@ -161,6 +161,20 @@ test.describe("week plan", () => {
     await expect(dayCard(page, "Tuesday").getByPlaceholder("Note (optional)")).toHaveValue("Brown butter");
   });
 
+  test("confirms a save with \"Saved\", which goes away by itself", async ({ page }) => {
+    const name = unique("Chilli");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", unit: "tin", name: "Beans" }] });
+
+    await page.goto("/?week=2027-03-15");
+    await planRecipe(page, "Monday", name);
+
+    // The screen-reader status; the words beside "Serves" are hidden from assistive technology.
+    const status = dayCard(page, "Monday").locator("p[aria-live]");
+    await expect(status).toHaveText("Saved");
+    await expectAccessible(page);
+    await expect(status).toHaveText("", { timeout: 6_000 });
+  });
+
   test("clears a day", async ({ page }) => {
     const name = unique("Tacos");
     await createRecipe(page, { name, ingredients: [{ quantity: "8", name: "Tortillas" }] });

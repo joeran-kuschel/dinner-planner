@@ -303,6 +303,10 @@ msgid "Save changes"
 msgstr "Save changes"
 
 #: components/day-card.tsx
+msgid "Saved"
+msgstr "Saved"
+
+#: components/day-card.tsx
 #: components/recipe-form.tsx
 msgid "Saving…"
 msgstr "Saving…"
