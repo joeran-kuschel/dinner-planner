@@ -37,6 +37,9 @@ export type DayCardProps = {
 /** The day a field belongs to, for ids and screen-reader labels. */
 type Day = { key: string; weekday: string };
 
+/** How long "Saved" stays on the card. */
+const SAVED_VISIBLE_MS = 3000;
+
 /** The dinner the day's form submits: see `setPlannedMeal` for how the server reads it. */
 type Choice = { dinner: string; recipeId: string; newRecipe: boolean };
 
@@ -46,7 +49,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   const [choice, setChoice, resyncChoice] = useChoice(meal, recipes);
   const formRef = useServerSync(meal);
   const router = useRouter();
-  const [pending, failed, submit] = useAutoSave(() => {
+  const [pending, failed, saved, submit] = useAutoSave(() => {
     // E.g. the picked recipe was deleted in another tab. Show what is saved
     // (as of the latest render, not the one the save started in), and fetch
     // the current recipes so the stale one is no longer suggested.
@@ -98,7 +101,13 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
       />
 
       {choice.dinner !== "" && (
-        <PlannedDetails day={day} meal={meal} recipeId={choice.recipeId} pending={pending} onSave={save} />
+        <PlannedDetails
+          day={day}
+          meal={meal}
+          recipeId={choice.recipeId}
+          status={{ pending, saved }}
+          onSave={save}
+        />
       )}
     </form>
   );
@@ -139,15 +148,26 @@ function useChoice(meal: DayCardMeal | null, recipes: DayCardProps["recipes"]) {
 function useAutoSave(onFailure: () => void) {
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // "Saved" is confirmation, not state: it goes away by itself.
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), SAVED_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
     const action = submitter?.dataset.intent === "clear" ? clearPlannedMeal : setPlannedMeal;
     const data = new FormData(event.currentTarget);
     setFailed(false);
+    setSaved(false);
     startTransition(async () => {
       try {
         await action(data);
+        setSaved(true);
       } catch {
         // Without this, a failed save would end on Next's error page.
         setFailed(true);
@@ -155,7 +175,7 @@ function useAutoSave(onFailure: () => void) {
       }
     });
   };
-  return [pending, failed, submit] as const;
+  return [pending, failed, saved, submit] as const;
 }
 
 /**
@@ -406,14 +426,14 @@ function PlannedDetails({
   day,
   meal,
   recipeId,
-  pending,
+  status,
   onSave,
 }: {
   day: Day;
   meal: DayCardMeal | null;
   /** The recipe the dinner field shows; empty for a one-off dinner. */
   recipeId: string;
-  pending: boolean;
+  status: { pending: boolean; saved: boolean };
   onSave: () => void;
 }) {
   const { i18n } = useLingui();
@@ -435,7 +455,16 @@ function PlannedDetails({
           onBlur={onSave}
         />
         <span aria-live="polite" className="ml-auto text-xs text-muted">
-          {pending ? t(i18n)`Saving…` : ""}
+          {status.pending ? (
+            t(i18n)`Saving…`
+          ) : status.saved ? (
+            <>
+              {t(i18n)`Saved`}
+              <span aria-hidden> ✓</span>
+            </>
+          ) : (
+            ""
+          )}
         </span>
       </div>
 

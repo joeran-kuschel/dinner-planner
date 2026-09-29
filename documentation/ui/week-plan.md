@@ -58,6 +58,13 @@ it changes when another recipe is picked and is not shown for a one-off dinner, 
 readers the link is named after the day ("View recipe for Monday"), so the seven links can be told apart; the spoken
 name starts with the visible text (WCAG 2.5.3).
 
+## Knowing it saved
+
+There is no save button, so the card says when a save is done. While a save is in flight it reads "Saving…" (next to
+**Serves**); when the save has gone through this turns into "Saved ✓" and goes away after three seconds. The next save
+replaces it with "Saving…" again. A failed save shows no "Saved" but the message below. The words appear on the card
+only while a dinner is planned, since **Serves** and **Note** are shown then too.
+
 ## When a save fails
 
 If a save does not go through, for example because the picked recipe was just deleted in another tab, the card says
@@ -71,7 +78,8 @@ The message is announced to screen readers (`role="alert"`) and disappears with 
   region announces how many suggestions there are. With nothing to suggest (no recipes and nothing typed), the field
   stays collapsed rather than announcing an empty list.
 - Every field is labelled with its weekday ("Dinner for Monday", "Note for Monday") for screen readers.
-- "Saving…" is announced in a polite live region while a save is in flight.
+- "Saving…" is announced in a polite live region while a save is in flight, and "Saved" replaces it in the same region
+  when the save has gone through. The check mark next to it is decoration and is not read out.
 - Saving never moves the keyboard focus, and the page never focuses a field on load.
 
 ## Without JavaScript
