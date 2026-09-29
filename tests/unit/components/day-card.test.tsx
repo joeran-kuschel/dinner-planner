@@ -42,6 +42,8 @@ function renderCard(overrides: Partial<DayCardProps> = {}) {
 
 const dinnerField = () => screen.getByRole("combobox", { name: "Dinner for Monday" });
 const suggestions = () => screen.queryAllByRole("option").map((option) => option.textContent);
+/** The card's save status: read out by screen readers, empty when there is nothing to say. */
+const status = () => document.getElementById("save-status-2026-09-28")!;
 const lastFormData = (fn: typeof actions.setPlannedMeal) => fn.mock.calls.at(-1)![0];
 
 /** An action whose promise the test settles, to observe the pending state. */
@@ -607,23 +609,7 @@ describe("DayCard", () => {
       expect(actions.clearPlannedMeal).not.toHaveBeenCalled();
     });
 
-    it("announces 'Saving…' in a polite live region while a save is pending", async () => {
-      const save = deferred();
-      actions.setPlannedMeal.mockImplementationOnce(() => save.promise);
-      const { user } = renderCard({ meal: PLANNED });
-
-      const note = screen.getByPlaceholderText("Note (optional)");
-      await user.type(note, "!");
-      await user.tab();
-
-      const status = await screen.findByText("Saving…");
-      expect(status).toHaveAttribute("aria-live", "polite");
-
-      save.resolve();
-      await waitFor(() => expect(screen.queryByText("Saving…")).not.toBeInTheDocument());
-    });
-
-    describe("confirming a save", () => {
+    describe("the status region", () => {
       afterEach(() => vi.useRealTimers());
 
       async function saveNote(user: ReturnType<typeof userEvent.setup>) {
@@ -631,69 +617,153 @@ describe("DayCard", () => {
         await user.tab();
       }
 
-      it("says 'Saved' in the same live region once the save has gone through", async () => {
+      it("is on the page, empty, before anything is saved, even on an empty day", () => {
+        renderCard();
+        expect(status()).toBeEmptyDOMElement();
+      });
+
+      it("announces 'Saving…' while a save is pending and 'Saved' once it has gone through", async () => {
         const save = deferred();
         actions.setPlannedMeal.mockImplementationOnce(() => save.promise);
         const { user } = renderCard({ meal: PLANNED });
+        const region = status();
         await saveNote(user);
-        const region = await screen.findByText("Saving…");
 
+        await waitFor(() => expect(region).toHaveTextContent("Saving…"));
         save.resolve();
-        await waitFor(() => expect(region).toHaveTextContent("Saved ✓"));
-        expect(region).toHaveAttribute("aria-live", "polite");
-        expect(screen.queryByText("Saving…")).not.toBeInTheDocument();
+        await waitFor(() => expect(region).toHaveTextContent("Saved"));
+        expect(status()).toBe(region);
       });
 
-      it("keeps the check mark out of the announcement", async () => {
+      it("shows the same words next to 'Serves', with a check mark that is not read out", async () => {
         const { user } = renderCard({ meal: PLANNED });
         await saveNote(user);
 
-        const saved = await screen.findByText("Saved");
-        expect(saved.querySelector("[aria-hidden]")).toHaveTextContent("✓");
+        const visible = await screen.findByText("Saved ✓");
+        expect(visible).toHaveAttribute("aria-hidden", "true");
+        expect(status()).toHaveTextContent(/^Saved$/);
       });
 
-      it("takes 'Saved' away after a few seconds", async () => {
+      it("takes 'Saved' away after three seconds", async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         const { user } = renderCard({ meal: PLANNED });
         await saveNote(user);
-        await screen.findByText("Saved");
+        await screen.findByText("Saved ✓");
 
         act(() => vi.advanceTimersByTime(2500));
-        expect(screen.getByText("Saved")).toBeInTheDocument();
+        expect(status()).toHaveTextContent("Saved");
         act(() => vi.advanceTimersByTime(1000));
-        expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+        expect(status()).toBeEmptyDOMElement();
+        expect(screen.queryByText("Saved ✓")).not.toBeInTheDocument();
       });
 
       it("shows 'Saving…' instead of 'Saved' when the next save starts", async () => {
         const { user } = renderCard({ meal: PLANNED });
         await saveNote(user);
-        await screen.findByText("Saved");
+        await waitFor(() => expect(status()).toHaveTextContent("Saved"));
 
         const save = deferred();
         actions.setPlannedMeal.mockImplementationOnce(() => save.promise);
         await saveNote(user);
 
-        await screen.findByText("Saving…");
-        expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+        await waitFor(() => expect(status()).toHaveTextContent("Saving…"));
         save.resolve();
-        await screen.findByText("Saved");
+        await waitFor(() => expect(status()).toHaveTextContent("Saved"));
       });
 
-      it("does not say 'Saved' when the save fails", async () => {
+      it("says nothing, and shows the alert, when the save fails", async () => {
         actions.setPlannedMeal.mockRejectedValueOnce(new Error("boom"));
         const { user } = renderCard({ meal: PLANNED });
         await saveNote(user);
 
         await screen.findByRole("alert");
-        expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+        expect(status()).toBeEmptyDOMElement();
       });
 
-      it("says 'Saved' after a first pick, which also reveals the region", async () => {
+      it("says 'Saved' after the first pick on an empty day", async () => {
         const { user } = renderCard();
+        const region = status();
         await user.click(dinnerField());
         await user.click(screen.getByRole("option", { name: "Mushroom risotto" }));
 
-        expect(await screen.findByText("Saved")).toHaveAttribute("aria-live", "polite");
+        await waitFor(() => expect(region).toHaveTextContent("Saved"));
+        expect(status()).toBe(region);
+      });
+
+      it("has nothing to confirm after clearing the day", async () => {
+        const { user } = renderCard({ meal: PLANNED });
+        await user.click(screen.getByRole("button", { name: "Clear day" }));
+
+        await waitFor(() => expect(actions.clearPlannedMeal).toHaveBeenCalledTimes(1));
+        expect(status()).toBeEmptyDOMElement();
+      });
+
+      describe("when saves overlap", () => {
+        it("leaves an older save's success out when a newer save is pending", async () => {
+          const first = deferred();
+          const second = deferred();
+          actions.setPlannedMeal.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+          const { user } = renderCard({ meal: PLANNED });
+          await saveNote(user);
+          await saveNote(user);
+          await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+
+          first.resolve();
+          await waitFor(() => expect(status()).toHaveTextContent("Saving…"));
+          expect(status()).not.toHaveTextContent("Saved");
+
+          second.resolve();
+          await waitFor(() => expect(status()).toHaveTextContent("Saved"));
+        });
+
+        it("shows no 'Saved' beside the alert when the newer save fails after an older one succeeded", async () => {
+          const first = deferred();
+          const second = deferred();
+          actions.setPlannedMeal.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+          const { user } = renderCard({ meal: PLANNED });
+          await saveNote(user);
+          await saveNote(user);
+          await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+
+          first.resolve();
+          second.reject(new Error("boom"));
+
+          await screen.findByRole("alert");
+          expect(status()).toBeEmptyDOMElement();
+          expect(screen.queryByText("Saved ✓")).not.toBeInTheDocument();
+        });
+
+        it("ignores an older save's failure once a newer save is under way", async () => {
+          const first = deferred();
+          const second = deferred();
+          actions.setPlannedMeal.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+          const { user } = renderCard({ meal: PLANNED });
+          await saveNote(user);
+          await saveNote(user);
+          await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+
+          first.reject(new Error("boom"));
+          second.resolve();
+
+          await waitFor(() => expect(status()).toHaveTextContent("Saved"));
+          expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        });
+
+        it("restarts the three seconds when a later save finishes", async () => {
+          vi.useFakeTimers({ shouldAdvanceTime: true });
+          const { user } = renderCard({ meal: PLANNED });
+          await saveNote(user);
+          await waitFor(() => expect(status()).toHaveTextContent("Saved"));
+
+          act(() => vi.advanceTimersByTime(2000));
+          await saveNote(user);
+          await waitFor(() => expect(status()).toHaveTextContent("Saved"));
+
+          act(() => vi.advanceTimersByTime(2000));
+          expect(status()).toHaveTextContent("Saved");
+          act(() => vi.advanceTimersByTime(1500));
+          expect(status()).toBeEmptyDOMElement();
+        });
       });
     });
 
@@ -706,12 +776,12 @@ describe("DayCard", () => {
       await user.type(screen.getByLabelText("Serves"), "5");
       const note = screen.getByRole("textbox", { name: "Note for Monday" });
       await user.click(note); // the blur saves the servings
-      await screen.findByText("Saving…");
+      await waitFor(() => expect(status()).toHaveTextContent("Saving…"));
       await user.clear(note);
       await user.type(note, "Half a batch");
 
       save.resolve();
-      await waitFor(() => expect(screen.queryByText("Saving…")).not.toBeInTheDocument());
+      await waitFor(() => expect(status()).not.toHaveTextContent("Saving…"));
 
       expect(note).toHaveFocus();
       expect(note).toHaveValue("Half a batch");
@@ -895,7 +965,7 @@ describe("DayCard", () => {
       await user.type(screen.getByRole("textbox", { name: "Notiz für Montag" }), "!");
       await user.tab();
 
-      expect(await screen.findByText("Gespeichert")).toBeInTheDocument();
+      await waitFor(() => expect(status()).toHaveTextContent("Gespeichert"));
     });
 
     it("names the recipe link after the weekday, starting with its visible text", () => {

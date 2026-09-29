@@ -62,6 +62,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   // Text and number fields save on blur rather than on change, so a save never
   // lands in the middle of typing.
   const save = () => formRef.current?.requestSubmit();
+  const saveStatus = pending ? t(i18n)`Saving…` : saved ? t(i18n)`Saved` : "";
 
   // A new choice reaches the hidden fields only with the next render, so the
   // save that follows a pick waits for it.
@@ -90,6 +91,13 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
         </p>
       )}
 
+      {/* Always on the page, so a screen reader is already listening when the
+          first save of an empty day finishes. The visible copy is in the
+          details below and hidden from assistive technology. */}
+      <p id={`save-status-${dayKey}`} aria-live="polite" aria-atomic className="sr-only">
+        {saveStatus}
+      </p>
+
       <DinnerCombobox
         day={day}
         recipes={recipes}
@@ -105,7 +113,8 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
           day={day}
           meal={meal}
           recipeId={choice.recipeId}
-          status={{ pending, saved }}
+          status={saveStatus}
+          confirmed={saved && !pending}
           onSave={save}
         />
       )}
@@ -148,34 +157,44 @@ function useChoice(meal: DayCardMeal | null, recipes: DayCardProps["recipes"]) {
 function useAutoSave(onFailure: () => void) {
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // The number of the save whose "Saved" is showing, or 0. A new number for
+  // every finished save restarts the timer below.
+  const [saved, setSaved] = useState(0);
+  // Saves can overlap (a blur while an earlier save is in flight). Only the
+  // latest one reports: an older one finishing late must not confirm, or
+  // blame, a write the user has since replaced.
+  const latest = useRef(0);
 
   // "Saved" is confirmation, not state: it goes away by itself.
   useEffect(() => {
-    if (!saved) return;
-    const timer = setTimeout(() => setSaved(false), SAVED_VISIBLE_MS);
+    if (saved === 0) return;
+    const timer = setTimeout(() => setSaved(0), SAVED_VISIBLE_MS);
     return () => clearTimeout(timer);
   }, [saved]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const action = submitter?.dataset.intent === "clear" ? clearPlannedMeal : setPlannedMeal;
+    const clearing = submitter?.dataset.intent === "clear";
+    const action = clearing ? clearPlannedMeal : setPlannedMeal;
     const data = new FormData(event.currentTarget);
+    const save = ++latest.current;
     setFailed(false);
-    setSaved(false);
+    setSaved(0);
     startTransition(async () => {
       try {
         await action(data);
-        setSaved(true);
+        // Clearing has nothing left on the card to say "Saved" next to.
+        if (save === latest.current && !clearing) setSaved(save);
       } catch {
+        if (save !== latest.current) return;
         // Without this, a failed save would end on Next's error page.
         setFailed(true);
         onFailure();
       }
     });
   };
-  return [pending, failed, saved, submit] as const;
+  return [pending, failed, saved > 0, submit] as const;
 }
 
 /**
@@ -427,13 +446,16 @@ function PlannedDetails({
   meal,
   recipeId,
   status,
+  confirmed,
   onSave,
 }: {
   day: Day;
   meal: DayCardMeal | null;
   /** The recipe the dinner field shows; empty for a one-off dinner. */
   recipeId: string;
-  status: { pending: boolean; saved: boolean };
+  /** "Saving…", "Saved" or nothing: the same text the card's status region reads out. */
+  status: string;
+  confirmed: boolean;
   onSave: () => void;
 }) {
   const { i18n } = useLingui();
@@ -454,17 +476,9 @@ function PlannedDetails({
           defaultValue={meal?.servings ?? 2}
           onBlur={onSave}
         />
-        <span aria-live="polite" className="ml-auto text-xs text-muted">
-          {status.pending ? (
-            t(i18n)`Saving…`
-          ) : status.saved ? (
-            <>
-              {t(i18n)`Saved`}
-              <span aria-hidden> ✓</span>
-            </>
-          ) : (
-            ""
-          )}
+        <span aria-hidden className="ml-auto text-xs text-muted">
+          {status}
+          {confirmed && " ✓"}
         </span>
       </div>
 

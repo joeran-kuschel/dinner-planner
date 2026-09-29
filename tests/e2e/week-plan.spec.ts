@@ -168,9 +168,11 @@ test.describe("week plan", () => {
     await page.goto("/?week=2027-03-15");
     await planRecipe(page, "Monday", name);
 
-    const saved = dayCard(page, "Monday").getByText(/^Saved/);
-    await expect(saved).toBeVisible();
-    await expect(saved).toBeHidden({ timeout: 6_000 });
+    // The screen-reader status; the words beside "Serves" are hidden from assistive technology.
+    const status = dayCard(page, "Monday").locator("p[aria-live]");
+    await expect(status).toHaveText("Saved");
+    await expectAccessible(page);
+    await expect(status).toHaveText("", { timeout: 6_000 });
   });
 
   test("clears a day", async ({ page }) => {
