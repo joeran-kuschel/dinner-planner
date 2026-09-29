@@ -202,8 +202,7 @@ msgstr "Name von Zutat {number}"
 msgid "New recipe"
 msgstr "Neues Rezept"
 
-#: app/groceries/page.tsx
-#: app/page.tsx
+#: components/week-nav.tsx
 msgid "Next week"
 msgstr "Nächste Woche"
 
@@ -275,7 +274,7 @@ msgstr "Geplant: {plannedDays}"
 msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
 msgstr "Die Zubereitungszeit darf höchstens {MAX_PREP_MINUTES} Minuten betragen."
 
-#: app/page.tsx
+#: components/week-nav.tsx
 msgid "Previous week"
 msgstr "Vorige Woche"
 
@@ -340,10 +339,14 @@ msgstr "Dieser Tag konnte nicht gespeichert werden. Er zeigt jetzt, was gespeich
 msgid "This page does not exist, or the recipe was deleted."
 msgstr "Diese Seite gibt es nicht, oder das Rezept wurde gelöscht."
 
-#: app/page.tsx
 #: components/site-nav.tsx
+#: components/week-nav.tsx
 msgid "This week"
 msgstr "Diese Woche"
+
+#: app/groceries/page.tsx
+msgid "This week's list"
+msgstr "Einkaufsliste dieser Woche"
 
 #: components/grocery-list.tsx
 msgid "Tick off {label}"

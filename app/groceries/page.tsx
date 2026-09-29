@@ -2,6 +2,7 @@ import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { addGroceryExtra, resetGroceryTicks } from "@/app/actions/groceries";
 import { GroceryList } from "@/components/grocery-list";
+import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine } from "@/lib/grocery";
@@ -76,17 +77,16 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
             {t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href={`/?week=${weekKey}`} className="btn-secondary">
             {t(i18n)`Edit the plan`}
           </Link>
-          <Link
-            href={`/groceries?week=${dayKey(addDays(weekStart, 7))}`}
-            className="btn-secondary"
-            aria-label={t(i18n)`Next week`}
-          >
-            →
-          </Link>
+          <WeekNav
+            basePath="/groceries"
+            weekStart={weekStart}
+            i18n={i18n}
+            thisWeekLabel={t(i18n)`This week's list`}
+          />
         </div>
       </header>
 
