@@ -3,6 +3,7 @@ import { Trans } from "@lingui/react/macro";
 import Link from "next/link";
 import { clearWeek } from "@/app/actions/meals";
 import { DayCard } from "@/components/day-card";
+import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import {
@@ -50,25 +51,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/?week=${dayKey(addDays(weekStart, -7))}`}
-            className="btn-secondary"
-            aria-label={t(i18n)`Previous week`}
-          >
-            ←
-          </Link>
-          <Link href="/" className="btn-secondary">
-            {t(i18n)`This week`}
-          </Link>
-          <Link
-            href={`/?week=${dayKey(addDays(weekStart, 7))}`}
-            className="btn-secondary"
-            aria-label={t(i18n)`Next week`}
-          >
-            →
-          </Link>
-        </div>
+        <WeekNav basePath="/" weekStart={weekStart} i18n={i18n} />
       </header>
 
       {recipes.length === 0 && (

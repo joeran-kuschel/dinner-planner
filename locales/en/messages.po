@@ -202,8 +202,7 @@ msgstr "Name of ingredient {number}"
 msgid "New recipe"
 msgstr "New recipe"
 
-#: app/groceries/page.tsx
-#: app/page.tsx
+#: components/week-nav.tsx
 msgid "Next week"
 msgstr "Next week"
 
@@ -275,7 +274,7 @@ msgstr "Planned for {plannedDays}."
 msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
 msgstr "Prep time can be at most {MAX_PREP_MINUTES} minutes."
 
-#: app/page.tsx
+#: components/week-nav.tsx
 msgid "Previous week"
 msgstr "Previous week"
 
@@ -340,10 +339,14 @@ msgstr "This day could not be saved. It shows what is saved now; please try agai
 msgid "This page does not exist, or the recipe was deleted."
 msgstr "This page does not exist, or the recipe was deleted."
 
-#: app/page.tsx
 #: components/site-nav.tsx
+#: components/week-nav.tsx
 msgid "This week"
 msgstr "This week"
+
+#: app/groceries/page.tsx
+msgid "This week's list"
+msgstr "This week's list"
 
 #: components/grocery-list.tsx
 msgid "Tick off {label}"

@@ -5,6 +5,7 @@ Feature documentation, split into the user interface and the backend.
 ## UI
 
 - [Week plan](ui/week-plan.md): the day cards, the dinner field with its suggestions, and keyboard use
+- [Grocery list](ui/groceries.md): the weekly shopping list, moving between weeks, ticking off and extras
 - [Language](ui/language.md): switching between English and German, which language you get, dates and numbers
 
 ## Backend

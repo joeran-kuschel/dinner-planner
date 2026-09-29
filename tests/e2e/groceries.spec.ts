@@ -141,4 +141,30 @@ test.describe("groceries", () => {
     await expect(page.getByRole("checkbox", { name: "Tick off Spaghetti", exact: true })).toBeChecked();
     await expect(groceryRow(page, "Basil")).toContainText("to taste");
   });
+
+  test("moves between weeks with the week navigation, staying on the grocery list", async ({ page }) => {
+    // Any day of the week opens the week from its Monday.
+    await page.goto("/groceries?week=2027-05-12");
+    await expect(page.getByText("10 May – 16 May 2027")).toBeVisible();
+
+    await page.getByRole("link", { name: "Previous week" }).click();
+    await expect(page).toHaveURL("/groceries?week=2027-05-03");
+    await expect(page.getByText("3 May – 9 May 2027")).toBeVisible();
+
+    await page.getByRole("link", { name: "Next week" }).click();
+    await page.getByRole("link", { name: "Next week" }).click();
+    await expect(page).toHaveURL("/groceries?week=2027-05-17");
+    await expect(page.getByText("17 May – 23 May 2027")).toBeVisible();
+
+    // The menu's "This week" opens the plan, so this one is named differently.
+    await page.getByRole("link", { name: "This week's list" }).click();
+    await expect(page).toHaveURL("/groceries");
+    await expect(page.getByRole("heading", { level: 1, name: "Grocery list" })).toBeVisible();
+  });
+
+  test("still opens the plan of the week being shopped for", async ({ page }) => {
+    await page.goto("/groceries?week=2027-05-19");
+    await page.getByRole("link", { name: "Edit the plan" }).click();
+    await expect(page).toHaveURL("/?week=2027-05-17");
+  });
 });

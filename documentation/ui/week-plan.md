@@ -5,6 +5,13 @@ people it is for, an optional note, and a button to clear the day. Everything sa
 
 The labels below are the English ones; see [Language](language.md) for the German interface.
 
+## Moving between weeks
+
+**←** and **→** above the cards open the week before and after, and **This week** returns to the current one; screen
+readers hear "Previous week" and "Next week". The week is in the address (`/?week=2027-01-04`): any day of a week opens
+that week from its Monday, and a missing or malformed value shows the current week. The
+[grocery list](groceries.md) has the same buttons.
+
 ## Planning a dinner
 
 Each day has a single dinner field that suggests as you type.
@@ -98,3 +105,4 @@ anything else is planned for that day only. Adding a new recipe from the day car
 ## Related
 
 - [Planned meals](../backend/planned-meals.md): how the server stores what the card sends.
+- [Grocery list](groceries.md): the shopping list worked out from the week, with the same week buttons.
