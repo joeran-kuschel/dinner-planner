@@ -477,13 +477,12 @@ function SuggestionList({
 function ClearedNotice({ weekday, onUndo }: { weekday: string; onUndo: () => void }) {
   const { i18n } = useLingui();
   const undoButton = useRef<HTMLButtonElement>(null);
-  // "Clear day" had the focus and is about to go with the rest of the details, which would drop
-  // the focus on the page. Undo is what the user may want next. Focus that already moved on to
-  // another card or field elsewhere on the page is left alone.
+  // "Clear day" had the focus and goes with the rest of the details, which drops the focus on the
+  // page. Undo is what the user may want next. Focus that has moved on to a field or another card
+  // in the meantime is left alone.
   useEffect(() => {
-    const active = document.activeElement;
-    const card = undoButton.current?.closest("form");
-    if (!active || active === document.body || card?.contains(active)) undoButton.current?.focus();
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || active === document.body || active.dataset.intent === "clear") undoButton.current?.focus();
   }, []);
   return (
     <div className="flex items-center gap-2 text-xs text-muted">

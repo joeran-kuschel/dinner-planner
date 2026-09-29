@@ -14,7 +14,7 @@ recipes yet, the page says what a recipe needs: a name and its ingredients; the 
 ## A recipe
 
 A recipe's page shows its facts (with a link to the source, if it has one), the ingredients with their amounts, the
-method as numbered steps, and the upcoming days it is planned for. **Edit** opens the form again; **Back to the plan**
+method as numbered steps, and the days it is planned for, from the current week on. **Edit** opens the form again; **Back to the plan**
 returns to the current week.
 
 ## The form
@@ -33,13 +33,15 @@ example for a blank name, the message is announced and everything typed is still
 
 ## Deleting a recipe
 
-**Delete** on the recipe's page does not delete at once. It opens a small question below the button: "Delete “Name”?
+**Delete** on the recipe's page does not delete at once. It opens a small question below the button (as a sheet at the bottom of the screen when the screen is narrower than 640
+px): "Delete “Name”?
 Days that only plan it are cleared too." with **Delete recipe** and **Cancel**.
 
 - **Delete recipe** removes the recipe and its ingredients. A day that only planned this recipe is emptied. A day that
   has its own one-off title keeps it.
 - **Cancel**, Escape, or using **Delete** again closes the question without deleting, and the focus returns to
   **Delete**.
+- While the recipe is being deleted, **Delete recipe** is off, so a double click cannot delete twice.
 - The question is a disclosure button that screen readers announce as collapsed or expanded, and it works without
   JavaScript; Cancel and Escape need it.
 

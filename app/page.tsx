@@ -45,7 +45,9 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Dinner plan`}</h1>
+          <h1 id="week-plan-title" tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+            {t(i18n)`Dinner plan`}
+          </h1>
           <p className="mt-1 text-sm text-muted">
             {formatWeekRange(weekStart, locale)} ·{" "}
             {t(i18n)`${plannedCount} of 7 planned`}
@@ -104,6 +106,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
             action={clearWeek}
             fields={{ weekStart: dayKey(weekStart) }}
             openUpward
+            focusAfter="week-plan-title"
           />
         )}
       </footer>

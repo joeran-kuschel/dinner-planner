@@ -81,14 +81,34 @@ describe("ConfirmAction", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
-  it("leaves Escape alone while closed", async () => {
+  // React handles events at the container, so an outer listener has to sit above it (on the
+  // document) for stopPropagation to make a difference.
+  function listenOutside() {
     const outer = vi.fn();
-    const { user, details } = renderConfirm();
-    details.parentElement!.addEventListener("keydown", outer);
+    document.addEventListener("keydown", outer);
+    return { outer, stop: () => document.removeEventListener("keydown", outer) };
+  }
+
+  it("leaves Escape alone while closed, so an enclosing dialog can still use it", async () => {
+    const { outer, stop } = listenOutside();
+    const { user } = renderConfirm();
     summary().focus();
     await user.keyboard("{Escape}");
+    stop();
 
     expect(outer).toHaveBeenCalled();
+  });
+
+  it("keeps the Escape that closes the question from reaching anything around it", async () => {
+    const { outer, stop } = listenOutside();
+    const { user, details } = renderConfirm();
+    await user.click(summary());
+    screen.getByRole("button", { name: "Cancel" }).focus();
+    await user.keyboard("{Escape}");
+    stop();
+
+    expect(details.open).toBe(false);
+    expect(outer).not.toHaveBeenCalled();
   });
 
   it("closes again when the asking button is used a second time", async () => {
@@ -101,13 +121,78 @@ describe("ConfirmAction", () => {
   it("can open upward for a button at the bottom of the page", async () => {
     const { user } = renderConfirm({ openUpward: true });
     await user.click(summary());
-    expect(question()).toHaveClass("bottom-full");
+    expect(question()).toHaveClass("sm:bottom-full");
   });
 
   it("opens below by default", async () => {
     const { user } = renderConfirm();
     await user.click(summary());
-    expect(question()).toHaveClass("top-full");
+    expect(question()).toHaveClass("sm:top-full");
+  });
+
+  describe("while the confirmed action runs", () => {
+    it("turns the confirm button off, so a double click cannot run it twice", async () => {
+      let finish!: () => void;
+      const action = vi.fn<(formData: FormData) => Promise<void>>(() => new Promise((resolve) => (finish = resolve)));
+      const { user } = renderConfirm({ action });
+      await user.click(summary());
+      const confirm = screen.getByRole("button", { name: "Delete recipe" });
+      await user.dblClick(confirm);
+
+      await waitFor(() => expect(confirm).toBeDisabled());
+      expect(action).toHaveBeenCalledTimes(1);
+      finish();
+      await waitFor(() => expect(confirm).toBeEnabled());
+    });
+  });
+
+  describe("handing on the focus", () => {
+    function renderWithTarget() {
+      const action = vi.fn<(formData: FormData) => Promise<void>>(async () => {});
+      const user = userEvent.setup();
+      const result = renderWithI18n(
+        <>
+          <h1 id="title" tabIndex={-1}>
+            Title
+          </h1>
+          <ConfirmAction
+            label="Delete"
+            question="Delete “Mushroom risotto”?"
+            confirmLabel="Delete recipe"
+            action={action}
+            fields={{ id: "r-risotto" }}
+            focusAfter="title"
+          />
+        </>,
+      );
+      return { user, ...result };
+    }
+
+    it("focuses the target once a confirmed action takes the component away", async () => {
+      const { user, rerender } = renderWithTarget();
+      await user.click(summary());
+      await user.click(screen.getByRole("button", { name: "Delete recipe" }));
+
+      rerender(
+        <h1 id="title" tabIndex={-1}>
+          Title
+        </h1>,
+      );
+      expect(screen.getByRole("heading", { name: "Title" })).toHaveFocus();
+    });
+
+    it("leaves the focus alone when the question was cancelled before the component goes", async () => {
+      const { user, rerender } = renderWithTarget();
+      await user.click(summary());
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      rerender(
+        <h1 id="title" tabIndex={-1}>
+          Title
+        </h1>,
+      );
+      expect(screen.getByRole("heading", { name: "Title" })).not.toHaveFocus();
+    });
   });
 
   it("names Cancel in German", async () => {

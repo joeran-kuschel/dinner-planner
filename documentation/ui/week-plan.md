@@ -92,8 +92,9 @@ with an **Undo** button, and the focus moves to it, since the **Clear day** butt
   "could not be saved" message.
 
 **Clear the whole week** (bottom of the page, only when something is planned) asks first, because it cannot be undone:
-a small question opens above the button, "Remove 3 planned dinners from this week?", with **Clear week** and **Cancel**.
-Cancel, Escape, or using the button again closes the question and puts the focus back on the button. The same question
+a small question opens above the button (on a screen narrower than 640 px, as a sheet at the bottom of the screen, so it
+never runs off the side), "Remove 3 planned dinners from this week?", with **Clear week** and **Cancel**.
+Cancel, Escape, or using the button again closes the question and puts the focus back on the button. Once confirmed, the button goes away with the plan, so the focus moves to the page heading; the confirm button is off while the week is being cleared, so a double click cannot run it twice. The same question
 pattern is used for deleting a recipe; see [Recipes](recipes.md).
 
 ## When a save fails

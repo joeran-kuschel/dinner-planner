@@ -839,6 +839,31 @@ describe("DayCard", () => {
       elsewhere.remove();
     });
 
+    it("moves the focus to Undo when nothing has it, as after a click in a browser that does not focus buttons", async () => {
+      const save = deferred();
+      actions.clearPlannedMeal.mockImplementationOnce(() => save.promise);
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      (document.activeElement as HTMLElement).blur();
+      expect(document.body).toHaveFocus();
+
+      save.resolve();
+      await waitFor(() => expect(undoButton()).toHaveFocus());
+    });
+
+    it("leaves the focus alone when it moved to another field of the card while the clear was under way", async () => {
+      const save = deferred();
+      actions.clearPlannedMeal.mockImplementationOnce(() => save.promise);
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      const note = screen.getByPlaceholderText("Note (optional)");
+      await user.click(note);
+
+      save.resolve();
+      await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+      expect(note).toHaveFocus();
+    });
+
     it("saves what was cleared again when undone", async () => {
       const { user } = renderCard({ meal: PLANNED });
       await clearDay(user);
