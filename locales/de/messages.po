@@ -365,6 +365,14 @@ msgstr "Einheit für Zutat {number}"
 msgid "Untick everything"
 msgstr "Alle Haken entfernen"
 
+#: components/day-card.tsx
+msgid "View recipe"
+msgstr "Rezept ansehen"
+
+#: components/day-card.tsx
+msgid "View recipe for {weekday}"
+msgstr "Rezept ansehen für {weekday}"
+
 #: app/groceries/page.tsx
 msgid "Washing-up liquid"
 msgstr "Spülmittel"
