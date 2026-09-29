@@ -4,6 +4,7 @@ import {
   createRecipe,
   dayCard,
   dinnerField,
+  expectAccessible,
   pickDinner,
   planOnce,
   planRecipe,
@@ -185,7 +186,10 @@ test.describe("week plan", () => {
 
     await page.goto("/?week=2027-03-01");
     await planRecipe(page, "Friday", name);
-    await dayCard(page, "Friday").getByRole("link", { name: "View recipe for Friday" }).click();
+    const link = dayCard(page, "Friday").getByRole("link", { name: "View recipe for Friday" });
+    await expect(link).toBeVisible();
+    await expectAccessible(page);
+    await link.click();
 
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
   });
