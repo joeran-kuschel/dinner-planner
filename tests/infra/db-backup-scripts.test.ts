@@ -77,6 +77,15 @@ describe("backup-db.sh", () => {
     expect(kubectlCalls()).toContain('pg_dump --clean --if-exists -U "$POSTGRES_USER" -d "$POSTGRES_DB"');
   });
 
+  it("writes to ~/DinnerPlannerBackups when BACKUP_DIR is not set", () => {
+    const result = run("backup-db.sh", [], { env: { BACKUP_DIR: undefined } });
+
+    expect(result.status).toBe(0);
+    expect(fs.readdirSync(path.join(dir, "DinnerPlannerBackups"))).toEqual([
+      expect.stringMatching(/^dinner_planner-\d{8}-\d{6}\.sql\.gz$/),
+    ]);
+  });
+
   it("keeps previous backups and writes nothing when the dump is incomplete", () => {
     fs.mkdirSync(backupDir);
     fs.writeFileSync(path.join(backupDir, "dinner_planner-20260920-100000.sql.gz"), "old");

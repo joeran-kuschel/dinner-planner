@@ -6,15 +6,27 @@ import { parseAllDocuments } from "yaml";
 const K8S = path.join(process.cwd(), "k8s");
 const CLUSTER = "docker-desktop";
 
-type Container = { name: string; image: string; imagePullPolicy?: string };
+type Container = {
+  name: string;
+  image: string;
+  imagePullPolicy?: string;
+  envFrom?: { secretRef: { name: string } }[];
+};
+// Parsed YAML; each test reads only the fields it checks.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Resource = any;
+
+/** Every resource in one manifest file in k8s/. */
+function resources(file: string): Resource[] {
+  return parseAllDocuments(fs.readFileSync(path.join(K8S, file), "utf-8")).map((doc) => doc.toJS());
+}
 
 /** Every container, init container included, in every manifest in k8s/. */
 function containers(): Container[] {
   return fs
     .readdirSync(K8S)
     .filter((file) => file.endsWith(".yaml"))
-    .flatMap((file) => parseAllDocuments(fs.readFileSync(path.join(K8S, file), "utf-8")))
-    .map((doc) => doc.toJS())
+    .flatMap(resources)
     .flatMap((resource) => {
       const pod = resource?.spec?.template?.spec;
       return pod ? [...(pod.initContainers ?? []), ...pod.containers] : [];
@@ -47,6 +59,52 @@ describe("Kubernetes setup for Docker Desktop", () => {
 
     expect(kubectl.length).toBeGreaterThan(0);
     for (const command of kubectl) expect(command).toContain(`kubectl --context ${CLUSTER} `);
+  });
+
+  it("uses one namespace in the kustomization, the Namespace, the scripts and the npm scripts", () => {
+    const namespace = resources("kustomization.yaml")[0].namespace;
+    const scripts: Record<string, string> = JSON.parse(read("package.json")).scripts;
+
+    expect(namespace).toBe("dinner-planner");
+    expect(resources("namespace.yaml")[0].metadata.name).toBe(namespace);
+    for (const file of ["k8s/deploy.sh", "k8s/seed.sh"]) expect(read(file), file).toContain(`NAMESPACE=${namespace}\n`);
+    expect(read("k8s/db-common.sh")).toContain(`NAMESPACE="\${NAMESPACE:-${namespace}}"`);
+    for (const command of Object.values(scripts).filter((c) => c.includes("kubectl"))) {
+      expect(command).toContain(`-n ${namespace} `);
+    }
+  });
+
+  it("points every Secret, Service and Ingress reference at a resource that exists", () => {
+    const all = fs
+      .readdirSync(K8S)
+      .filter((file) => file.endsWith(".yaml") && file !== "kustomization.yaml")
+      .flatMap(resources);
+    const named = (kind: string) => all.filter((r) => r.kind === kind);
+    const secrets = named("Secret").map((r) => r.metadata.name);
+    const services = named("Service");
+    const podLabels = all.flatMap((r: Resource) => (r.spec?.template?.metadata?.labels ? [r.spec.template.metadata.labels] : []));
+
+    const secretRefs = containers().flatMap((c) => c.envFrom?.map((e) => e.secretRef.name) ?? []);
+    expect(secretRefs.length).toBeGreaterThan(0);
+    for (const ref of secretRefs) expect(secrets).toContain(ref);
+
+    for (const service of services) {
+      expect(podLabels, service.metadata.name).toContainEqual(expect.objectContaining(service.spec.selector));
+    }
+    for (const set of named("StatefulSet")) {
+      expect(services.map((s) => s.metadata.name)).toContain(set.spec.serviceName);
+    }
+    for (const ingress of named("Ingress")) {
+      const backends = ingress.spec.rules.flatMap((rule: Resource) =>
+        rule.http.paths.map((p: Resource) => p.backend.service.name),
+      );
+      for (const backend of backends) expect(services.map((s) => s.metadata.name)).toContain(backend);
+    }
+
+    const secret = named("Secret")[0].stringData;
+    const url = new URL(secret.DATABASE_URL);
+    expect(services.map((s) => s.metadata.name)).toContain(url.hostname);
+    expect(url.pathname).toBe(`/${secret.POSTGRES_DB}`);
   });
 
   it("has no minikube leftovers in the scripts, manifests or npm scripts", () => {
