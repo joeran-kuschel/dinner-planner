@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dinner-planer-seed
+  name: dinner-planner-seed
 spec:
   backoffLimit: 2
   template:
@@ -11,12 +11,12 @@ spec:
       restartPolicy: Never
       containers:
         - name: seed
-          image: dinner-planer-migrator:dev
+          image: dinner-planner-migrator:dev
           imagePullPolicy: Never
           command: ["npx", "prisma", "db", "seed"]
           envFrom:
             - secretRef:
-                name: dinner-planer-db
+                name: dinner-planner-db
           resources:
             requests:
               cpu: 50m

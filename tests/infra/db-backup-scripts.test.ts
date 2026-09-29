@@ -70,23 +70,23 @@ describe("backup-db.sh", () => {
 
     expect(result.status).toBe(0);
     expect(backups()).toHaveLength(1);
-    expect(backups()[0]).toMatch(/^dinner_planer-\d{8}-\d{6}\.sql\.gz$/);
+    expect(backups()[0]).toMatch(/^dinner_planner-\d{8}-\d{6}\.sql\.gz$/);
     const content = zlib.gunzipSync(fs.readFileSync(path.join(backupDir, backups()[0]))).toString();
     expect(content).toBe(COMPLETE_DUMP);
-    expect(kubectlCalls()).toContain("--context docker-desktop -n dinner-planer exec -i statefulset/dinner-planer-db");
+    expect(kubectlCalls()).toContain("--context docker-desktop -n dinner-planner exec -i statefulset/dinner-planner-db");
     expect(kubectlCalls()).toContain('pg_dump --clean --if-exists -U "$POSTGRES_USER" -d "$POSTGRES_DB"');
   });
 
   it("keeps previous backups and writes nothing when the dump is incomplete", () => {
     fs.mkdirSync(backupDir);
-    fs.writeFileSync(path.join(backupDir, "dinner_planer-20260920-100000.sql.gz"), "old");
+    fs.writeFileSync(path.join(backupDir, "dinner_planner-20260920-100000.sql.gz"), "old");
     fs.writeFileSync(path.join(dir, "dump.sql"), '-- PostgreSQL database dump\nCREATE TABLE');
 
     const result = run("backup-db.sh");
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Backup incomplete");
-    expect(fs.readdirSync(backupDir)).toEqual(["dinner_planer-20260920-100000.sql.gz"]);
+    expect(fs.readdirSync(backupDir)).toEqual(["dinner_planner-20260920-100000.sql.gz"]);
   });
 
   it("fails without writing a backup when the cluster is not reachable", () => {
@@ -99,7 +99,7 @@ describe("backup-db.sh", () => {
   it("keeps only the newest BACKUP_KEEP dumps", () => {
     fs.mkdirSync(backupDir);
     ["20260918-100000", "20260919-100000", "20260920-100000"].forEach((stamp, i) => {
-      const file = path.join(backupDir, `dinner_planer-${stamp}.sql.gz`);
+      const file = path.join(backupDir, `dinner_planner-${stamp}.sql.gz`);
       fs.writeFileSync(file, "old");
       const time = new Date(Date.UTC(2026, 8, 18 + i, 10));
       fs.utimesSync(file, time, time);
@@ -109,8 +109,8 @@ describe("backup-db.sh", () => {
 
     expect(result.status).toBe(0);
     expect(backups()).toHaveLength(2);
-    expect(backups()).toContain("dinner_planer-20260920-100000.sql.gz");
-    expect(backups()).not.toContain("dinner_planer-20260919-100000.sql.gz");
+    expect(backups()).toContain("dinner_planner-20260920-100000.sql.gz");
+    expect(backups()).not.toContain("dinner_planner-20260919-100000.sql.gz");
   });
 });
 
@@ -119,7 +119,7 @@ describe("restore-db.sh", () => {
 
   beforeEach(() => {
     fs.mkdirSync(backupDir);
-    backupFile = path.join(backupDir, "dinner_planer-20260921-100000.sql.gz");
+    backupFile = path.join(backupDir, "dinner_planner-20260921-100000.sql.gz");
     fs.writeFileSync(backupFile, zlib.gzipSync(COMPLETE_DUMP));
   });
 
@@ -156,7 +156,7 @@ describe("restore-db.sh", () => {
 });
 
 describe("install-backup-job.sh", () => {
-  const plist = () => path.join(dir, "Library", "LaunchAgents", "com.dinnerplaner.db-backup.plist");
+  const plist = () => path.join(dir, "Library", "LaunchAgents", "com.dinnerplanner.db-backup.plist");
 
   it("installs an hourly launchd job that runs backup-db.sh", () => {
     const result = run("install-backup-job.sh");
@@ -179,12 +179,12 @@ describe("install-backup-job.sh", () => {
 
   it("removes the job but keeps the backups on --uninstall", () => {
     run("install-backup-job.sh");
-    fs.writeFileSync(path.join(backupDir, "dinner_planer-20260921-100000.sql.gz"), "kept");
+    fs.writeFileSync(path.join(backupDir, "dinner_planner-20260921-100000.sql.gz"), "kept");
 
     const result = run("install-backup-job.sh", ["--uninstall"]);
 
     expect(result.status).toBe(0);
     expect(fs.existsSync(plist())).toBe(false);
-    expect(backups()).toEqual(["dinner_planer-20260921-100000.sql.gz"]);
+    expect(backups()).toEqual(["dinner_planner-20260921-100000.sql.gz"]);
   });
 });

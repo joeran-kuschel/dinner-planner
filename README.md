@@ -43,7 +43,7 @@ The app is then at http://dinner.local. `k8s:deploy` prints the `/etc/hosts`
 lines to add if they are missing (they need sudo, so it will not do it for
 you). `npm run k8s:delete` removes it again, including its database.
 
-The cluster's database is backed up every hour to `~/DinnerPlanerBackups` once
+The cluster's database is backed up every hour to `~/DinnerPlannerBackups` once
 you run `npm run k8s:backup:install`; see
 [documentation/backend/database-backups.md](documentation/backend/database-backups.md)
 for restoring.

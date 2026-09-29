@@ -4,7 +4,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dinner-planer
+  name: dinner-planner
 spec:
   ingressClassName: nginx
   rules:
@@ -15,6 +15,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: dinner-planer
+                name: dinner-planner
                 port:
                   name: http

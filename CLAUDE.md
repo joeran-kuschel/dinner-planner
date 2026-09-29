@@ -29,7 +29,7 @@ npm run db:studio    # browse the database
 
 npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal deploy
 npm run k8s:seed     # sample data into the cluster's database (one-off Job)
-npm run k8s:backup   # dump the cluster's database to ~/DinnerPlanerBackups
+npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
 npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
 npm run k8s:status   # pods, services, ingress
 npm run k8s:logs     # follow the app's logs
@@ -197,7 +197,7 @@ is how the test suite ended up writing into the development data.
 ## Kubernetes
 
 The app runs in **Docker Desktop's Kubernetes** (context `docker-desktop`), in
-the `dinner-planer` namespace. `npm run k8s:deploy` is the whole workflow: it
+the `dinner-planner` namespace. `npm run k8s:deploy` is the whole workflow: it
 checks the cluster and the ingress controller, builds both image targets,
 imports them into the cluster node and applies `k8s/`. Re-run it to push a code
 change.
@@ -238,7 +238,7 @@ change.
 - **The database volume lives inside the kind node.** Resetting or updating
   Docker Desktop's Kubernetes deletes it, and so does `npm run k8s:delete`,
   which removes the whole namespace. A launchd job (`npm run k8s:backup:install`)
-  dumps it hourly to `~/DinnerPlanerBackups`; run `npm run k8s:backup` before
+  dumps it hourly to `~/DinnerPlannerBackups`; run `npm run k8s:backup` before
   anything risky. Details and restore: `documentation/backend/database-backups.md`.
 - The two images are separate on purpose: the app image runs Next's standalone
   output and carries no Prisma CLI, schema or `tsx`; the migrator image has
@@ -259,7 +259,7 @@ the shared button base is a selector list.
 - Don't refactor without permission
 - Data has to be persistently stored somewhere
 - The app must be deployable to Kubernetes (container image + manifests). The app itself stays stateless; persistent data lives in PostgreSQL, configured via `DATABASE_URL`
-- The app runs in the local Kubernetes environment: **Docker Desktop's Kubernetes** (context `docker-desktop`), namespace `dinner-planer`, reached at `http://dinner.local`. Deploy with `npm run k8s:deploy`; never target a context other than `docker-desktop`. Keep it working there — a change that cannot be deployed and reached in that cluster is not finished
+- The app runs in the local Kubernetes environment: **Docker Desktop's Kubernetes** (context `docker-desktop`), namespace `dinner-planner`, reached at `http://dinner.local`. Deploy with `npm run k8s:deploy`; never target a context other than `docker-desktop`. Keep it working there — a change that cannot be deployed and reached in that cluster is not finished
 - Add test cases for everything we implement
 - The UI has to be accessible and adhere to W3C and WAI standards (target: WCAG 2.2 level AA)
 - Be lean in the code: avoid duplicated code and tight coupling

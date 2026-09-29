@@ -1,14 +1,14 @@
 # Database backups
 
 In Kubernetes, the database runs inside Docker Desktop's cluster. Its volume lives inside the cluster's node, so resetting
-or updating Docker Desktop's Kubernetes, or `npm run k8s:delete` (which removes the whole `dinner-planer` namespace),
+or updating Docker Desktop's Kubernetes, or `npm run k8s:delete` (which removes the whole `dinner-planner` namespace),
 deletes all data. Hourly backups to a folder on the Mac protect against that.
 
 The development database from `npm run db:up` is not backed up; it only holds test and sample data.
 
 ## How it works
 
-- `k8s/backup-db.sh` runs `pg_dump` inside the Postgres pod (`statefulset/dinner-planer-db`) and writes a
+- `k8s/backup-db.sh` runs `pg_dump` inside the Postgres pod (`statefulset/dinner-planner-db`) and writes a
   gzip-compressed dump to the backup folder.
 - A dump is only kept if it is complete. `pg_dump` ends every full dump with `PostgreSQL database dump complete`; a dump
   without that line is discarded and the previous backups stay untouched.
@@ -16,7 +16,7 @@ The development database from `npm run db:up` is not backed up; it only holds te
 - A launchd job runs the backup every hour and right after the Mac wakes up. It only succeeds while Docker Desktop and the
   cluster are running; failed runs are logged and retried at the next interval.
 - The credentials never leave the cluster: the commands run inside the Postgres pod, which gets them from the
-  `dinner-planer-db` Secret.
+  `dinner-planner-db` Secret.
 
 Backups are stored outside the repository and must never be committed.
 
@@ -31,7 +31,7 @@ bash k8s/install-backup-job.sh --uninstall  # remove the job; existing backups a
 
 ```bash
 npm run k8s:backup
-npm run k8s:restore -- ~/DinnerPlanerBackups/dinner_planer-20260928-124534.sql.gz
+npm run k8s:restore -- ~/DinnerPlannerBackups/dinner_planner-20260928-124534.sql.gz
 ```
 
 A restore replaces **all** current data with the backup, so it asks you to type `restore` first. Pass `--yes` after the
@@ -41,7 +41,7 @@ changed.
 ### After a cluster reset
 
 1. Deploy the app again with `npm run k8s:deploy`. The migrations create an empty schema.
-2. Restore the newest backup: `npm run k8s:restore -- "$(ls -1t ~/DinnerPlanerBackups/*.sql.gz | head -1)"`.
+2. Restore the newest backup: `npm run k8s:restore -- "$(ls -1t ~/DinnerPlannerBackups/*.sql.gz | head -1)"`.
 
 ## Configuration
 
@@ -49,10 +49,10 @@ All scripts read these environment variables (shared defaults in `k8s/db-common.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BACKUP_DIR` | `~/DinnerPlanerBackups` | Folder for dumps and `backup.log` |
+| `BACKUP_DIR` | `~/DinnerPlannerBackups` | Folder for dumps and `backup.log` |
 | `BACKUP_KEEP` | `168` | Number of dumps to keep |
 | `KUBE_CONTEXT` | `docker-desktop` | kubectl context of the cluster |
-| `NAMESPACE` | `dinner-planer` | Namespace of the Postgres StatefulSet |
+| `NAMESPACE` | `dinner-planner` | Namespace of the Postgres StatefulSet |
 
 `install-backup-job.sh` stores `BACKUP_DIR`, `KUBE_CONTEXT` and `NAMESPACE` in the launchd job, so run it again after
 changing them.
@@ -60,8 +60,8 @@ changing them.
 ## Checking the backups
 
 ```bash
-tail ~/DinnerPlanerBackups/backup.log
-launchctl print gui/$(id -u)/com.dinnerplaner.db-backup | grep -E "state|last exit"
+tail ~/DinnerPlannerBackups/backup.log
+launchctl print gui/$(id -u)/com.dinnerplanner.db-backup | grep -E "state|last exit"
 ```
 
 ## Limits

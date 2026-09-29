@@ -1,5 +1,5 @@
 {
-  "name": "dinner-planer",
+  "name": "dinner-planner",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -25,9 +25,9 @@
     "db:down": "docker compose down",
     "k8s:deploy": "bash k8s/deploy.sh",
     "k8s:seed": "bash k8s/seed.sh",
-    "k8s:logs": "kubectl --context docker-desktop -n dinner-planer logs -l app=dinner-planer --tail=100 -f",
-    "k8s:status": "kubectl --context docker-desktop -n dinner-planer get pods,svc,ingress",
-    "k8s:delete": "kubectl --context docker-desktop -n dinner-planer delete -k k8s --ignore-not-found",
+    "k8s:logs": "kubectl --context docker-desktop -n dinner-planner logs -l app=dinner-planner --tail=100 -f",
+    "k8s:status": "kubectl --context docker-desktop -n dinner-planner get pods,svc,ingress",
+    "k8s:delete": "kubectl --context docker-desktop -n dinner-planner delete -k k8s --ignore-not-found",
     "k8s:backup": "bash k8s/backup-db.sh",
     "k8s:restore": "bash k8s/restore-db.sh",
     "k8s:backup:install": "bash k8s/install-backup-job.sh"

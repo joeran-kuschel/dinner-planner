@@ -6,7 +6,7 @@ source "$(dirname "$0")/db-common.sh"
 BACKUP_KEEP="${BACKUP_KEEP:-168}"
 
 mkdir -p "$BACKUP_DIR"
-target="$BACKUP_DIR/dinner_planer-$(date +%Y%m%d-%H%M%S).sql.gz"
+target="$BACKUP_DIR/dinner_planner-$(date +%Y%m%d-%H%M%S).sql.gz"
 partial="$target.partial"
 trap 'rm -f "$partial"' EXIT
 
@@ -20,6 +20,6 @@ fi
 mv "$partial" "$target"
 echo "$(date '+%F %T') Backup written: $target"
 
-ls -1t "$BACKUP_DIR"/dinner_planer-*.sql.gz | tail -n +"$((BACKUP_KEEP + 1))" | while read -r old; do
+ls -1t "$BACKUP_DIR"/dinner_planner-*.sql.gz | tail -n +"$((BACKUP_KEEP + 1))" | while read -r old; do
   rm -f "$old"
 done

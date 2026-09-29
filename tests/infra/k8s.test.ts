@@ -27,7 +27,7 @@ function read(file: string): string {
 
 describe("Kubernetes setup for Docker Desktop", () => {
   it("never pulls the images that deploy.sh builds and imports into the node", () => {
-    const own = containers().filter((c) => c.image.startsWith("dinner-planer"));
+    const own = containers().filter((c) => c.image.startsWith("dinner-planner"));
 
     expect(own.map((c) => c.name).sort()).toEqual(["app", "migrate", "seed"]);
     for (const container of own) expect(container, container.name).toMatchObject({ imagePullPolicy: "Never" });
