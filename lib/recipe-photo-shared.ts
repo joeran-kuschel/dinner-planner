@@ -5,6 +5,8 @@
 
 /** The largest upload accepted, in bytes. The server-action body limit in next.config.ts is a little above. */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+/** The same limit as it is named to people. */
+export const MAX_PHOTO_MEGABYTES = MAX_PHOTO_BYTES / (1024 * 1024);
 export const MAX_PHOTO_ALT_LENGTH = 200;
 
 /** The long edge of the recipe page's image, in pixels. */

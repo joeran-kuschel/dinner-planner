@@ -3,6 +3,14 @@ import { prisma } from "@/lib/db";
 // A photo can change at any time, and a deleted recipe's photo must be gone at once.
 export const dynamic = "force-dynamic";
 
+/** Whether an `If-None-Match` header names this ETag: a list is allowed, `W/` is ignored (weak comparison) and `*` matches. */
+function matchesEtag(header: string | null, etag: string): boolean {
+  return (header ?? "")
+    .split(",")
+    .map((candidate) => candidate.trim().replace(/^W\//, ""))
+    .some((candidate) => candidate === "*" || candidate === etag);
+}
+
 /**
  * A recipe's photo: `?size=thumb` for the card in the recipe list, the full image
  * otherwise. The bytes were made by lib/recipe-photo.ts (always WebP), never taken
@@ -30,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     "Cache-Control": searchParams.has("v") ? "public, max-age=31536000, immutable" : "no-cache",
     "X-Content-Type-Options": "nosniff",
   };
-  if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
+  if (matchesEtag(request.headers.get("if-none-match"), etag)) return new Response(null, { status: 304, headers });
 
   return new Response(new Uint8Array(bytes), {
     headers: { ...headers, "Content-Type": "image/webp", "Content-Length": String(bytes.length) },

@@ -402,8 +402,8 @@ msgstr "Das Foto hat zu viele Pixel. Wähle ein kleineres Bild."
 
 #: components/recipe-form.tsx
 #: lib/recipe-photo.ts
-msgid "The photo is too large: {maxMegabytes} MB at most."
-msgstr "Das Foto ist zu groß: höchstens {maxMegabytes} MB."
+msgid "The photo is too large: {MAX_PHOTO_MEGABYTES} MB at most."
+msgstr "Das Foto ist zu groß: höchstens {MAX_PHOTO_MEGABYTES} MB."
 
 #: app/actions/recipes.ts
 msgid "The source has to be a web address starting with http:// or https://."

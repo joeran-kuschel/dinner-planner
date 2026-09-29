@@ -589,6 +589,29 @@ describe("RecipeForm", () => {
         await waitFor(() => expect(alt()).not.toBeRequired());
       });
 
+      it("needs the description of a photo that stays, so it cannot be emptied", () => {
+        renderForm(undefined, WITH_PHOTO);
+        expect(alt()).toBeRequired();
+      });
+
+      it("does not need it while the photo is being removed", async () => {
+        const { user } = renderForm(undefined, WITH_PHOTO);
+        await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+        expect(alt()).not.toBeRequired();
+
+        await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+        expect(alt()).toBeRequired();
+      });
+
+      it("blocks saving an existing photo with its description emptied", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action, WITH_PHOTO);
+        await user.clear(alt());
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        expect(action).not.toHaveBeenCalled();
+      });
+
       it("blocks the submit, and keeps the file, when the description is missing", async () => {
         const action = vi.fn<Action>(async (prev) => prev);
         const { user } = renderForm(action);

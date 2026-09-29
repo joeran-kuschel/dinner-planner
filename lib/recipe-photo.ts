@@ -3,6 +3,7 @@ import { msg } from "@lingui/core/macro";
 import sharp from "sharp";
 import {
   MAX_PHOTO_BYTES,
+  MAX_PHOTO_MEGABYTES,
   PHOTO_FULL_EDGE,
   PHOTO_THUMB_HEIGHT,
   PHOTO_THUMB_WIDTH,
@@ -35,8 +36,7 @@ export type PhotoResult = { photo: ProcessedPhoto } | { error: MessageDescriptor
 
 export async function processPhoto(file: File): Promise<PhotoResult> {
   if (file.size > MAX_PHOTO_BYTES) {
-    const maxMegabytes = MAX_PHOTO_BYTES / (1024 * 1024);
-    return { error: msg`The photo is too large: ${maxMegabytes} MB at most.` };
+    return { error: msg`The photo is too large: ${MAX_PHOTO_MEGABYTES} MB at most.` };
   }
   const input = Buffer.from(await file.arrayBuffer());
 
@@ -50,14 +50,14 @@ export async function processPhoto(file: File): Promise<PhotoResult> {
     }
 
     // `rotate()` applies the orientation the camera recorded, which the re-encoding then no longer carries.
-    const upright = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).rotate();
-    const { data: full, info } = await upright
-      .clone()
+    const { data: full, info } = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
+      .rotate()
       .resize({ width: PHOTO_FULL_EDGE, height: PHOTO_FULL_EDGE, fit: "inside", withoutEnlargement: true })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer({ resolveWithObject: true });
-    const thumb = await upright
-      .clone()
+    // The thumbnail comes from the image just made, not from the upload: the big original is decoded
+    // once, which halves the peak memory for a huge photo, and 1200 px is plenty to crop 480 x 320 from.
+    const thumb = await sharp(full)
       .resize(PHOTO_THUMB_WIDTH, PHOTO_THUMB_HEIGHT, { fit: "cover" })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();

@@ -186,6 +186,26 @@ describe("backup-db.sh", () => {
       expect(gone(yesterdayMorning, sixDaysAgo)).toBe(true);
     });
 
+    it("keeps the dump of the 30th day back, and drops the one of the 31st", () => {
+      // The boundary is a calendar day: the whole of the 30th day back is still kept.
+      const [thirtyDaysAgo, thirtyOneDaysAgo] = put(dumpOn(30, 12), dumpOn(31, 12));
+
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(kept(thirtyDaysAgo)).toBe(true);
+      expect(gone(thirtyOneDaysAgo)).toBe(true);
+    });
+
+    it("keeps every dump of a longer hourly window when BACKUP_KEEP_HOURLY_HOURS is raised", () => {
+      // Two days back is at least 30 hours ago, so the default window of 24 hours thins it to one dump.
+      const [morning, evening] = put(dumpOn(2, 8), dumpOn(2, 18));
+
+      expect(run("backup-db.sh", [], { env: { BACKUP_KEEP_HOURLY_HOURS: "72" } }).status).toBe(0);
+      expect(kept(morning, evening)).toBe(true);
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(gone(morning)).toBe(true);
+      expect(kept(evening)).toBe(true);
+    });
+
     it("keeps a longer daily history when BACKUP_KEEP_DAILY_DAYS is raised", () => {
       const [old] = put(dumpOn(60, 12));
 
@@ -193,6 +213,33 @@ describe("backup-db.sh", () => {
       expect(kept(old)).toBe(true);
       expect(run("backup-db.sh", [], { env: { BACKUP_KEEP_DAILY_DAYS: "30" } }).status).toBe(0);
       expect(gone(old)).toBe(true);
+    });
+
+    it.each([
+      ["BACKUP_KEEP_HOURLY_HOURS", "a day"],
+      ["BACKUP_KEEP_HOURLY_HOURS", "-1"],
+      ["BACKUP_KEEP_HOURLY_HOURS", "2.5"],
+      ["BACKUP_KEEP_DAILY_DAYS", "many"],
+    ])("still writes the dump, deletes nothing and says so when %s is '%s'", (variable, value) => {
+      const [old] = seed(400 * 24);
+
+      const result = run("backup-db.sh", [], { env: { [variable]: value } });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(`${variable} must be a whole number`);
+      expect(result.stderr).toContain("Backup written, but older dumps were not thinned out");
+      expect(kept(old)).toBe(true);
+      expect(backups()).toHaveLength(2);
+    });
+
+    it("treats an empty setting as not set, and uses the default", () => {
+      const [recent, tooOld] = seed(20, 40 * 24);
+
+      const result = run("backup-db.sh", [], { env: { BACKUP_KEEP_HOURLY_HOURS: "", BACKUP_KEEP_DAILY_DAYS: "" } });
+
+      expect(result.status).toBe(0);
+      expect(kept(recent)).toBe(true);
+      expect(gone(tooOld)).toBe(true);
     });
 
     it("never removes the dump it has just written", () => {

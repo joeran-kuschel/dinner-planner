@@ -13,9 +13,6 @@ import {
 } from "react";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { MAX_SERVINGS } from "@/lib/planner";
-import { MAX_PHOTO_ALT_LENGTH, MAX_PHOTO_BYTES, PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared";
-
-const MAX_PHOTO_MEGABYTES = MAX_PHOTO_BYTES / (1024 * 1024);
 import {
   EMPTY_RECIPE_FORM_STATE,
   MAX_PREP_MINUTES,
@@ -23,6 +20,13 @@ import {
   type RecipeFormState,
   type RecipeFormValues,
 } from "@/lib/recipe-form";
+import {
+  MAX_PHOTO_ALT_LENGTH,
+  MAX_PHOTO_BYTES,
+  MAX_PHOTO_MEGABYTES,
+  PHOTO_THUMB_HEIGHT,
+  PHOTO_THUMB_WIDTH,
+} from "@/lib/recipe-photo-shared";
 
 export type RecipeFormProps = {
   action: (state: RecipeFormState, formData: FormData) => Promise<RecipeFormState>;
@@ -247,20 +251,20 @@ function Field({
  *
  * The browser checks what it can before anything is sent, so a mistake is caught
  * without a round trip: a file over the limit is refused on the spot, and the
- * description is required as soon as a file is chosen. The server checks all of it
+ * description is required as soon as a file is chosen or for a photo that stays. The server checks all of it
  * too, for browsers without JavaScript.
  */
 function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: string }) {
   const { i18n } = useLingui();
   const photo = recipe?.photo;
   const [chosen, setChosen] = useState(false);
-  const maxMegabytes = MAX_PHOTO_MEGABYTES;
+  const [removing, setRemoving] = useState(false);
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     setChosen(Boolean(file));
     event.currentTarget.setCustomValidity(
-      file && file.size > MAX_PHOTO_BYTES ? t(i18n)`The photo is too large: ${maxMegabytes} MB at most.` : "",
+      file && file.size > MAX_PHOTO_BYTES ? t(i18n)`The photo is too large: ${MAX_PHOTO_MEGABYTES} MB at most.` : "",
     );
   };
 
@@ -279,7 +283,13 @@ function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: 
             className="aspect-[3/2] w-40 rounded-lg border border-border object-cover"
           />
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="removePhoto" value="1" className="size-4 accent-[var(--accent)]" />
+            <input
+              type="checkbox"
+              name="removePhoto"
+              value="1"
+              onChange={(event) => setRemoving(event.currentTarget.checked)}
+              className="size-4 accent-[var(--accent)]"
+            />
             {t(i18n)`Remove photo`}
           </label>
         </div>
@@ -297,7 +307,7 @@ function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: 
         label={t(i18n)`Description of the photo`}
         name="photoAlt"
         defaultValue={alt}
-        required={chosen}
+        required={chosen || (Boolean(photo) && !removing)}
         maxLength={MAX_PHOTO_ALT_LENGTH}
         placeholder={t(i18n)`A bowl of red lentil dal with coriander`}
         hint={t(i18n)`Say what it shows, for people who cannot see it. Needed for every photo.`}

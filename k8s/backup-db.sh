@@ -26,6 +26,17 @@ fi
 mv "$partial" "$target"
 echo "$(date '+%F %T') Backup written: $target"
 
+# A backup is worth more than its tidying: a bad setting must not stop the dump above, so it is
+# only reported here, after the dump is safe, and nothing is deleted.
+for setting in BACKUP_KEEP_HOURLY_HOURS BACKUP_KEEP_DAILY_DAYS; do
+  case "${!setting}" in
+    '' | *[!0-9]*)
+      echo "$(date '+%F %T') Backup written, but older dumps were not thinned out: $setting must be a whole number, not '${!setting}'" >&2
+      exit 1
+      ;;
+  esac
+done
+
 # The oldest moment still kept hourly, and the oldest day still kept daily, written
 # like the timestamps in the file names so that they compare as text. BSD date (macOS)
 # first, GNU date second.

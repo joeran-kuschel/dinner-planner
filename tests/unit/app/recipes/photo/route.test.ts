@@ -81,6 +81,32 @@ describe("GET /recipes/[id]/photo", () => {
     expect(response.headers.get("ETag")).toBe(etag);
   });
 
+  describe("If-None-Match", () => {
+    it.each([
+      ["a weak tag", (etag: string) => `W/${etag}`],
+      ["a list that has it among others", (etag: string) => `"other", ${etag}, "another"`],
+      ["a weak tag in a list", (etag: string) => `"other", W/${etag}`],
+      ["the wildcard", () => "*"],
+    ])("answers 304 for %s", async (_label, header) => {
+      const recipe = await recipeWithPhoto();
+      const etag = (await get(recipe.id)).headers.get("ETag")!;
+
+      expect((await get(recipe.id, "", { "If-None-Match": header(etag) })).status).toBe(304);
+    });
+
+    it.each([
+      ["a list without it", '"one", "two"'],
+      ["an empty header", ""],
+      ["a tag that only contains it", (etag: string) => `"x${etag.slice(1)}`],
+    ])("answers 200 for %s", async (_label, header) => {
+      const recipe = await recipeWithPhoto();
+      const etag = (await get(recipe.id)).headers.get("ETag")!;
+      const value = typeof header === "function" ? header(etag) : header;
+
+      expect((await get(recipe.id, "", { "If-None-Match": value })).status).toBe(200);
+    });
+  });
+
   it("gives the two sizes different ETags, so one is never taken for the other", async () => {
     const recipe = await recipeWithPhoto();
     const full = (await get(recipe.id)).headers.get("ETag");
