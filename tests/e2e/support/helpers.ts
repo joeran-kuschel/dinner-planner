@@ -8,6 +8,8 @@ export function unique(label: string): string {
 
 /** WCAG 2.2 AA check in a real browser, including color contrast. */
 export async function expectAccessible(page: Page): Promise<void> {
+  // After a client-side navigation Next.js applies the page title a moment after the content.
+  await expect(page).toHaveTitle(/.+/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
