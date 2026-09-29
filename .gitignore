@@ -52,3 +52,6 @@ next-env.d.ts
 /test-results
 /playwright-report
 /blob-report
+
+# compiled translation catalogs: built from locales/*/messages.po by `npm run i18n:compile`
+/locales/*/messages.ts

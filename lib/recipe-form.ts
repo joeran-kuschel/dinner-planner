@@ -6,6 +6,8 @@
  * runtime error in Next.js, even though it type-checks.
  */
 
+import type { MessageDescriptor } from "@lingui/core";
+
 /** The longest prep time a recipe can have, in minutes (one day); matches the input's `max`. */
 export const MAX_PREP_MINUTES = 1440;
 
@@ -38,7 +40,11 @@ export type RecipeFormValues = {
 };
 
 export type RecipeFormState = {
-  error: string | null;
+  /**
+   * What is wrong, as a message for the form to translate: the server does not
+   * render the error, and the user may switch language while it is shown.
+   */
+  error: MessageDescriptor | null;
   /**
    * Echo of the rejected submission. React 19 resets a form once its action
    * resolves, so without handing the values back the user's typing would be

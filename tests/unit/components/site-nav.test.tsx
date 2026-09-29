@@ -1,14 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { renderWithI18n } from "@/tests/support/render";
 import { SiteNav } from "@/components/site-nav";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+vi.mock("@/app/actions/locale", () => ({ setLocale: vi.fn(async () => {}) }));
 
-function renderAt(path: string) {
+function renderAt(path: string, locale: "en" | "de" = "en") {
   pathname.current = path;
-  return render(<SiteNav />);
+  return renderWithI18n(<SiteNav />, { locale });
 }
 
 describe("SiteNav", () => {
@@ -35,6 +37,27 @@ describe("SiteNav", () => {
 
   it("has no axe violations", async () => {
     const { container } = renderAt("/recipes");
+    await expectNoAxeViolations(container);
+  });
+
+  it("offers the language switcher outside the navigation", () => {
+    renderAt("/");
+    const switcher = screen.getByRole("group", { name: "Language" });
+    expect(screen.getByRole("navigation")).not.toContainElement(switcher);
+  });
+
+  it("is in German when the language is German", () => {
+    renderAt("/groceries", "de");
+    expect(screen.getByRole("navigation", { name: "Hauptmenü" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abendessen-Planer" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Diese Woche" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Rezepte" })).toHaveAttribute("href", "/recipes");
+    expect(screen.getByRole("link", { name: "Einkauf" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("group", { name: "Sprache" })).toBeInTheDocument();
+  });
+
+  it("has no axe violations in German", async () => {
+    const { container } = renderAt("/", "de");
     await expectNoAxeViolations(container);
   });
 });

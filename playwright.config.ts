@@ -32,6 +32,9 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
     timezoneId: "Europe/Berlin",
+    // The browser asks for English, so the app starts in English whatever the
+    // machine's language; language.spec.ts covers German and the switch.
+    locale: "en-GB",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
@@ -41,7 +44,7 @@ export default defineConfig({
     // running undisturbed.
     command: [
       "npx tsx tests/e2e/support/prepare-db.ts",
-      "npx next build",
+      "npm run build",
       "cp -R public .next/standalone/",
       "cp -R .next/static .next/standalone/.next/",
       "node .next/standalone/server.js",

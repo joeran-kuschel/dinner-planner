@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
 import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
@@ -11,22 +13,25 @@ export type GroceryListProps = {
 };
 
 export function GroceryList({ weekStart, lines }: GroceryListProps) {
+  const { i18n } = useLingui();
+
   if (lines.length === 0) {
     return (
       <p className="card p-6 text-sm text-muted">
-        Nothing to buy yet. Plan some dinners and their ingredients land here.
+        {t(i18n)`Nothing to buy yet. Plan some dinners and their ingredients land here.`}
       </p>
     );
   }
 
   const outstanding = lines.filter((line) => !line.checked);
   const done = lines.filter((line) => line.checked);
+  const doneCount = done.length;
 
   return (
     <div className="flex flex-col gap-6">
       <section className="card divide-y divide-border">
         {outstanding.length === 0 ? (
-          <p className="p-4 text-sm text-muted">Everything ticked off. 🎉</p>
+          <p className="p-4 text-sm text-muted">{t(i18n)`Everything ticked off.`} 🎉</p>
         ) : (
           outstanding.map((line) => (
             <GroceryRow key={line.key} weekStart={weekStart} line={line} />
@@ -37,7 +42,7 @@ export function GroceryList({ weekStart, lines }: GroceryListProps) {
       {done.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
-            In the basket ({done.length})
+            {t(i18n)`In the basket (${doneCount})`}
           </h2>
           {/* Ticked lines are marked by strikethrough and muted text, not by
               fading the card: opacity would push the text below AA contrast. */}
@@ -60,6 +65,8 @@ function GroceryRow({
   line: GroceryLine & { entryId: string | null };
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const { i18n } = useLingui();
+  const { label } = line;
 
   return (
     <div className="flex items-center gap-3 p-3">
@@ -76,7 +83,7 @@ function GroceryRow({
           checked={line.checked}
           onChange={() => formRef.current?.requestSubmit()}
           className="size-4 accent-[var(--accent)]"
-          aria-label={`Tick off ${line.label}`}
+          aria-label={t(i18n)`Tick off ${label}`}
         />
 
         <span className="flex-1">
@@ -85,12 +92,12 @@ function GroceryRow({
             <span className="ml-2 text-xs text-muted">{line.sources.join(", ")}</span>
           )}
           {line.manual && line.sources.length === 0 && (
-            <span className="ml-2 text-xs text-muted">added by hand</span>
+            <span className="ml-2 text-xs text-muted">{t(i18n)`added by hand`}</span>
           )}
         </span>
 
         <span className="shrink-0 text-sm text-muted">
-          {formatGroceryQuantity(line)}
+          {formatGroceryQuantity(line, i18n)}
         </span>
       </form>
 
@@ -107,12 +114,13 @@ function GroceryRow({
 
 function RemoveButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const { i18n } = useLingui();
   return (
     <button
       type="submit"
       disabled={pending}
       className="btn-ghost px-2 py-1 text-xs"
-      aria-label={`Remove ${label}`}
+      aria-label={t(i18n)`Remove ${label}`}
     >
       ✕
     </button>

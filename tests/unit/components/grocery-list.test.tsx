@@ -1,7 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { renderWithI18n } from "@/tests/support/render";
 import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
 
 const actions = vi.hoisted(() => ({
@@ -33,7 +34,7 @@ const WINE = line({ label: "Wine", manual: true, checked: true, entryId: "e-wine
 
 function renderList(lines: Line[]) {
   const user = userEvent.setup();
-  const result = render(<GroceryList weekStart="2026-09-28" lines={lines} />);
+  const result = renderWithI18n(<GroceryList weekStart="2026-09-28" lines={lines} />);
   return { user, ...result };
 }
 
@@ -197,6 +198,33 @@ describe("GroceryList", () => {
 
     it("has no axe violations with everything ticked off", async () => {
       const { container } = renderList([SALT, WINE]);
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe("in German", () => {
+    function renderGerman(lines: Line[]) {
+      return renderWithI18n(<GroceryList weekStart="2026-09-28" lines={lines} />, { locale: "de" });
+    }
+
+    it("labels the rows in German and writes amounts with a decimal comma", () => {
+      renderGerman([ONION, SALT, NAPKINS]);
+      expect(screen.getByRole("checkbox", { name: "Onion abhaken" })).toBeInTheDocument();
+      expect(screen.getByText("1,5")).toBeInTheDocument();
+      const salt = screen.getByRole("checkbox", { name: "Salt abhaken" }).closest("div")!;
+      expect(within(salt).getByText("nach Geschmack")).toBeInTheDocument();
+      expect(screen.getByText("von Hand hinzugefügt")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Napkins entfernen" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Im Korb (1)" })).toBeInTheDocument();
+    });
+
+    it("says in German that there is nothing to buy", () => {
+      renderGerman([]);
+      expect(screen.getByText(/^Noch nichts zu kaufen\./)).toBeInTheDocument();
+    });
+
+    it("has no axe violations", async () => {
+      const { container } = renderGerman([RICE, ONION, SALT, NAPKINS, WINE]);
       await expectNoAxeViolations(container);
     });
   });

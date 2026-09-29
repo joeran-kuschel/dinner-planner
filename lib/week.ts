@@ -7,6 +7,8 @@
  * day with a bare `new Date()` — go through `today()` or `parseDayKey()`.
  */
 
+import { INTL_LOCALES, type Locale } from "@/lib/i18n/config";
+
 /** Weeks start on Monday. */
 const MONDAY = 1;
 
@@ -62,29 +64,46 @@ export function resolveWeekStart(key: string | null | undefined): Date {
   return startOfWeek(parseDayKey(key) ?? today());
 }
 
-// All formatting is pinned to UTC, matching how the days are stored.
-const weekdayLong = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" });
-const weekdayShort = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-const dayMonthYear = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
+// All formatting is pinned to UTC, matching how the days are stored. Formatters
+// are built once per language and reused.
+type Formatters = {
+  weekdayLong: Intl.DateTimeFormat;
+  weekdayShort: Intl.DateTimeFormat;
+  dayMonth: Intl.DateTimeFormat;
+  dayMonthYear: Intl.DateTimeFormat;
+};
+const formatterCache = new Map<Locale, Formatters>();
 
-export function formatWeekday(day: Date, style: "long" | "short" = "long"): string {
+function formatters(locale: Locale): Formatters {
+  let cached = formatterCache.get(locale);
+  if (!cached) {
+    const tag = INTL_LOCALES[locale];
+    cached = {
+      weekdayLong: new Intl.DateTimeFormat(tag, { weekday: "long", timeZone: "UTC" }),
+      weekdayShort: new Intl.DateTimeFormat(tag, { weekday: "short", timeZone: "UTC" }),
+      dayMonth: new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: "UTC" }),
+      dayMonthYear: new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }),
+    };
+    formatterCache.set(locale, cached);
+  }
+  return cached;
+}
+
+/** e.g. "Monday" / "Montag", or "Mon" / "Mo." when short. */
+export function formatWeekday(day: Date, locale: Locale, style: "long" | "short" = "long"): string {
+  const { weekdayLong, weekdayShort } = formatters(locale);
   return (style === "long" ? weekdayLong : weekdayShort).format(day);
 }
 
-export function formatDayMonth(day: Date): string {
-  return dayMonth.format(day);
+/** e.g. "12 Oct" / "12. Okt." */
+export function formatDayMonth(day: Date, locale: Locale): string {
+  return formatters(locale).dayMonth.format(day);
 }
 
-/** e.g. "28 Sep – 4 Oct 2026" */
-export function formatWeekRange(weekStart: Date): string {
-  const weekEnd = addDays(weekStart, 6);
-  return `${dayMonth.format(weekStart)} – ${dayMonthYear.format(weekEnd)}`;
+/** e.g. "12 Oct – 18 Oct 2026" / "12. Okt. – 18. Okt. 2026" */
+export function formatWeekRange(weekStart: Date, locale: Locale): string {
+  const { dayMonth, dayMonthYear } = formatters(locale);
+  return `${dayMonth.format(weekStart)} – ${dayMonthYear.format(addDays(weekStart, 6))}`;
 }
 
 export function isSameDay(a: Date, b: Date): boolean {

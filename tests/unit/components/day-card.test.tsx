@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { renderWithI18n } from "@/tests/support/render";
 import { DayCard, type DayCardMeal, type DayCardProps } from "@/components/day-card";
 
 const actions = vi.hoisted(() => ({
@@ -35,7 +36,7 @@ function props(overrides: Partial<DayCardProps> = {}): DayCardProps {
 
 function renderCard(overrides: Partial<DayCardProps> = {}) {
   const user = userEvent.setup();
-  const result = render(<DayCard {...props(overrides)} />);
+  const result = renderWithI18n(<DayCard {...props(overrides)} />);
   return { user, ...result };
 }
 
@@ -752,6 +753,58 @@ describe("DayCard", () => {
       const { user, container } = renderCard();
       await user.type(dinnerField(), "r");
       await user.keyboard("{ArrowDown}");
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe("in German", () => {
+    function renderGerman(overrides: Partial<DayCardProps> = {}) {
+      const user = userEvent.setup();
+      const german = props({ weekdayLabel: "Montag", dateLabel: "28. Sept.", ...overrides });
+      const result = renderWithI18n(<DayCard {...german} />, { locale: "de" });
+      return { user, ...result };
+    }
+    const germanField = () => screen.getByRole("combobox", { name: "Abendessen am Montag" });
+
+    it("labels the day's fields in German", () => {
+      renderGerman({ meal: PLANNED, isToday: true });
+      expect(screen.getByRole("heading", { name: "Montag heute" })).toBeInTheDocument();
+      expect(germanField()).toHaveAttribute("placeholder", "Rezept wählen oder Gericht eingeben…");
+      expect(screen.getByLabelText("Personen")).toHaveValue(3);
+      expect(screen.getByRole("textbox", { name: "Notiz für Montag" })).toHaveAttribute("placeholder", "Notiz (optional)");
+      expect(screen.getByRole("button", { name: "Tag leeren" })).toBeInTheDocument();
+    });
+
+    it("offers to plan a new name once or as a recipe, in German", async () => {
+      const { user } = renderGerman();
+      await user.type(germanField(), "Flammkuchen");
+      expect(suggestions()).toEqual([
+        "„Flammkuchen“ nur für diesen Tag planen",
+        "„Flammkuchen“ als neues Rezept anlegen",
+      ]);
+    });
+
+    it("announces the number of suggestions with the German plural", async () => {
+      const { user } = renderGerman();
+      await user.click(germanField());
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("2 Vorschläge"));
+      await user.type(germanField(), "Chickpea curry");
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/^1 Vorschlag$/));
+    });
+
+    it("reports a failed save in German", async () => {
+      actions.setPlannedMeal.mockRejectedValueOnce(new Error("offline"));
+      const { user } = renderGerman();
+      await user.type(germanField(), "Chickpea curry");
+      await user.click(screen.getByRole("option", { name: "Chickpea curry" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Dieser Tag konnte nicht gespeichert werden.",
+      );
+    });
+
+    it("has no axe violations with the suggestions open", async () => {
+      const { user, container } = renderGerman({ meal: PLANNED });
+      await user.type(germanField(), "x");
       await expectNoAxeViolations(container);
     });
   });

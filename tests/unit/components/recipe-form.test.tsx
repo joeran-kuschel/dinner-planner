@@ -1,8 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState, type RecipeFormValues } from "@/lib/recipe-form";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { renderWithI18n } from "@/tests/support/render";
 import { RecipeForm, type RecipeFormProps } from "@/components/recipe-form";
 
 type Action = RecipeFormProps["action"];
@@ -35,14 +38,18 @@ const REJECTED_VALUES: RecipeFormValues = {
   ],
 };
 
+// The same messages the recipe actions return.
+const NAME_MISSING = msg`Give the recipe a name.`;
+const SOURCE_INVALID = msg`The source has to be a web address starting with http:// or https://.`;
+
 /** An action that rejects with the given message and echoes `values`. */
-function rejectingAction(error: string, values: RecipeFormValues = REJECTED_VALUES) {
+function rejectingAction(error: MessageDescriptor, values: RecipeFormValues = REJECTED_VALUES) {
   return vi.fn<Action>(async (prev) => ({ error, values, attempt: prev.attempt + 1 }));
 }
 
 function renderForm(action: Action = vi.fn<Action>(async (prev) => prev), recipe?: Recipe) {
   const user = userEvent.setup();
-  const result = render(<RecipeForm action={action} recipe={recipe} />);
+  const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} />);
   return { user, ...result };
 }
 
@@ -249,7 +256,7 @@ describe("RecipeForm", () => {
 
   describe("validation error", () => {
     it("announces the error in an alert", async () => {
-      const action = rejectingAction("Give the recipe a name.");
+      const action = rejectingAction(NAME_MISSING);
       const { user } = renderForm(action);
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
@@ -260,7 +267,7 @@ describe("RecipeForm", () => {
     });
 
     it("refills every field and row from the values the action echoed", async () => {
-      const action = rejectingAction("Give the recipe a name.");
+      const action = rejectingAction(NAME_MISSING);
       const { user } = renderForm(action);
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
@@ -280,7 +287,7 @@ describe("RecipeForm", () => {
     it("keeps what the user typed after a rejection, as the action echoes it", async () => {
       // A real action echoes the submission; build the echo from the FormData.
       const action = vi.fn<Action>(async (prev, data) => ({
-        error: "Give the recipe a name.",
+        error: NAME_MISSING,
         attempt: prev.attempt + 1,
         values: {
           name: String(data.get("name")),
@@ -309,7 +316,7 @@ describe("RecipeForm", () => {
     });
 
     it("re-applies the echoed values on every rejected attempt", async () => {
-      const action = rejectingAction("Give the recipe a name.");
+      const action = rejectingAction(NAME_MISSING);
       const { user } = renderForm(action);
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
@@ -332,21 +339,21 @@ describe("RecipeForm", () => {
     it("replaces the alert text when the next attempt fails differently", async () => {
       const action = vi
         .fn<Action>()
-        .mockImplementationOnce(async (prev) => ({ error: "First problem", values: REJECTED_VALUES, attempt: prev.attempt + 1 }))
-        .mockImplementationOnce(async (prev) => ({ error: "Second problem", values: REJECTED_VALUES, attempt: prev.attempt + 1 }));
+        .mockImplementationOnce(async (prev) => ({ error: NAME_MISSING, values: REJECTED_VALUES, attempt: prev.attempt + 1 }))
+        .mockImplementationOnce(async (prev) => ({ error: SOURCE_INVALID, values: REJECTED_VALUES, attempt: prev.attempt + 1 }));
       const { user } = renderForm(action);
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("First problem");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Give the recipe a name.");
 
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
-      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Second problem"));
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("The source has to be a web address"));
       expect(screen.getAllByRole("alert")).toHaveLength(1);
     });
 
     it("can add and remove rows after a rejection without mixing them up", async () => {
-      const action = rejectingAction("Give the recipe a name.");
+      const action = rejectingAction(NAME_MISSING);
       const { user } = renderForm(action);
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
@@ -362,7 +369,7 @@ describe("RecipeForm", () => {
     });
 
     it("adds a separate row after a rejection that echoed no ingredients", async () => {
-      const action = rejectingAction("Give the recipe a name.", { ...REJECTED_VALUES, ingredients: [] });
+      const action = rejectingAction(NAME_MISSING, { ...REJECTED_VALUES, ingredients: [] });
       const { user } = renderForm(action);
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
@@ -378,7 +385,7 @@ describe("RecipeForm", () => {
     });
 
     it("keeps the recipe id and edit mode after a rejected edit", async () => {
-      const action = rejectingAction("Give the recipe a name.");
+      const action = rejectingAction(NAME_MISSING);
       const { user } = renderForm(action, RISOTTO);
       await user.clear(field("Name"));
       await user.type(field("Name"), " ");
@@ -402,7 +409,7 @@ describe("RecipeForm", () => {
       const button = await screen.findByRole("button", { name: "Saving…" });
       expect(button).toBeDisabled();
 
-      settle({ error: "Try again", values: REJECTED_VALUES, attempt: 1 });
+      settle({ error: NAME_MISSING, values: REJECTED_VALUES, attempt: 1 });
       expect(await screen.findByRole("button", { name: "Create recipe" })).toBeEnabled();
     });
   });
@@ -429,9 +436,53 @@ describe("RecipeForm", () => {
     });
 
     it("has no axe violations with a validation error", async () => {
-      const { user, container } = renderForm(rejectingAction("Give the recipe a name."));
+      const { user, container } = renderForm(rejectingAction(NAME_MISSING));
       await user.type(field("Name"), " ");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
+      await screen.findByRole("alert");
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe("in German", () => {
+    function renderGerman(action: Action = vi.fn<Action>(async (prev) => prev), recipe?: Recipe) {
+      const user = userEvent.setup();
+      const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} />, { locale: "de" });
+      return { user, ...result };
+    }
+
+    it("labels the form in German", () => {
+      renderGerman();
+      expect(field("Name")).toHaveAttribute("placeholder", "Pilzrisotto");
+      expect(field("Beschreibung")).toBeInTheDocument();
+      expect(field("Personen")).toHaveValue(2);
+      expect(field("Minuten")).toBeInTheDocument();
+      expect(field("Quelle")).toBeInTheDocument();
+      expect(field("Zubereitung")).toBeInTheDocument();
+      expect(field("Menge für Zutat 1")).toBeInTheDocument();
+      expect(field("Einheit für Zutat 1")).toBeInTheDocument();
+      expect(field("Name von Zutat 1")).toHaveAttribute("placeholder", "Risottoreis");
+      expect(screen.getByRole("button", { name: "Zutat 1 entfernen" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Zutat hinzufügen" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Abbrechen" })).toBeInTheDocument();
+    });
+
+    it("names the submit button after what it does", () => {
+      renderGerman(undefined, RISOTTO);
+      expect(screen.getByRole("button", { name: "Änderungen speichern" })).toBeInTheDocument();
+    });
+
+    it("shows the action's error in German", async () => {
+      const { user } = renderGerman(rejectingAction(NAME_MISSING));
+      await user.type(field("Name"), " ");
+      await user.click(screen.getByRole("button", { name: "Rezept anlegen" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Gib dem Rezept einen Namen.");
+    });
+
+    it("has no axe violations with a validation error", async () => {
+      const { user, container } = renderGerman(rejectingAction(SOURCE_INVALID));
+      await user.type(field("Name"), " ");
+      await user.click(screen.getByRole("button", { name: "Rezept anlegen" }));
       await screen.findByRole("alert");
       await expectNoAxeViolations(container);
     });

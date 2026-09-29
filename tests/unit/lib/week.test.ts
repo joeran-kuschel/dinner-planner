@@ -242,9 +242,9 @@ describe("formatting", () => {
     ["2026-10-04", "Sunday", "Sun"],
     ["2026-03-29", "Sunday", "Sun"],
   ])("formatWeekday(%s) is %s / %s", (key, long, short) => {
-    expect(formatWeekday(day(key))).toBe(long);
-    expect(formatWeekday(day(key), "long")).toBe(long);
-    expect(formatWeekday(day(key), "short")).toBe(short);
+    expect(formatWeekday(day(key), "en")).toBe(long);
+    expect(formatWeekday(day(key), "en", "long")).toBe(long);
+    expect(formatWeekday(day(key), "en", "short")).toBe(short);
   });
 
   it.each([
@@ -253,7 +253,7 @@ describe("formatting", () => {
     ["2026-01-01", "1 Jan"],
     ["2026-10-25", "25 Oct"],
   ])("formatDayMonth(%s) is %s", (key, expected) => {
-    expect(formatDayMonth(day(key))).toBe(expected);
+    expect(formatDayMonth(day(key), "en")).toBe(expected);
   });
 
   it.each([
@@ -263,14 +263,40 @@ describe("formatting", () => {
     ["2026-03-23", "23 Mar – 29 Mar 2026", "the spring-forward week"],
     ["2026-10-19", "19 Oct – 25 Oct 2026", "the fall-back week"],
   ])("formatWeekRange(%s) is %s (%s)", (key, expected) => {
-    expect(formatWeekRange(day(key))).toBe(expected);
+    expect(formatWeekRange(day(key), "en")).toBe(expected);
   });
 
   it("formats in UTC, not local time", () => {
     // 23:00 UTC on Sunday is already Monday in Berlin; the label must stay Sunday.
     const lateSunday = new Date("2026-10-04T23:00:00.000Z");
-    expect(formatWeekday(lateSunday)).toBe("Sunday");
-    expect(formatDayMonth(lateSunday)).toBe("4 Oct");
+    expect(formatWeekday(lateSunday, "en")).toBe("Sunday");
+    expect(formatDayMonth(lateSunday, "en")).toBe("4 Oct");
+    expect(formatWeekday(lateSunday, "de")).toBe("Sonntag");
+    expect(formatDayMonth(lateSunday, "de")).toBe("4. Okt.");
+  });
+
+  describe("in German", () => {
+    it.each([
+      ["2026-09-28", "Montag", "Mo"],
+      ["2026-10-04", "Sonntag", "So"],
+    ])("formatWeekday(%s) is %s / %s", (key, long, short) => {
+      expect(formatWeekday(day(key), "de")).toBe(long);
+      expect(formatWeekday(day(key), "de", "short")).toBe(short);
+    });
+
+    it.each([
+      ["2026-10-05", "5. Okt."],
+      ["2026-01-01", "1. Jan."],
+    ])("formatDayMonth(%s) is %s", (key, expected) => {
+      expect(formatDayMonth(day(key), "de")).toBe(expected);
+    });
+
+    it.each([
+      ["2026-06-29", "29. Juni – 5. Juli 2026"],
+      ["2026-12-28", "28. Dez. – 3. Jan. 2027"],
+    ])("formatWeekRange(%s) is %s", (key, expected) => {
+      expect(formatWeekRange(day(key), "de")).toBe(expected);
+    });
   });
 });
 

@@ -1,14 +1,20 @@
+import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { addGroceryExtra, resetGroceryTicks } from "@/app/actions/groceries";
 import { GroceryList } from "@/components/grocery-list";
 import { prisma } from "@/lib/db";
+import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine } from "@/lib/grocery";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
-export const metadata = { title: "Groceries · Dinner Planner" };
+export async function generateMetadata() {
+  const { i18n } = await getServerI18n();
+  return { title: t(i18n)`Groceries` };
+}
 
 export default async function GroceriesPage({ searchParams }: PageProps<"/groceries">) {
   const { week } = await searchParams;
+  const { i18n, locale } = await getServerI18n();
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
@@ -64,20 +70,20 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Grocery list</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Grocery list`}</h1>
           <p className="mt-1 text-sm text-muted">
-            {formatWeekRange(weekStart)} · from {plannedMeals}{" "}
-            {plannedMeals === 1 ? "recipe" : "recipes"}
+            {formatWeekRange(weekStart, locale)} ·{" "}
+            {t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href={`/?week=${weekKey}`} className="btn-secondary">
-            Edit the plan
+            {t(i18n)`Edit the plan`}
           </Link>
           <Link
             href={`/groceries?week=${dayKey(addDays(weekStart, 7))}`}
             className="btn-secondary"
-            aria-label="Next week"
+            aria-label={t(i18n)`Next week`}
           >
             →
           </Link>
@@ -87,35 +93,35 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       <GroceryList weekStart={weekKey} lines={lines} />
 
       <section className="card flex flex-col gap-3 p-4">
-        <h2 className="text-sm font-semibold">Add something else</h2>
+        <h2 className="text-sm font-semibold">{t(i18n)`Add something else`}</h2>
         <form action={addGroceryExtra} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="weekStart" value={weekKey} />
           <div>
             <label className="label" htmlFor="quantity">
-              Amount
+              {t(i18n)`Amount`}
             </label>
             <input id="quantity" name="quantity" className="field mt-1 w-20" inputMode="decimal" />
           </div>
           <div>
             <label className="label" htmlFor="unit">
-              Unit
+              {t(i18n)`Unit`}
             </label>
-            <input id="unit" name="unit" className="field mt-1 w-20" placeholder="g" />
+            <input id="unit" name="unit" className="field mt-1 w-20" placeholder={t(i18n)`g`} />
           </div>
           <div className="min-w-48 flex-1">
             <label className="label" htmlFor="label">
-              Item
+              {t(i18n)`Item`}
             </label>
             <input
               id="label"
               name="label"
               className="field mt-1"
               required
-              placeholder="Washing-up liquid"
+              placeholder={t(i18n)`Washing-up liquid`}
             />
           </div>
           <button type="submit" className="btn-primary">
-            Add
+            {t(i18n)`Add`}
           </button>
         </form>
       </section>
@@ -124,7 +130,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         <form action={resetGroceryTicks} className="border-t border-border pt-4">
           <input type="hidden" name="weekStart" value={weekKey} />
           <button type="submit" className="btn-ghost">
-            Untick everything
+            {t(i18n)`Untick everything`}
           </button>
         </form>
       )}

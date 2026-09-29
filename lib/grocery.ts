@@ -7,6 +7,9 @@
  * instead of leaving a stale snapshot behind.
  */
 
+import type { I18n } from "@lingui/core";
+import { t } from "@lingui/core/macro";
+
 export type IngredientInput = {
   name: string;
   quantity: number | null;
@@ -93,14 +96,19 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
  */
 export function formatGroceryQuantity(
   line: Pick<GroceryLine, "quantity" | "unit" | "sources">,
+  i18n: I18n,
 ): string {
-  if (line.quantity === null && line.sources.length > 0) return "to taste";
-  return formatQuantity(line.quantity, line.unit);
+  if (line.quantity === null && line.sources.length > 0) return t(i18n)`to taste`;
+  return formatQuantity(line.quantity, line.unit, i18n);
 }
 
-/** Render a quantity without trailing noise: 1.5 → "1.5", 2.0 → "2", 0.333… → "0.33". */
-export function formatQuantity(quantity: number | null, unit: string | null): string {
-  if (quantity === null) return unit ? unit : "to taste";
-  const rounded = Math.round(quantity * 100) / 100;
-  return unit ? `${rounded} ${unit}` : String(rounded);
+/**
+ * Render a quantity without trailing noise, with the language's decimal
+ * separator: 1.5 → "1.5" (German "1,5"), 2.0 → "2", 0.333… → "0.33". No
+ * thousands separators: "1500 g" reads better on a shopping list than "1,500 g".
+ */
+export function formatQuantity(quantity: number | null, unit: string | null, i18n: I18n): string {
+  if (quantity === null) return unit ? unit : t(i18n)`to taste`;
+  const amount = i18n.number(quantity, { maximumFractionDigits: 2, useGrouping: false });
+  return unit ? `${amount} ${unit}` : amount;
 }

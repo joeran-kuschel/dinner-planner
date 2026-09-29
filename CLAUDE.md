@@ -19,6 +19,9 @@ npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm run db:down      # stop the local Postgres
 
+npm run i18n:extract # collect the source's messages into locales/*/messages.po
+npm run i18n:compile # compile the catalogs (runs by itself before dev, build, typecheck and Vitest)
+
 npm run db:migrate -- --name <what-changed>   # edit schema, then run this
 npm run db:generate  # regenerate the client without migrating
 npm run db:seed      # sample recipes + a few planned days (safe to re-run)
@@ -52,12 +55,17 @@ npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test d
   `expectRedirect` from `tests/support/next.ts` and `formData` from `tests/support/db.ts`. `dom`
   (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
   actions the component imports and call `expectNoAxeViolations` from `tests/support/axe.ts`.
+  Render through `renderWithI18n(ui, { locale })` from `tests/support/render.tsx`
+  (English by default) and add German cases; server tests get an instance from
+  `testI18n(locale)` in `tests/support/i18n.ts`. Vitest compiles Lingui's macros
+  with the Babel plugin (`tests/support/lingui-macro.mts`).
 - Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
 - **Playwright** (`playwright.config.ts`, specs in `tests/e2e/`) runs the same
   standalone server as the Docker image (`node .next/standalone/server.js`, with
   `public/` and `.next/static` copied in; not `next start`, which Next.js does
   not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
-  touches the development data in `public`. Tests share that database: create your own data with
+  touches the development data in `public`. The browser asks for `en-GB`, so specs
+  run in English; German lives in `tests/e2e/language.spec.ts`. Tests share that database: create your own data with
   `unique()` and check pages with `expectAccessible()` (axe incl. contrast) from
   `tests/e2e/support/helpers.ts`.
 - A test that documents a known bug is marked `it.fails` / `test.fail` with a
@@ -84,6 +92,8 @@ lib/
   grocery.ts            grocery aggregation + formatting
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
+  i18n/                 languages, locale detection, catalogs — see "Translations" below
+locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
 tests/
   unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
   infra/                Vitest: k8s manifests, deploy/backup scripts, test setup
@@ -162,6 +172,18 @@ authoritative.
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all
 the affected routes.
+
+**Translations: always `t(i18n)`, never a bare `t` or `plural`.** Lingui's global
+instance is shared by every request on the server and never activated, so the
+bare macros throw there. Server pages and layouts get the instance from
+`getServerI18n()` (which also enables Lingui's server `<Trans>`, so call it
+first), client components from `useLingui()` in `@lingui/react`. Date helpers
+take the language, text helpers the instance. Server actions return errors as
+`msg` descriptors for the client to translate. After changing a message, run
+`npm run i18n:extract` and translate the German entry; the strict compile and
+`tests/infra/i18n.test.ts` fail otherwise. `@lingui/swc-plugin` is pinned to the
+version whose Wasm matches Next's SWC — re-check it on every Next.js upgrade.
+Details: `documentation/backend/i18n.md`.
 
 **The `pg` driver adapter ignores `?schema=`.** Only the Prisma CLI honours that
 parameter; the driver treats it as an unknown connection option and silently

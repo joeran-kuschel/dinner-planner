@@ -5,12 +5,18 @@ import { prisma } from "@/lib/db";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState } from "@/lib/recipe-form";
 import { addDays, parseDayKey } from "@/lib/week";
 import { formData } from "@/tests/support/db";
+import { testI18n } from "@/tests/support/i18n";
 import { expectRedirect, RedirectError } from "@/tests/support/next";
 import { createRecipe, deleteRecipe, updateRecipe } from "@/app/actions/recipes";
 
 const MONDAY = parseDayKey("2026-09-28")!;
 
 type Fields = Record<string, string | string[]>;
+
+/** The state as the form shows it: the error message translated (English unless given). */
+function shown(state: RecipeFormState, i18n = testI18n()) {
+  return { ...state, error: state.error && i18n._(state.error) };
+}
 
 /** A complete, valid recipe form as the browser posts it. */
 function recipeForm(overrides: Fields = {}): FormData {
@@ -212,7 +218,7 @@ describe("createRecipe", () => {
 
       const state = await createRecipe(prev, form);
 
-      expect(state).toEqual({
+      expect(shown(state)).toEqual({
         error: "Give the recipe a name.",
         attempt: 4,
         values: {
@@ -245,8 +251,21 @@ describe("createRecipe", () => {
 
     const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, form);
 
-    expect(state).toMatchObject({ error, attempt: 1, values: expect.objectContaining(overrides) });
+    expect(shown(state)).toMatchObject({ error, attempt: 1, values: expect.objectContaining(overrides) });
     expect(await prisma.recipe.count()).toBe(0);
+  });
+
+  it.each([
+    [{ name: "" }, "Gib dem Rezept einen Namen."],
+    [{ servings: "100" }, "Ein Rezept reicht für höchstens 99 Personen."],
+    [{ prepMinutes: "1441" }, "Die Zubereitungszeit darf höchstens 1440 Minuten betragen."],
+    [{ sourceUrl: "ftp://example.com" }, "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// beginnt."],
+  ])("returns the error as a message the form can show in German (%j)", async (overrides, german) => {
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm(overrides));
+
+    // A message to translate, not a finished sentence: the language may change while it is shown.
+    expect(state.error).toMatchObject({ id: expect.any(String) });
+    expect(shown(state, testI18n("de")).error).toBe(german);
   });
 
   it("accepts the largest allowed servings and prep time", async () => {
@@ -260,7 +279,7 @@ describe("createRecipe", () => {
     async (sourceUrl) => {
       const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ sourceUrl }));
 
-      expect(state).toMatchObject({
+      expect(shown(state)).toMatchObject({
         error: "The source has to be a web address starting with http:// or https://.",
         attempt: 1,
       });
@@ -307,7 +326,7 @@ describe("updateRecipe", () => {
 
     const state = await updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: recipe.id, servings: "500" }));
 
-    expect(state).toMatchObject({ error: "A recipe can serve at most 99 people.", attempt: 1 });
+    expect(shown(state)).toMatchObject({ error: "A recipe can serve at most 99 people.", attempt: 1 });
     expect((await onlyRecipe()).servings).toBe(4);
   });
 
@@ -380,11 +399,11 @@ describe("updateRecipe", () => {
       const recipe = await seedRecipe();
 
       const state = await updateRecipe(
-        { error: "earlier", values: null, attempt: 1 },
+        { error: { id: "earlier" }, values: null, attempt: 1 },
         recipeForm(id === undefined ? {} : { id }),
       );
 
-      expect(state.error).toBe("Missing recipe id.");
+      expect(shown(state).error).toBe("Missing recipe id.");
       expect(state.attempt).toBe(2);
       expect(state.values?.name).toBe("Tomato soup");
       expect((await prisma.recipe.findUnique({ where: { id: recipe.id } }))?.name).toBe("Old name");
@@ -401,7 +420,7 @@ describe("updateRecipe", () => {
       recipeForm({ id: recipe.id, name: "  ", ingredientName: ["New"] }),
     );
 
-    expect(state).toMatchObject({ error: "Give the recipe a name.", attempt: 1 });
+    expect(shown(state)).toMatchObject({ error: "Give the recipe a name.", attempt: 1 });
     expect(state.values?.ingredients).toEqual([{ name: "New", quantity: "800", unit: "g" }]);
     const stored = await onlyRecipe();
     expect(stored.name).toBe("Old name");
