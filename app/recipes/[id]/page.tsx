@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteRecipe } from "@/app/actions/recipes";
+import { ConfirmAction } from "@/components/confirm-action";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import { formatQuantity } from "@/lib/grocery";
@@ -23,6 +24,7 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
   });
 
   if (!recipe) notFound();
+  const recipeName = recipe.name;
 
   const steps = (recipe.instructions ?? "")
     .split("\n")
@@ -64,12 +66,13 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
             <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
               {t(i18n)`Edit`}
             </Link>
-            <form action={deleteRecipe}>
-              <input type="hidden" name="id" value={recipe.id} />
-              <button type="submit" className="btn-ghost">
-                {t(i18n)`Delete`}
-              </button>
-            </form>
+            <ConfirmAction
+              label={t(i18n)`Delete`}
+              question={t(i18n)`Delete “${recipeName}”? Days that only plan it are cleared too.`}
+              confirmLabel={t(i18n)`Delete recipe`}
+              action={deleteRecipe}
+              fields={{ id: recipe.id }}
+            />
           </div>
         </div>
         {recipe.description && <p className="text-sm text-muted">{recipe.description}</p>}

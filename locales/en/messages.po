@@ -68,6 +68,7 @@ msgstr "Arborio rice"
 msgid "Back to the plan"
 msgstr "Back to the plan"
 
+#: components/confirm-action.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -80,13 +81,29 @@ msgstr "Clear day"
 msgid "Clear the whole week"
 msgstr "Clear the whole week"
 
+#: app/page.tsx
+msgid "Clear week"
+msgstr "Clear week"
+
 #: components/recipe-form.tsx
 msgid "Create recipe"
 msgstr "Create recipe"
 
+#: components/day-card.tsx
+msgid "Day cleared"
+msgstr "Day cleared"
+
 #: app/recipes/[id]/page.tsx
 msgid "Delete"
 msgstr "Delete"
+
+#: app/recipes/[id]/page.tsx
+msgid "Delete “{recipeName}”? Days that only plan it are cleared too."
+msgstr "Delete “{recipeName}”? Days that only plan it are cleared too."
+
+#: app/recipes/[id]/page.tsx
+msgid "Delete recipe"
+msgstr "Delete recipe"
 
 #: components/recipe-form.tsx
 msgid "Description"
@@ -293,6 +310,10 @@ msgstr "Recipes"
 msgid "Remove {label}"
 msgstr "Remove {label}"
 
+#: app/page.tsx
+msgid "Remove {plannedCount, plural, one {# planned dinner} other {# planned dinners}} from this week?"
+msgstr "Remove {plannedCount, plural, one {# planned dinner} other {# planned dinners}} from this week?"
+
 #: components/recipe-form.tsx
 msgid "Remove ingredient {number}"
 msgstr "Remove ingredient {number}"
@@ -359,6 +380,14 @@ msgstr "to taste"
 #: components/day-card.tsx
 msgid "today"
 msgstr "today"
+
+#: components/day-card.tsx
+msgid "Undo"
+msgstr "Undo"
+
+#: components/day-card.tsx
+msgid "Undo clearing {weekday}"
+msgstr "Undo clearing {weekday}"
 
 #: app/groceries/page.tsx
 msgid "Unit"
