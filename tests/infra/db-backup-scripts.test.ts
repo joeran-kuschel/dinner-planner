@@ -105,21 +105,169 @@ describe("backup-db.sh", () => {
     expect(backups()).toEqual([]);
   });
 
-  it("keeps only the newest BACKUP_KEEP dumps", () => {
-    fs.mkdirSync(backupDir);
-    ["20260918-100000", "20260919-100000", "20260920-100000"].forEach((stamp, i) => {
-      const file = path.join(backupDir, `dinner_planner-${stamp}.sql.gz`);
-      fs.writeFileSync(file, "old");
-      const time = new Date(Date.UTC(2026, 8, 18 + i, 10));
-      fs.utimesSync(file, time, time);
+  describe("retention", () => {
+    const HOUR = 3_600_000;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    /** The name of a dump made `hours` ago, in the local time the script's `date` uses. */
+    const dumpAgo = (hours: number) => {
+      const t = new Date(Date.now() - hours * HOUR);
+      const stamp = `${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}-${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}`;
+      return `dinner_planner-${stamp}.sql.gz`;
+    };
+    /** The name of a dump made at a clock time on the day `daysAgo` days back, so several land on one calendar day. */
+    const dumpOn = (daysAgo: number, hour: number, minute = 0) => {
+      const t = new Date();
+      t.setDate(t.getDate() - daysAgo);
+      t.setHours(hour, minute, 0, 0);
+      const stamp = `${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}-${pad(t.getHours())}${pad(t.getMinutes())}00`;
+      return `dinner_planner-${stamp}.sql.gz`;
+    };
+    const put = (...names: string[]) => {
+      fs.mkdirSync(backupDir, { recursive: true });
+      for (const name of names) fs.writeFileSync(path.join(backupDir, name), "old");
+      return names;
+    };
+    /** Put old dumps in the backup folder; returns their names in the order given. */
+    const seed = (...hoursAgo: number[]) => {
+      fs.mkdirSync(backupDir, { recursive: true });
+      return hoursAgo.map((hours) => {
+        const name = dumpAgo(hours);
+        fs.writeFileSync(path.join(backupDir, name), "old");
+        return name;
+      });
+    };
+    const kept = (...names: string[]) => names.every((name) => backups().includes(name));
+    const gone = (...names: string[]) => names.every((name) => !backups().includes(name));
+
+    it("keeps every dump of the last day, even several from one calendar day", () => {
+      const names = seed(1, 2, 3, 5, 8, 12, 20);
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(kept(...names)).toBe(true);
     });
 
-    const result = run("backup-db.sh", [], { env: { BACKUP_KEEP: "2" } });
+    it("keeps only the newest dump of each older day", () => {
+      const [morning, noon, evening] = put(dumpOn(3, 8), dumpOn(3, 12), dumpOn(3, 20));
+      const [otherDay] = put(dumpOn(4, 9));
 
-    expect(result.status).toBe(0);
-    expect(backups()).toHaveLength(2);
-    expect(backups()).toContain("dinner_planner-20260920-100000.sql.gz");
-    expect(backups()).not.toContain("dinner_planner-20260919-100000.sql.gz");
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(kept(evening, otherDay)).toBe(true);
+      expect(gone(morning, noon)).toBe(true);
+    });
+
+    it("keeps one dump for each of the last 30 days, and nothing older", () => {
+      const days = [2, 5, 10, 20, 29].map((day) => day * 24 + 12);
+      const daily = seed(...days);
+      const [tooOld, muchTooOld] = seed(31 * 24 + 6, 90 * 24);
+
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(kept(...daily)).toBe(true);
+      expect(gone(tooOld, muchTooOld)).toBe(true);
+    });
+
+    it("keeps at most a day's worth of hourly dumps plus one per older day", () => {
+      const hourly = Array.from({ length: 24 * 8 }, (_, i) => i + 1); // a week of hourly dumps, and more
+      seed(...hourly);
+
+      expect(run("backup-db.sh").status).toBe(0);
+      // 24 hourly, at most one per day for the days before, and the new dump.
+      expect(backups().length).toBeLessThanOrEqual(24 + 8 + 1);
+      expect(backups().length).toBeGreaterThanOrEqual(24 + 1);
+    });
+
+    it("follows BACKUP_KEEP_HOURLY_HOURS and BACKUP_KEEP_DAILY_DAYS", () => {
+      // Yesterday is older than a one-hour window whatever the time of day, so only the daily rule applies.
+      const [yesterdayMorning, yesterdayEvening] = put(dumpOn(1, 8), dumpOn(1, 18));
+      const [fourDaysAgo, sixDaysAgo] = put(dumpOn(4, 12), dumpOn(6, 12));
+
+      const result = run("backup-db.sh", [], { env: { BACKUP_KEEP_HOURLY_HOURS: "1", BACKUP_KEEP_DAILY_DAYS: "5" } });
+
+      expect(result.status).toBe(0);
+      expect(kept(yesterdayEvening, fourDaysAgo)).toBe(true);
+      expect(gone(yesterdayMorning, sixDaysAgo)).toBe(true);
+    });
+
+    it("keeps the dump of the 30th day back, and drops the one of the 31st", () => {
+      // The boundary is a calendar day: the whole of the 30th day back is still kept.
+      const [thirtyDaysAgo, thirtyOneDaysAgo] = put(dumpOn(30, 12), dumpOn(31, 12));
+
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(kept(thirtyDaysAgo)).toBe(true);
+      expect(gone(thirtyOneDaysAgo)).toBe(true);
+    });
+
+    it("keeps every dump of a longer hourly window when BACKUP_KEEP_HOURLY_HOURS is raised", () => {
+      // Two days back is at least 30 hours ago, so the default window of 24 hours thins it to one dump.
+      const [morning, evening] = put(dumpOn(2, 8), dumpOn(2, 18));
+
+      expect(run("backup-db.sh", [], { env: { BACKUP_KEEP_HOURLY_HOURS: "72" } }).status).toBe(0);
+      expect(kept(morning, evening)).toBe(true);
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(gone(morning)).toBe(true);
+      expect(kept(evening)).toBe(true);
+    });
+
+    it("keeps a longer daily history when BACKUP_KEEP_DAILY_DAYS is raised", () => {
+      const [old] = put(dumpOn(60, 12));
+
+      expect(run("backup-db.sh", [], { env: { BACKUP_KEEP_DAILY_DAYS: "90" } }).status).toBe(0);
+      expect(kept(old)).toBe(true);
+      expect(run("backup-db.sh", [], { env: { BACKUP_KEEP_DAILY_DAYS: "30" } }).status).toBe(0);
+      expect(gone(old)).toBe(true);
+    });
+
+    it.each([
+      ["BACKUP_KEEP_HOURLY_HOURS", "a day"],
+      ["BACKUP_KEEP_HOURLY_HOURS", "-1"],
+      ["BACKUP_KEEP_HOURLY_HOURS", "2.5"],
+      ["BACKUP_KEEP_DAILY_DAYS", "many"],
+    ])("still writes the dump, deletes nothing and says so when %s is '%s'", (variable, value) => {
+      const [old] = seed(400 * 24);
+
+      const result = run("backup-db.sh", [], { env: { [variable]: value } });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(`${variable} must be a whole number`);
+      expect(result.stderr).toContain("Backup written, but older dumps were not thinned out");
+      expect(kept(old)).toBe(true);
+      expect(backups()).toHaveLength(2);
+    });
+
+    it("treats an empty setting as not set, and uses the default", () => {
+      const [recent, tooOld] = seed(20, 40 * 24);
+
+      const result = run("backup-db.sh", [], { env: { BACKUP_KEEP_HOURLY_HOURS: "", BACKUP_KEEP_DAILY_DAYS: "" } });
+
+      expect(result.status).toBe(0);
+      expect(kept(recent)).toBe(true);
+      expect(gone(tooOld)).toBe(true);
+    });
+
+    it("never removes the dump it has just written", () => {
+      seed(400 * 24);
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(backups()).toHaveLength(1);
+      expect(zlib.gunzipSync(fs.readFileSync(path.join(backupDir, backups()[0]))).toString()).toBe(COMPLETE_DUMP);
+    });
+
+    it("leaves other files in the folder alone", () => {
+      seed(400 * 24);
+      fs.writeFileSync(path.join(backupDir, "backup.log"), "log");
+      fs.writeFileSync(path.join(backupDir, "notes.txt"), "mine");
+      fs.writeFileSync(path.join(backupDir, "dinner_planner-20200101-000000.sql.gz.partial"), "half");
+
+      expect(run("backup-db.sh").status).toBe(0);
+      expect(fs.readdirSync(backupDir)).toEqual(
+        expect.arrayContaining(["backup.log", "notes.txt", "dinner_planner-20200101-000000.sql.gz.partial"]),
+      );
+    });
+
+    it("keeps everything when the dump is incomplete, the old dumps included", () => {
+      const names = seed(400 * 24, 100 * 24);
+      fs.writeFileSync(path.join(dir, "dump.sql"), '-- PostgreSQL database dump\nCREATE TABLE');
+
+      expect(run("backup-db.sh").status).not.toBe(0);
+      expect(kept(...names)).toBe(true);
+    });
   });
 });
 

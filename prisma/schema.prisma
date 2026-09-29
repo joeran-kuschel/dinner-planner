@@ -26,8 +26,28 @@ model Recipe {
 
   ingredients Ingredient[]
   plannedFor  PlannedMeal[]
+  photo       RecipePhoto?
 
   @@index([name])
+}
+
+/// The photo of a recipe, kept in the database so that the app stays stateless and
+/// a backup covers it. Its own table, so that listing recipes never reads image
+/// bytes. Both sizes are produced by lib/recipe-photo.ts; nothing uploaded is
+/// stored or served as it came in.
+model RecipePhoto {
+  recipeId   String   @id
+  /// The recipe page's image: at most 1200 px on the long edge, WebP.
+  full       Bytes
+  fullWidth  Int
+  fullHeight Int
+  /// The recipe list's card header: a fixed 3:2 crop, WebP.
+  thumb      Bytes
+  /// Describes the photo for screen readers.
+  alt        String
+  updatedAt  DateTime @updatedAt
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }
 
 /// One ingredient line belonging to a recipe.
@@ -67,17 +87,17 @@ model PlannedMeal {
 
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
-  id String @id @default(cuid())
+  id        String   @id @default(cuid())
   /// UTC midnight of the Monday the list belongs to.
   weekStart DateTime
   /// Normalised "name|unit" key, produced by groceryKey() in lib/grocery.ts.
-  key      String
-  label    String
-  quantity Float?
-  unit     String?
+  key       String
+  label     String
+  quantity  Float?
+  unit      String?
   /// True for lines the user typed in; false for rows that only carry `checked`.
-  manual  Boolean @default(false)
-  checked Boolean @default(false)
+  manual    Boolean  @default(false)
+  checked   Boolean  @default(false)
 
   @@unique([weekStart, key])
   @@index([weekStart])

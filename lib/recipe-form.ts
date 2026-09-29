@@ -36,6 +36,8 @@ export type RecipeFormValues = {
   prepMinutes: string;
   sourceUrl: string;
   instructions: string;
+  /** What the photo shows, for screen readers. The photo file itself cannot be echoed back. */
+  photoAlt: string;
   ingredients: IngredientValues[];
 };
 

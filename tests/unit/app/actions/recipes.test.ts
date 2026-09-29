@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState } from "@/lib/recipe-form";
 import { addDays, parseDayKey } from "@/lib/week";
 import { formData } from "@/tests/support/db";
+import { asFile, testImage } from "@/tests/support/images";
 import { testI18n } from "@/tests/support/i18n";
 import { expectRedirect, RedirectError } from "@/tests/support/next";
 import { createRecipe, deleteRecipe, updateRecipe } from "@/app/actions/recipes";
@@ -228,6 +229,7 @@ describe("createRecipe", () => {
           prepMinutes: "25",
           sourceUrl: "https://example.com/soup",
           instructions: "Chop\nSimmer",
+          photoAlt: "",
           ingredients: [
             { name: "Tomatoes", quantity: "800", unit: "g" },
             { name: "Onion", quantity: "1", unit: "" },
@@ -524,4 +526,187 @@ describe("deleteRecipe", () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("recipe photos", () => {
+  const ALT = "A bowl of tomato soup";
+
+  /** A recipe form with a photo chosen, as the browser posts it. */
+  async function formWithPhoto(overrides: Fields = {}, image?: File): Promise<FormData> {
+    const form = recipeForm({ photoAlt: ALT, ...overrides });
+    form.append("photo", image ?? asFile(await testImage("jpeg", 2400, 1600), "soup.jpg"));
+    return form;
+  }
+  const photoRow = (recipeId: string) => prisma.recipePhoto.findUnique({ where: { recipeId } });
+  const noFile = () => new File([], "", { type: "application/octet-stream" });
+  const shownState = (state: RecipeFormState) => shown(state);
+
+  describe("createRecipe", () => {
+    it("stores a chosen photo with the recipe: both sizes, its dimensions and its description", async () => {
+      await submitCreate(await formWithPhoto());
+
+      const recipe = await onlyRecipe();
+      const photo = await photoRow(recipe.id);
+      expect(photo?.alt).toBe(ALT);
+      expect([photo?.fullWidth, photo?.fullHeight]).toEqual([1200, 800]);
+      expect(photo?.full.length).toBeGreaterThan(0);
+      expect(photo?.thumb.length).toBeGreaterThan(0);
+      expect(Buffer.from(photo!.full).subarray(8, 12).toString()).toBe("WEBP");
+    });
+
+    it("trims the description", async () => {
+      await submitCreate(await formWithPhoto({ photoAlt: "  Soup in a bowl  " }));
+      expect((await photoRow((await onlyRecipe()).id))?.alt).toBe("Soup in a bowl");
+    });
+
+    it("creates a recipe without a photo when the file field is left empty", async () => {
+      const form = recipeForm({ photoAlt: "" });
+      form.append("photo", noFile());
+      await submitCreate(form);
+
+      expect(await prisma.recipePhoto.count()).toBe(0);
+    });
+
+    it("ignores a description typed without a photo", async () => {
+      await submitCreate(recipeForm({ photoAlt: "Nothing to describe" }));
+      expect(await prisma.recipePhoto.count()).toBe(0);
+    });
+
+    it("rejects a photo without a description, creating nothing", async () => {
+      const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, await formWithPhoto({ photoAlt: "  " }));
+
+      expect(shownState(state).error).toBe("Describe the photo in a few words, for people who cannot see it.");
+      expect(state.values?.name).toBe("Tomato soup");
+      expect(await prisma.recipe.count()).toBe(0);
+    });
+
+    it("rejects a description that is too long", async () => {
+      const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, await formWithPhoto({ photoAlt: "x".repeat(201) }));
+      expect(shownState(state).error).toBe("The description of the photo can be at most 200 characters.");
+      expect(await prisma.recipe.count()).toBe(0);
+    });
+
+    it("rejects a file that is no image, echoing the description", async () => {
+      const bad = asFile(Buffer.from("not an image"), "notes.jpg");
+      const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, await formWithPhoto({}, bad));
+
+      expect(shownState(state).error).toBe("The photo could not be read. Choose another image.");
+      expect(state.values?.photoAlt).toBe(ALT);
+      expect(await prisma.recipe.count()).toBe(0);
+    });
+  });
+
+  describe("updateRecipe", () => {
+    async function seedWithPhoto() {
+      const recipe = await seedRecipe();
+      await submitUpdate(await formWithPhoto({ id: recipe.id }));
+      return recipe;
+    }
+    async function submitUpdate(form: FormData) {
+      const outcome = await updateRecipe(EMPTY_RECIPE_FORM_STATE, form).catch((error: unknown) => error);
+      expect(outcome).toBeInstanceOf(RedirectError);
+    }
+
+    it("adds a photo to a recipe that had none", async () => {
+      const recipe = await seedRecipe();
+      await submitUpdate(await formWithPhoto({ id: recipe.id }));
+      expect((await photoRow(recipe.id))?.alt).toBe(ALT);
+    });
+
+    it("replaces the photo and its description", async () => {
+      const recipe = await seedWithPhoto();
+      const before = await photoRow(recipe.id);
+
+      await submitUpdate(
+        await formWithPhoto({ id: recipe.id, photoAlt: "New picture" }, asFile(await testImage("png", 900, 900), "n.png")),
+      );
+
+      const after = await photoRow(recipe.id);
+      expect(after?.alt).toBe("New picture");
+      expect([after?.fullWidth, after?.fullHeight]).toEqual([900, 900]);
+      expect(Buffer.compare(Buffer.from(after!.full), Buffer.from(before!.full))).not.toBe(0);
+      expect(await prisma.recipePhoto.count()).toBe(1);
+    });
+
+    it("keeps the photo, untouched, when the form is saved without changing it", async () => {
+      const recipe = await seedWithPhoto();
+      const before = await photoRow(recipe.id);
+
+      const form = recipeForm({ id: recipe.id, name: "Renamed", photoAlt: ALT });
+      form.append("photo", noFile());
+      await submitUpdate(form);
+
+      const after = await photoRow(recipe.id);
+      expect(after?.updatedAt).toEqual(before?.updatedAt);
+      expect(Buffer.compare(Buffer.from(after!.full), Buffer.from(before!.full))).toBe(0);
+      expect((await prisma.recipe.findUnique({ where: { id: recipe.id } }))?.name).toBe("Renamed");
+    });
+
+    it("changes only the description when only that is edited, keeping the image", async () => {
+      const recipe = await seedWithPhoto();
+      const before = await photoRow(recipe.id);
+
+      await submitUpdate(recipeForm({ id: recipe.id, photoAlt: "A better description" }));
+
+      const after = await photoRow(recipe.id);
+      expect(after?.alt).toBe("A better description");
+      expect(Buffer.compare(Buffer.from(after!.full), Buffer.from(before!.full))).toBe(0);
+    });
+
+    it("removes the photo when asked to", async () => {
+      const recipe = await seedWithPhoto();
+      await submitUpdate(recipeForm({ id: recipe.id, photoAlt: ALT, removePhoto: "1" }));
+
+      expect(await photoRow(recipe.id)).toBeNull();
+      expect(await prisma.recipe.findUnique({ where: { id: recipe.id } })).not.toBeNull();
+    });
+
+    it("lets a new file win over 'Remove photo'", async () => {
+      const recipe = await seedWithPhoto();
+      await submitUpdate(await formWithPhoto({ id: recipe.id, removePhoto: "1", photoAlt: "Replaced" }));
+      expect((await photoRow(recipe.id))?.alt).toBe("Replaced");
+    });
+
+    it("removes nothing when 'Remove photo' is ticked for a recipe without one", async () => {
+      const recipe = await seedRecipe();
+      await submitUpdate(recipeForm({ id: recipe.id, removePhoto: "1" }));
+      expect(await prisma.recipePhoto.count()).toBe(0);
+    });
+
+    it("rejects emptying the description of an existing photo", async () => {
+      const recipe = await seedWithPhoto();
+      const state = await updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: recipe.id, photoAlt: "" }));
+
+      expect(shownState(state).error).toBe("Describe the photo in a few words, for people who cannot see it.");
+      expect((await photoRow(recipe.id))?.alt).toBe(ALT);
+    });
+
+    it("leaves the recipe and its photo as they were when the new file is rejected", async () => {
+      const recipe = await seedWithPhoto();
+      const before = await photoRow(recipe.id);
+
+      const bad = asFile(Buffer.from("not an image"), "notes.jpg");
+      const state = await updateRecipe(
+        EMPTY_RECIPE_FORM_STATE,
+        await formWithPhoto({ id: recipe.id, name: "Should not be saved" }, bad),
+      );
+
+      expect(shownState(state).error).toBe("The photo could not be read. Choose another image.");
+      expect((await prisma.recipe.findUnique({ where: { id: recipe.id } }))?.name).not.toBe("Should not be saved");
+      const after = await photoRow(recipe.id);
+      expect(Buffer.compare(Buffer.from(after!.full), Buffer.from(before!.full))).toBe(0);
+    });
+  });
+
+  describe("deleteRecipe", () => {
+    it("takes the photo with the recipe", async () => {
+      await submitCreate(await formWithPhoto());
+      const recipe = await onlyRecipe();
+      expect(await prisma.recipePhoto.count()).toBe(1);
+
+      await deleteRecipe(formData({ id: recipe.id })).catch(() => {});
+
+      expect(await prisma.recipePhoto.count()).toBe(0);
+    });
+  });
 });

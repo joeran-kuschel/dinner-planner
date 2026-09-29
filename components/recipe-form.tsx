@@ -3,8 +3,15 @@
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import Link from "next/link";
-import { type InputHTMLAttributes, useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type InputHTMLAttributes,
+  startTransition,
+  useActionState,
+  useState,
+} from "react";
+import { RecipePhoto } from "@/components/recipe-photo";
 import { MAX_SERVINGS } from "@/lib/planner";
 import {
   EMPTY_RECIPE_FORM_STATE,
@@ -13,6 +20,13 @@ import {
   type RecipeFormState,
   type RecipeFormValues,
 } from "@/lib/recipe-form";
+import {
+  MAX_PHOTO_ALT_LENGTH,
+  MAX_PHOTO_BYTES,
+  MAX_PHOTO_MEGABYTES,
+  PHOTO_THUMB_HEIGHT,
+  PHOTO_THUMB_WIDTH,
+} from "@/lib/recipe-photo-shared";
 
 export type RecipeFormProps = {
   action: (state: RecipeFormState, formData: FormData) => Promise<RecipeFormState>;
@@ -25,6 +39,8 @@ export type RecipeFormProps = {
     prepMinutes: number | null;
     sourceUrl: string | null;
     instructions: string | null;
+    /** The recipe's photo, if it has one; `version` is its last change, see `recipePhotoUrl`. */
+    photo?: { alt: string; version: number } | null;
     ingredients: { name: string; quantity: number | null; unit: string | null }[];
   };
 };
@@ -39,6 +55,7 @@ const NEW_RECIPE: RecipeFormValues = {
   prepMinutes: "",
   sourceUrl: "",
   instructions: "",
+  photoAlt: "",
   ingredients: [BLANK_ROW, BLANK_ROW, BLANK_ROW],
 };
 
@@ -51,6 +68,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
     prepMinutes: recipe.prepMinutes === null ? "" : String(recipe.prepMinutes),
     sourceUrl: recipe.sourceUrl ?? "",
     instructions: recipe.instructions ?? "",
+    photoAlt: recipe.photo?.alt ?? "",
     ingredients: recipe.ingredients.length
       ? recipe.ingredients.map((row) => ({
           name: row.name,
@@ -62,16 +80,27 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
 }
 
 export function RecipeForm({ action, recipe }: RecipeFormProps) {
-  const [state, formAction] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
+  const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
   const { i18n } = useLingui();
 
-  // React resets the form once the action resolves, so a rejected submission is
-  // re-filled from the values the action handed back rather than from the props.
+  // React resets a form once its action resolves, which would empty the photo field: a
+  // browser cannot fill a file field in again, so a refused form would lose the photo, and
+  // the retry would save the recipe without it. Submitting through a transition skips the
+  // reset. The `action` prop stays for browsers without JavaScript, where the form posts
+  // normally and the page is rendered again from `state`.
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => formAction(data));
+  };
+
+  // Also without the reset, a rejected submission is re-filled from the values the action
+  // handed back, which covers the browsers without JavaScript.
   const values = state.values ?? toFormValues(recipe);
   const ingredients = useIngredientRows(values.ingredients, state.attempt);
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form action={formAction} onSubmit={submit} className="flex flex-col gap-6">
       {recipe && <input type="hidden" name="id" value={recipe.id} />}
 
       {state.error && (
@@ -80,13 +109,15 @@ export function RecipeForm({ action, recipe }: RecipeFormProps) {
         </p>
       )}
 
-      {/* Re-keying on `attempt` makes the reset inputs pick up the echoed defaults. */}
+      {/* Re-keying on `attempt` makes the inputs pick up the echoed defaults. The photo section
+          is not re-keyed: its file field keeps the chosen file. */}
       <RecipeFields key={`fields-${state.attempt}`} values={values} />
+      <PhotoFields recipe={recipe} alt={values.photoAlt} />
       <IngredientRows key={`rows-${state.attempt}`} {...ingredients} />
       <MethodField key={`method-${state.attempt}`} instructions={values.instructions} />
 
       <div className="flex items-center gap-3">
-        <SubmitButton label={recipe ? t(i18n)`Save changes` : t(i18n)`Create recipe`} />
+        <SubmitButton label={recipe ? t(i18n)`Save changes` : t(i18n)`Create recipe`} pending={pending} />
         <Link href={recipe ? `/recipes/${recipe.id}` : "/recipes"} className="btn-ghost">
           {t(i18n)`Cancel`}
         </Link>
@@ -191,15 +222,97 @@ function Field({
   name,
   hint,
   ...input
-}: { label: string; name: keyof RecipeFormValues; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string; name: keyof RecipeFormValues | "photo"; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
       <label className="label" htmlFor={name}>
         {label}
       </label>
-      <input id={name} name={name} className="field mt-1" {...input} />
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      <input
+        id={name}
+        name={name}
+        className="field mt-1"
+        aria-describedby={hint ? `${name}-hint` : undefined}
+        {...input}
+      />
+      {hint && (
+        <p id={`${name}-hint`} className="mt-1 text-xs text-muted">
+          {hint}
+        </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * The recipe's photo: what it shows now (with a way to remove it), a file to
+ * choose, and what the photo shows in words. The description is needed for any
+ * photo, so a screen reader can say something in its place.
+ *
+ * The browser checks what it can before anything is sent, so a mistake is caught
+ * without a round trip: a file over the limit is refused on the spot, and the
+ * description is required as soon as a file is chosen or for a photo that stays. The server checks all of it
+ * too, for browsers without JavaScript.
+ */
+function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: string }) {
+  const { i18n } = useLingui();
+  const photo = recipe?.photo;
+  const [chosen, setChosen] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    setChosen(Boolean(file));
+    event.currentTarget.setCustomValidity(
+      file && file.size > MAX_PHOTO_BYTES ? t(i18n)`The photo is too large: ${MAX_PHOTO_MEGABYTES} MB at most.` : "",
+    );
+  };
+
+  return (
+    <section className="card flex flex-col gap-4 p-4">
+      <h2 className="text-sm font-semibold">{t(i18n)`Photo`}</h2>
+      {recipe && photo && (
+        <div className="flex flex-wrap items-center gap-4">
+          <RecipePhoto
+            recipeId={recipe.id}
+            version={photo.version}
+            alt={photo.alt}
+            size="thumb"
+            width={PHOTO_THUMB_WIDTH}
+            height={PHOTO_THUMB_HEIGHT}
+            className="aspect-[3/2] w-40 rounded-lg border border-border object-cover"
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="removePhoto"
+              value="1"
+              onChange={(event) => setRemoving(event.currentTarget.checked)}
+              className="size-4 accent-[var(--accent)]"
+            />
+            {t(i18n)`Remove photo`}
+          </label>
+        </div>
+      )}
+      <Field
+        label={photo ? t(i18n)`Replace photo` : t(i18n)`Photo file`}
+        name="photo"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={onFileChange}
+        className="field mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-1 file:text-sm file:text-foreground"
+        hint={t(i18n)`JPEG, PNG or WebP, up to ${MAX_PHOTO_MEGABYTES} MB.`}
+      />
+      <Field
+        label={t(i18n)`Description of the photo`}
+        name="photoAlt"
+        defaultValue={alt}
+        required={chosen || (Boolean(photo) && !removing)}
+        maxLength={MAX_PHOTO_ALT_LENGTH}
+        placeholder={t(i18n)`A bowl of red lentil dal with coriander`}
+        hint={t(i18n)`Say what it shows, for people who cannot see it. Needed for every photo.`}
+      />
+    </section>
   );
 }
 
@@ -288,8 +401,7 @@ Toast the rice…`}
   );
 }
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({ label, pending }: { label: string; pending: boolean }) {
   const { i18n } = useLingui();
   return (
     <button type="submit" className="btn-primary" disabled={pending}>

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import userEvent from "@testing-library/user-event";
@@ -32,6 +32,7 @@ const REJECTED_VALUES: RecipeFormValues = {
   prepMinutes: "25",
   sourceUrl: "https://example.com/soup",
   instructions: "Chop\nSimmer",
+  photoAlt: "",
   ingredients: [
     { name: "Leek", quantity: "2", unit: "" },
     { name: "Stock", quantity: "1,5", unit: "l" },
@@ -296,6 +297,7 @@ describe("RecipeForm", () => {
           prepMinutes: String(data.get("prepMinutes")),
           sourceUrl: String(data.get("sourceUrl")),
           instructions: String(data.get("instructions")),
+          photoAlt: String(data.get("photoAlt")),
           ingredients: data.getAll("ingredientName").map((name, i) => ({
             name: String(name),
             quantity: String(data.getAll("ingredientQuantity")[i]),
@@ -411,6 +413,284 @@ describe("RecipeForm", () => {
 
       settle({ error: NAME_MISSING, values: REJECTED_VALUES, attempt: 1 });
       expect(await screen.findByRole("button", { name: "Create recipe" })).toBeEnabled();
+    });
+  });
+
+  describe("photo", () => {
+    const WITH_PHOTO: Recipe = { ...RISOTTO, photo: { alt: "A plate of risotto", version: 1_700_000_000_000 } };
+
+    it("offers a file field for JPEG, PNG and WebP, and a description, for a new recipe", () => {
+      renderForm();
+      const file = field("Photo file");
+      expect(file).toHaveAttribute("type", "file");
+      expect(file).toHaveAttribute("name", "photo");
+      expect(file).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+      expect(field("Description of the photo")).toHaveAttribute("name", "photoAlt");
+      expect(field("Description of the photo")).toHaveValue("");
+    });
+
+    it("says what is accepted, linked to the file field", () => {
+      renderForm();
+      const hint = screen.getByText("JPEG, PNG or WebP, up to 5 MB.");
+      expect(field("Photo file")).toHaveAccessibleDescription(hint.textContent!);
+    });
+
+    it("explains why every photo needs a description, linked to its field", () => {
+      renderForm();
+      expect(field("Description of the photo")).toHaveAccessibleDescription(
+        "Say what it shows, for people who cannot see it. Needed for every photo.",
+      );
+    });
+
+    it("limits the description's length in the field", () => {
+      renderForm();
+      expect(field("Description of the photo")).toHaveAttribute("maxlength", "200");
+    });
+
+    it("shows no current photo and no way to remove one for a recipe without a photo", () => {
+      renderForm(undefined, RISOTTO);
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: "Remove photo" })).not.toBeInTheDocument();
+      expect(field("Photo file")).toBeInTheDocument();
+    });
+
+    it("shows the current photo by its versioned thumbnail address, with its description", () => {
+      renderForm(undefined, WITH_PHOTO);
+      const image = screen.getByRole("img", { name: "A plate of risotto" });
+      expect(image).toHaveAttribute("src", "/recipes/r-risotto/photo?size=thumb&v=1700000000000");
+      expect(field("Description of the photo")).toHaveValue("A plate of risotto");
+    });
+
+    it("offers to replace or remove a current photo", () => {
+      renderForm(undefined, WITH_PHOTO);
+      expect(field("Replace photo")).toHaveAttribute("name", "photo");
+      expect(screen.queryByLabelText("Photo file")).not.toBeInTheDocument();
+      const remove = screen.getByRole("checkbox", { name: "Remove photo" });
+      expect(remove).toHaveAttribute("name", "removePhoto");
+      expect(remove).toHaveAttribute("value", "1");
+      expect(remove).not.toBeChecked();
+    });
+
+    it("takes the chosen file in the photo field and posts its description with the rest of the form", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action);
+      await user.type(field("Name"), "Leek soup");
+      await user.upload(field("Photo file"), new File(["image bytes"], "soup.jpg", { type: "image/jpeg" }));
+      await user.type(field("Description of the photo"), "Soup in a bowl");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+      // jsdom does not put an uploaded file into the FormData; the real upload is covered by the e2e tests.
+      expect((field("Photo file") as HTMLInputElement).files?.[0]?.name).toBe("soup.jpg");
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      expect(action.mock.calls[0][1].get("photoAlt")).toBe("Soup in a bowl");
+    });
+
+    it("posts 'Remove photo' when it is ticked", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action, WITH_PHOTO);
+      await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      expect(action.mock.calls[0][1].get("removePhoto")).toBe("1");
+    });
+
+    it("puts the typed description back after a rejection", async () => {
+      const action = rejectingAction(NAME_MISSING, { ...REJECTED_VALUES, photoAlt: "Soup in a bowl" });
+      const { user } = renderForm(action);
+      await user.type(field("Name"), " ");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+      await waitFor(() => expect(field("Description of the photo")).toHaveValue("Soup in a bowl"));
+    });
+
+    describe("a refused submission", () => {
+      const soup = () => new File(["image bytes"], "soup.jpg", { type: "image/jpeg" });
+      const fileField = () => field("Photo file") as HTMLInputElement;
+
+      it("keeps the chosen photo and its description, so the retry uploads it", async () => {
+        const action = vi.fn<Action>(async (prev, data) => ({
+          error: NAME_MISSING,
+          attempt: prev.attempt + 1,
+          values: { ...REJECTED_VALUES, name: String(data.get("name")), photoAlt: String(data.get("photoAlt")) },
+        }));
+        const { user } = renderForm(action);
+        await user.type(field("Name"), " ");
+        await user.upload(fileField(), soup());
+        await user.type(field("Description of the photo"), "Soup in a bowl");
+        const chosen = fileField();
+
+        await user.click(screen.getByRole("button", { name: "Create recipe" }));
+        expect(await screen.findByRole("alert")).toHaveTextContent("Give the recipe a name.");
+
+        // The same field, still holding the file: React's form reset did not empty it.
+        expect(fileField()).toBe(chosen);
+        expect(fileField().files?.[0]?.name).toBe("soup.jpg");
+        expect(field("Description of the photo")).toHaveValue("Soup in a bowl");
+      });
+
+      it("keeps the chosen photo through several refusals", async () => {
+        // A blank name that passes the browser's own check, as a server refusal would echo it.
+        const action = rejectingAction(NAME_MISSING, { ...REJECTED_VALUES, name: " " });
+        const { user } = renderForm(action);
+        await user.type(field("Name"), " ");
+        await user.upload(fileField(), soup());
+        await user.type(field("Description of the photo"), "Soup");
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await user.click(screen.getByRole("button", { name: "Create recipe" }));
+          await waitFor(() => expect(action).toHaveBeenCalledTimes(attempt));
+          await screen.findByRole("alert");
+          expect(fileField().files?.[0]?.name).toBe("soup.jpg");
+        }
+      });
+
+      it("keeps 'Remove photo' ticked", async () => {
+        const { user } = renderForm(rejectingAction(NAME_MISSING), WITH_PHOTO);
+        await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        await screen.findByRole("alert");
+        expect(screen.getByRole("checkbox", { name: "Remove photo" })).toBeChecked();
+      });
+
+      it("still posts through the form's action, for browsers without JavaScript", () => {
+        renderForm();
+        // React swaps a form action for a placeholder URL; the point is that the form has one.
+        expect(field("Name").closest("form")).toHaveAttribute("action");
+      });
+    });
+
+    describe("checks in the browser, before anything is sent", () => {
+      const fileField = () => field("Photo file") as HTMLInputElement;
+      const alt = () => field("Description of the photo") as HTMLInputElement;
+      const small = () => new File(["image bytes"], "soup.jpg", { type: "image/jpeg" });
+      const tooBig = () => new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.jpg", { type: "image/jpeg" });
+
+      it("does not need a description while no file is chosen", () => {
+        renderForm();
+        expect(alt()).not.toBeRequired();
+        expect(alt().validity.valid).toBe(true);
+      });
+
+      it("needs a description as soon as a file is chosen", async () => {
+        const { user } = renderForm();
+        await user.upload(fileField(), small());
+
+        expect(alt()).toBeRequired();
+        expect(alt().validity.valueMissing).toBe(true);
+      });
+
+      it("does not need it again when the file is taken back out", async () => {
+        const { user } = renderForm();
+        await user.upload(fileField(), small());
+        fireEvent.change(fileField(), { target: { files: [] } });
+
+        await waitFor(() => expect(alt()).not.toBeRequired());
+      });
+
+      it("needs the description of a photo that stays, so it cannot be emptied", () => {
+        renderForm(undefined, WITH_PHOTO);
+        expect(alt()).toBeRequired();
+      });
+
+      it("does not need it while the photo is being removed", async () => {
+        const { user } = renderForm(undefined, WITH_PHOTO);
+        await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+        expect(alt()).not.toBeRequired();
+
+        await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+        expect(alt()).toBeRequired();
+      });
+
+      it("blocks saving an existing photo with its description emptied", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action, WITH_PHOTO);
+        await user.clear(alt());
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        expect(action).not.toHaveBeenCalled();
+      });
+
+      it("blocks the submit, and keeps the file, when the description is missing", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action);
+        await user.type(field("Name"), "Leek soup");
+        await user.upload(fileField(), small());
+        await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+        expect(action).not.toHaveBeenCalled();
+        expect(fileField().files?.[0]?.name).toBe("soup.jpg");
+      });
+
+      it("submits once the description is there", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action);
+        await user.type(field("Name"), "Leek soup");
+        await user.upload(fileField(), small());
+        await user.type(alt(), "Soup in a bowl");
+        await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+        await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      });
+
+      it("refuses a file over the size limit on the spot, naming the limit", async () => {
+        const { user } = renderForm();
+        await user.upload(fileField(), tooBig());
+
+        expect(fileField().validity.customError).toBe(true);
+        expect(fileField().validationMessage).toBe("The photo is too large: 5 MB at most.");
+      });
+
+      it("does not submit a file over the limit", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action);
+        await user.type(field("Name"), "Leek soup");
+        await user.upload(fileField(), tooBig());
+        await user.type(alt(), "Too big");
+        await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+        expect(action).not.toHaveBeenCalled();
+      });
+
+      it("accepts a file exactly at the limit", async () => {
+        const { user } = renderForm();
+        await user.upload(fileField(), new File([new Uint8Array(5 * 1024 * 1024)], "edge.jpg", { type: "image/jpeg" }));
+        expect(fileField().validity.customError).toBe(false);
+      });
+
+      it("lifts the refusal when a smaller file is chosen instead", async () => {
+        const { user } = renderForm();
+        await user.upload(fileField(), tooBig());
+        await user.upload(fileField(), small());
+
+        expect(fileField().validity.customError).toBe(false);
+        expect(fileField().validationMessage).toBe("");
+      });
+
+      it("names the size limit in German", async () => {
+        renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+        const user = userEvent.setup();
+        await user.upload(screen.getByLabelText("Fotodatei"), tooBig());
+
+        expect((screen.getByLabelText("Fotodatei") as HTMLInputElement).validationMessage).toBe(
+          "Das Foto ist zu groß: höchstens 5 MB.",
+        );
+      });
+    });
+
+    it("is labelled in German", () => {
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} recipe={WITH_PHOTO} />, { locale: "de" });
+      expect(screen.getByRole("img", { name: "A plate of risotto" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Foto ersetzen")).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "Foto entfernen" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Beschreibung des Fotos")).toBeInTheDocument();
+      expect(screen.getByText("JPEG, PNG oder WebP, bis zu 5 MB.")).toBeInTheDocument();
+    });
+
+    it("has no accessibility violations with a photo", async () => {
+      const { container } = renderForm(undefined, WITH_PHOTO);
+      await expectNoAxeViolations(container);
     });
   });
 
