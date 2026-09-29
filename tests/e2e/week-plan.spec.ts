@@ -244,7 +244,7 @@ test.describe("week plan", () => {
   test("keeps the question of Clear the whole week on a 320 px screen", async ({ page }) => {
     const name = unique("Dal");
     await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
-    await page.goto("/?week=2027-06-07");
+    await page.goto("/?week=2027-07-05");
     await planRecipe(page, "Monday", name);
 
     await page.setViewportSize({ width: 320, height: 700 });

@@ -193,6 +193,20 @@ describe("ConfirmAction", () => {
       );
       expect(screen.getByRole("heading", { name: "Title" })).not.toHaveFocus();
     });
+
+    it("leaves the focus alone when the action was confirmed, the component stayed and the question was cancelled afterwards", async () => {
+      const { user, rerender } = renderWithTarget();
+      await user.click(summary());
+      await user.click(screen.getByRole("button", { name: "Delete recipe" }));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      rerender(
+        <h1 id="title" tabIndex={-1}>
+          Title
+        </h1>,
+      );
+      expect(screen.getByRole("heading", { name: "Title" })).not.toHaveFocus();
+    });
   });
 
   it("names Cancel in German", async () => {
