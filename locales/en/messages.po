@@ -11,7 +11,7 @@ msgstr ""
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
 msgstr "{count, plural, one {# suggestion} other {# suggestions}}"
 
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 
@@ -19,8 +19,7 @@ msgstr "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgid "{plannedCount} of 7 planned"
 msgstr "{plannedCount} of 7 planned"
 
-#: app/recipes/[id]/page.tsx
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "{prepMinutes} min"
 msgstr "{prepMinutes} min"
 
@@ -64,6 +63,7 @@ msgstr "Amount for ingredient {number}"
 msgid "Arborio rice"
 msgstr "Arborio rice"
 
+#: app/not-found.tsx
 #: app/recipes/[id]/page.tsx
 msgid "Back to the plan"
 msgstr "Back to the plan"
@@ -247,6 +247,10 @@ msgstr "One step per line.\n"
 "Soften the onion…\n"
 "Toast the rice…"
 
+#: app/not-found.tsx
+msgid "Page not found"
+msgstr "Page not found"
+
 #: components/day-card.tsx
 msgid "Pick a recipe or type a dinner…"
 msgstr "Pick a recipe or type a dinner…"
@@ -259,7 +263,7 @@ msgstr "Plan “{name}” for this day only"
 msgid "Plan the week's dinners, keep recipes, and get one grocery list."
 msgstr "Plan the week's dinners, keep recipes, and get one grocery list."
 
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "planned {plannedFor}×"
 msgstr "planned {plannedFor}×"
 
@@ -308,8 +312,7 @@ msgstr "Saving…"
 msgid "Serves"
 msgstr "Serves"
 
-#: app/recipes/[id]/page.tsx
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "Serves {servings}"
 msgstr "Serves {servings}"
 
@@ -328,6 +331,10 @@ msgstr "The source has to be a web address starting with http:// or https://."
 #: components/day-card.tsx
 msgid "This day could not be saved. It shows what is saved now; please try again."
 msgstr "This day could not be saved. It shows what is saved now; please try again."
+
+#: app/not-found.tsx
+msgid "This page does not exist, or the recipe was deleted."
+msgstr "This page does not exist, or the recipe was deleted."
 
 #: app/page.tsx
 #: components/site-nav.tsx

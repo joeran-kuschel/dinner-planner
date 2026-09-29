@@ -5,6 +5,7 @@ import { deleteRecipe } from "@/app/actions/recipes";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import { formatQuantity } from "@/lib/grocery";
+import { recipeFacts } from "@/lib/recipe-facts";
 import { isWebUrl } from "@/lib/recipe-form";
 import { dayKey, formatWeekday, formatDayMonth, startOfWeek, today } from "@/lib/week";
 
@@ -28,7 +29,6 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
     .map((step) => step.trim())
     .filter(Boolean);
 
-  const { servings, prepMinutes } = recipe;
   const plannedDays = recipe.plannedFor
     .map((meal) => `${formatWeekday(meal.date, locale, "short")} ${formatDayMonth(meal.date, locale)}`)
     .join(", ");
@@ -43,8 +43,7 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
             <p className="mt-1 text-sm text-muted">
-              {t(i18n)`Serves ${servings}`}
-              {prepMinutes ? ` · ${t(i18n)`${prepMinutes} min`}` : ""}
+              {recipeFacts(i18n, { servings: recipe.servings, prepMinutes: recipe.prepMinutes }).join(" · ")}
               {/* Only http(s): an older row could still hold another scheme. */}
               {recipe.sourceUrl && isWebUrl(recipe.sourceUrl) && (
                 <>

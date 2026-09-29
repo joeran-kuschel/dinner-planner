@@ -147,33 +147,41 @@ function RecipeFields({ values }: { values: RecipeFormValues }) {
         defaultValue={values.description}
         placeholder={t(i18n)`One line on why you make this`}
       />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field
-          label={t(i18n)`Serves`}
-          name="servings"
-          type="number"
-          min={1}
-          max={MAX_SERVINGS}
-          defaultValue={values.servings}
-          hint={t(i18n)`Quantities below are for this many people.`}
-        />
-        <Field
-          label={t(i18n)`Minutes`}
-          name="prepMinutes"
-          type="number"
-          min={1}
-          max={MAX_PREP_MINUTES}
-          defaultValue={values.prepMinutes}
-        />
-        <Field
-          label={t(i18n)`Source`}
-          name="sourceUrl"
-          type="url"
-          defaultValue={values.sourceUrl}
-          placeholder="https://…"
-        />
-      </div>
+      <RecipeNumbers values={values} />
     </section>
+  );
+}
+
+/** Servings, prep time and source, side by side from `sm`. */
+function RecipeNumbers({ values }: { values: RecipeFormValues }) {
+  const { i18n } = useLingui();
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <Field
+        label={t(i18n)`Serves`}
+        name="servings"
+        type="number"
+        min={1}
+        max={MAX_SERVINGS}
+        defaultValue={values.servings}
+        hint={t(i18n)`Quantities below are for this many people.`}
+      />
+      <Field
+        label={t(i18n)`Minutes`}
+        name="prepMinutes"
+        type="number"
+        min={1}
+        max={MAX_PREP_MINUTES}
+        defaultValue={values.prepMinutes}
+      />
+      <Field
+        label={t(i18n)`Source`}
+        name="sourceUrl"
+        type="url"
+        defaultValue={values.sourceUrl}
+        placeholder="https://…"
+      />
+    </div>
   );
 }
 

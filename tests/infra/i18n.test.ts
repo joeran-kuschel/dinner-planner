@@ -2,9 +2,12 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { I18n } from "@lingui/core";
+import { plural, t } from "@lingui/core/macro";
 import { parsePoFile } from "@lingui/format-po";
 import { afterAll, describe, expect, it } from "vitest";
 import { LOCALES } from "@/lib/i18n/config";
+import { testI18n } from "@/tests/support/i18n";
 
 const root = path.resolve(__dirname, "../..");
 const catalog = (locale: string) => readFileSync(path.join(root, "locales", locale, "messages.po"), "utf8");
@@ -82,6 +85,37 @@ export default {
         const fresh = readFileSync(path.join(work, "locales", locale, "messages.po"), "utf8");
         expect(fresh, `locales/${locale}/messages.po is stale: run npm run i18n:extract`).toBe(catalog(locale));
       }
+    });
+  });
+
+  describe("counts in the server pages", () => {
+    // The same source messages as the pages, so the macros resolve to the same
+    // catalog entries. German needs a plural where English does not ("Serves").
+    const messages: Record<string, (i18n: I18n, n: number) => string> = {
+      "recipe list count": (i18n, recipeCount) =>
+        t(i18n)`${plural(recipeCount, { one: "# recipe", other: "# recipes" })} to plan from`,
+      "recipe card servings": (i18n, servings) => t(i18n)`Serves ${servings}`,
+      "recipe card ingredients": (i18n, ingredients) =>
+        t(i18n)`${plural(ingredients, { one: "# ingredient", other: "# ingredients" })}`,
+      "recipe card planned days": (i18n, plannedFor) => t(i18n)`planned ${plannedFor}×`,
+      "grocery list sources": (i18n, plannedMeals) =>
+        t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`,
+    };
+
+    it.each([
+      ["recipe list count", 1, "1 recipe to plan from", "1 Rezept zur Auswahl"],
+      ["recipe list count", 2, "2 recipes to plan from", "2 Rezepte zur Auswahl"],
+      ["recipe list count", 0, "0 recipes to plan from", "0 Rezepte zur Auswahl"],
+      ["recipe card servings", 1, "Serves 1", "Für 1 Person"],
+      ["recipe card servings", 4, "Serves 4", "Für 4 Personen"],
+      ["recipe card ingredients", 1, "1 ingredient", "1 Zutat"],
+      ["recipe card ingredients", 3, "3 ingredients", "3 Zutaten"],
+      ["recipe card planned days", 2, "planned 2×", "2× geplant"],
+      ["grocery list sources", 1, "from 1 recipe", "aus 1 Rezept"],
+      ["grocery list sources", 2, "from 2 recipes", "aus 2 Rezepten"],
+    ])("%s for %i reads %j in English and %j in German", (key, count, english, german) => {
+      expect(messages[key](testI18n("en"), count)).toBe(english);
+      expect(messages[key](testI18n("de"), count)).toBe(german);
     });
   });
 });

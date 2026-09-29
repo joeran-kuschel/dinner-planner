@@ -35,8 +35,8 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
   const ranked = (acceptLanguage ?? "")
     .split(",")
     .map((part, index) => {
-      const [tag, ...params] = part.trim().split(";");
-      const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+      const [tag, ...params] = part.split(";").map((piece) => piece.trim());
+      const q = params.find((param) => param.toLowerCase().startsWith("q="));
       const quality = q ? Number.parseFloat(q.slice(2)) : 1;
       return { language: tag.split("-")[0].toLowerCase(), quality: Number.isNaN(quality) ? 0 : quality, index };
     })

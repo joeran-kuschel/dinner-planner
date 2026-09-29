@@ -1,7 +1,7 @@
-import type { I18n } from "@lingui/core";
 import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { recipeFacts } from "@/lib/recipe-facts";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export async function generateMetadata() {
@@ -52,7 +52,12 @@ export default async function RecipesPage() {
                   <p className="line-clamp-2 text-sm text-muted">{recipe.description}</p>
                 )}
                 <p className="mt-auto text-xs text-muted">
-                  {recipeFacts(i18n, recipe)}
+                  {recipeFacts(i18n, {
+                    servings: recipe.servings,
+                    prepMinutes: recipe.prepMinutes,
+                    ingredients: recipe._count.ingredients,
+                    plannedFor: recipe._count.plannedFor,
+                  }).join(" · ")}
                 </p>
               </Link>
             </li>
@@ -61,21 +66,4 @@ export default async function RecipesPage() {
       )}
     </div>
   );
-}
-
-/** e.g. "Serves 4 · 3 ingredients · 30 min · planned 2×" */
-function recipeFacts(
-  i18n: I18n,
-  recipe: { servings: number; prepMinutes: number | null; _count: { ingredients: number; plannedFor: number } },
-): string {
-  const { servings, prepMinutes } = recipe;
-  const { ingredients, plannedFor } = recipe._count;
-  return [
-    t(i18n)`Serves ${servings}`,
-    t(i18n)`${plural(ingredients, { one: "# ingredient", other: "# ingredients" })}`,
-    prepMinutes ? t(i18n)`${prepMinutes} min` : null,
-    plannedFor > 0 ? t(i18n)`planned ${plannedFor}×` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 }

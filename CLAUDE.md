@@ -81,9 +81,10 @@ app/
   page.tsx              week plan (the home page)
   recipes/              list, new, [id] detail, [id]/edit
   groceries/            derived shopping list
-  actions/              server actions: meals, recipes, groceries
+  actions/              server actions: meals, recipes, groceries, locale
   healthz/route.ts      readiness probe — 503 while Postgres is unreachable
-components/             client components (day-card, recipe-form, grocery-list, site-nav)
+components/             client components (day-card, recipe-form, grocery-list, site-nav,
+                        language-switcher, i18n-provider)
 lib/
   db.ts                 Prisma client singleton
   database-url.ts       requireDatabaseUrl() — one clear error when it is unset
@@ -92,6 +93,7 @@ lib/
   grocery.ts            grocery aggregation + formatting
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
+  recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
   i18n/                 languages, locale detection, catalogs — see "Translations" below
 locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
 tests/

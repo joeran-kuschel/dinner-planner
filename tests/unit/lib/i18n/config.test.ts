@@ -22,6 +22,8 @@ describe("negotiateLocale", () => {
     ["de;q=0,en", "en"],
     ["*", "en"],
     ["de;q=abc, en", "en"],
+    ["fr, de ;q=0.9", "de"],
+    ["en;Q=0.1, de;q=0.9", "de"],
   ])("picks the best language we have for %j: %s", (header, expected) => {
     expect(negotiateLocale(header)).toBe(expected);
   });

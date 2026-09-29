@@ -55,6 +55,18 @@ body {
   color: var(--foreground);
 }
 
+/* Room for the sticky header (two rows on narrow screens, one from `sm`), so a
+ * field the browser scrolls to on focus is never hidden under it (WCAG 2.4.11). */
+html {
+  scroll-padding-top: 7rem;
+}
+
+@media (min-width: 40rem) {
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+}
+
 /* Shared primitives, so every form control does not repeat a utility soup.
  * Tailwind v4 cannot `@apply` one custom class inside another, so the shared
  * button base is written as a selector list rather than composed from `.btn`. */

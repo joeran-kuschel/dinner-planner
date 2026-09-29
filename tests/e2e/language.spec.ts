@@ -167,8 +167,8 @@ test.describe("language", () => {
 
     await page.goto(`/recipes/${id}`);
     await expect(page.getByText("Für 2 Personen", { exact: false })).toBeVisible();
-    // No sentence full stop after the abbreviated month: "10. Jan.", not "10. Jan..".
-    await expect(page.getByText(/^Geplant für Mo 10\. Jan\.$/)).toBeVisible();
+    // A label rather than a sentence, so no full stop after the abbreviated month ("10. Jan..").
+    await expect(page.getByText(/^Geplant: Mo 10\. Jan\.$/)).toBeVisible();
   });
 
   test("every page passes axe in German, including contrast", async ({ page }) => {
@@ -208,5 +208,38 @@ test.describe("language", () => {
       expect(overflow, path).toBeLessThanOrEqual(0);
       await expectAccessible(page);
     }
+  });
+
+  test("the page for a missing recipe is in German too", async ({ page }) => {
+    await useGerman(page);
+    const response = await page.goto("/recipes/does-not-exist");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Seite nicht gefunden");
+    await expect(page).toHaveTitle("Abendessen-Planer");
+    await expect(page.getByRole("link", { name: "Zurück zum Plan" })).toHaveAttribute("href", "/");
+    await expectAccessible(page);
+  });
+
+  test("on a narrow screen, the keyboard goes switcher before links, and no focused field hides under the header", async ({ page }) => {
+    await useGerman(page);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("/recipes/new");
+
+    await page.getByRole("link", { name: "Abendessen-Planer" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "English" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Diese Woche" })).toBeFocused();
+
+    // Scroll the name field out of view, then reach it backwards from the next field.
+    await page.getByLabel("Beschreibung", { exact: true }).focus();
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.keyboard.press("Shift+Tab");
+    const name = page.getByLabel("Name", { exact: true });
+    await expect(name).toBeFocused();
+    const header = await page.locator("header").first().boundingBox();
+    const field = await name.boundingBox();
+    expect(field!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
   });
 });

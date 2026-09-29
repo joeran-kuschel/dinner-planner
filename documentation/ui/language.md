@@ -1,8 +1,8 @@
 # Language
 
 The app speaks English and German. Everything the app itself writes is translated: page titles, headings, buttons,
-field labels and placeholders, the dinner suggestions, error messages, what screen readers announce, and the dates and
-amounts. What you type yourself (recipe names, ingredients, units, notes) stays as you wrote it.
+field labels and placeholders, the dinner suggestions, error messages, the "page not found" page, what screen readers
+announce, and the dates and amounts. What you type yourself (recipe names, ingredients, units, notes) stays as you wrote it.
 
 ## Switching
 
@@ -44,5 +44,8 @@ Weeks start on Monday in both languages. Amounts have no thousands separator in 
   each button carries its own `lang`, so "Deutsch" is read in German on an English page and vice versa.
 - The switcher sits in the header next to the app name, outside the main navigation: it changes the language and goes
   nowhere. On narrow screens the navigation links move to a row of their own, so nothing needs sideways scrolling at
-  320 px, even with the longer German labels.
+  320 px, even with the longer German labels. The keyboard follows the same order on every screen size: app name,
+  switcher, then the links.
+- The header stays at the top while scrolling. The page keeps room for it, so a field that gets the keyboard focus is
+  never hidden underneath (WCAG 2.4.11).
 - The German pages are checked with axe (WCAG 2.2 AA, including contrast) like the English ones.

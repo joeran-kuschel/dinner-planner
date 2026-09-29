@@ -46,9 +46,16 @@ describe("SiteNav", () => {
     expect(screen.getByRole("navigation")).not.toContainElement(switcher);
   });
 
+  it("puts the switcher before the links, as narrow screens show them", () => {
+    renderAt("/");
+    const switcher = screen.getByRole("group", { name: "Language" });
+    const nav = screen.getByRole("navigation");
+    expect(switcher.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("is in German when the language is German", () => {
     renderAt("/groceries", "de");
-    expect(screen.getByRole("navigation", { name: "Hauptmenü" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Hauptnavigation" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abendessen-Planer" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Diese Woche" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Rezepte" })).toHaveAttribute("href", "/recipes");

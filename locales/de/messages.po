@@ -11,7 +11,7 @@ msgstr ""
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
 msgstr "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
 
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# Zutat} other {# Zutaten}}"
 
@@ -19,8 +19,7 @@ msgstr "{ingredients, plural, one {# Zutat} other {# Zutaten}}"
 msgid "{plannedCount} of 7 planned"
 msgstr "{plannedCount} von 7 geplant"
 
-#: app/recipes/[id]/page.tsx
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "{prepMinutes} min"
 msgstr "{prepMinutes} Min."
 
@@ -64,6 +63,7 @@ msgstr "Menge für Zutat {number}"
 msgid "Arborio rice"
 msgstr "Risottoreis"
 
+#: app/not-found.tsx
 #: app/recipes/[id]/page.tsx
 msgid "Back to the plan"
 msgstr "Zurück zum Plan"
@@ -170,7 +170,7 @@ msgstr "Lass die Menge leer für „nach Geschmack“."
 
 #: components/site-nav.tsx
 msgid "Main"
-msgstr "Hauptmenü"
+msgstr "Hauptnavigation"
 
 #: app/recipes/[id]/page.tsx
 #: components/recipe-form.tsx
@@ -247,6 +247,10 @@ msgstr "Ein Schritt pro Zeile.\n"
 "Zwiebel glasig dünsten…\n"
 "Reis anrösten…"
 
+#: app/not-found.tsx
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
+
 #: components/day-card.tsx
 msgid "Pick a recipe or type a dinner…"
 msgstr "Rezept wählen oder Gericht eingeben…"
@@ -259,13 +263,13 @@ msgstr "„{name}“ nur für diesen Tag planen"
 msgid "Plan the week's dinners, keep recipes, and get one grocery list."
 msgstr "Plane die Abendessen der Woche, sammle Rezepte und bekomme eine gemeinsame Einkaufsliste."
 
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "planned {plannedFor}×"
 msgstr "{plannedFor}× geplant"
 
 #: app/recipes/[id]/page.tsx
 msgid "Planned for {plannedDays}."
-msgstr "Geplant für {plannedDays}"
+msgstr "Geplant: {plannedDays}"
 
 #: app/actions/recipes.ts
 msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
@@ -308,8 +312,7 @@ msgstr "Wird gespeichert…"
 msgid "Serves"
 msgstr "Personen"
 
-#: app/recipes/[id]/page.tsx
-#: app/recipes/page.tsx
+#: lib/recipe-facts.ts
 msgid "Serves {servings}"
 msgstr "{servings, plural, one {Für # Person} other {Für # Personen}}"
 
@@ -328,6 +331,10 @@ msgstr "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// begi
 #: components/day-card.tsx
 msgid "This day could not be saved. It shows what is saved now; please try again."
 msgstr "Dieser Tag konnte nicht gespeichert werden. Er zeigt jetzt, was gespeichert ist; bitte versuch es noch einmal."
+
+#: app/not-found.tsx
+msgid "This page does not exist, or the recipe was deleted."
+msgstr "Diese Seite gibt es nicht, oder das Rezept wurde gelöscht."
 
 #: app/page.tsx
 #: components/site-nav.tsx

@@ -25,8 +25,11 @@ export function SiteNav() {
           </span>
           {t(i18n)`Dinner Planner`}
         </Link>
-        {/* The switcher sits outside <nav>: it changes the language, it goes nowhere. */}
-        <nav aria-label={t(i18n)`Main`} className="order-last flex w-full gap-1 sm:order-none sm:w-auto">
+        {/* Outside <nav>: it changes the language, it goes nowhere. Before the
+            links in the source as on screen, where narrow screens put the links
+            on a row of their own, so the focus order follows the layout. */}
+        <LanguageSwitcher />
+        <nav aria-label={t(i18n)`Main`} className="flex w-full gap-1 sm:w-auto">
           {links.map((link) => {
             // "/" would otherwise match every route, so it needs an exact test.
             const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -46,7 +49,6 @@ export function SiteNav() {
             );
           })}
         </nav>
-        <LanguageSwitcher />
       </div>
     </header>
   );
