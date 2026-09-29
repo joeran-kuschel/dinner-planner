@@ -690,12 +690,12 @@ describe("DayCard", () => {
         expect(status()).toBe(region);
       });
 
-      it("has nothing to confirm after clearing the day", async () => {
+      it("says 'Day cleared', never 'Saved', after clearing the day", async () => {
         const { user } = renderCard({ meal: PLANNED });
         await user.click(screen.getByRole("button", { name: "Clear day" }));
 
-        await waitFor(() => expect(actions.clearPlannedMeal).toHaveBeenCalledTimes(1));
-        expect(status()).toBeEmptyDOMElement();
+        await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+        expect(status()).not.toHaveTextContent("Saved");
       });
 
       describe("when saves overlap", () => {
@@ -785,6 +785,168 @@ describe("DayCard", () => {
 
       expect(note).toHaveFocus();
       expect(note).toHaveValue("Half a batch");
+    });
+  });
+
+  describe("clearing a day and undoing it", () => {
+    afterEach(() => vi.useRealTimers());
+
+    const clearDay = (user: ReturnType<typeof userEvent.setup>) =>
+      user.click(screen.getByRole("button", { name: "Clear day" }));
+    const undoButton = () => screen.getByRole("button", { name: "Undo clearing Monday" });
+
+    it("offers no undo before anything was cleared", () => {
+      renderCard({ meal: PLANNED });
+      expect(screen.queryByRole("button", { name: /Undo/ })).not.toBeInTheDocument();
+    });
+
+    it("announces 'Day cleared' and offers an undo once the day is cleared", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+
+      await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+      expect(undoButton()).toHaveTextContent("Undo");
+      expect(actions.clearPlannedMeal).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the words out of the way of screen readers, which hear the status region", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+
+      await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+      const visible = screen.getByText("Day cleared", { selector: "span" });
+      expect(visible).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("moves the focus to Undo, since the button that had it is going away", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+
+      await waitFor(() => expect(undoButton()).toHaveFocus());
+    });
+
+    it("leaves the focus alone when it has already moved elsewhere on the page", async () => {
+      const save = deferred();
+      actions.clearPlannedMeal.mockImplementationOnce(() => save.promise);
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      const elsewhere = document.body.appendChild(document.createElement("input"));
+      elsewhere.focus();
+
+      save.resolve();
+      await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+      expect(elsewhere).toHaveFocus();
+      elsewhere.remove();
+    });
+
+    it("moves the focus to Undo when nothing has it, as after a click in a browser that does not focus buttons", async () => {
+      const save = deferred();
+      actions.clearPlannedMeal.mockImplementationOnce(() => save.promise);
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      (document.activeElement as HTMLElement).blur();
+      expect(document.body).toHaveFocus();
+
+      save.resolve();
+      await waitFor(() => expect(undoButton()).toHaveFocus());
+    });
+
+    it("leaves the focus alone when it moved to another field of the card while the clear was under way", async () => {
+      const save = deferred();
+      actions.clearPlannedMeal.mockImplementationOnce(() => save.promise);
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      const note = screen.getByPlaceholderText("Note (optional)");
+      await user.click(note);
+
+      save.resolve();
+      await waitFor(() => expect(status()).toHaveTextContent("Day cleared"));
+      expect(note).toHaveFocus();
+    });
+
+    it("saves what was cleared again when undone", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      const data = lastFormData(actions.setPlannedMeal);
+      expect(data.get("day")).toBe("2026-09-28");
+      expect(data.get("dinner")).toBe("Mushroom risotto");
+      expect(data.get("recipeId")).toBe("r-risotto");
+      expect(data.get("servings")).toBe("3");
+      expect(data.get("notes")).toBe("Use the good stock");
+    });
+
+    it("restores a one-off dinner by its title", async () => {
+      const { user } = renderCard({ meal: ONE_OFF });
+      await clearDay(user);
+      await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      const data = lastFormData(actions.setPlannedMeal);
+      expect(data.get("dinner")).toBe("Pizza night");
+      expect(data.get("recipeId")).toBe("");
+    });
+
+    it("takes the notice away and puts the focus on the dinner field when undone", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+      await waitFor(() => expect(screen.queryByRole("button", { name: /Undo/ })).not.toBeInTheDocument());
+      expect(dinnerField()).toHaveFocus();
+      await waitFor(() => expect(status()).toHaveTextContent("Saved"));
+    });
+
+    it("stays until the next save instead of timing out", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await screen.findByRole("button", { name: "Undo clearing Monday" });
+
+      act(() => vi.advanceTimersByTime(10 * 60_000));
+      expect(undoButton()).toBeInTheDocument();
+      expect(status()).toHaveTextContent("Day cleared");
+    });
+
+    it("goes away with the next save", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await screen.findByRole("button", { name: "Undo clearing Monday" });
+
+      await user.type(screen.getByPlaceholderText("Note (optional)"), "!");
+      await user.tab();
+
+      await waitFor(() => expect(screen.queryByRole("button", { name: /Undo/ })).not.toBeInTheDocument());
+    });
+
+    it("offers no undo when clearing fails, and shows the alert", async () => {
+      actions.clearPlannedMeal.mockRejectedValueOnce(new Error("boom"));
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+
+      await screen.findByRole("alert");
+      expect(screen.queryByRole("button", { name: /Undo/ })).not.toBeInTheDocument();
+      expect(status()).toBeEmptyDOMElement();
+    });
+
+    it("says nothing is saved when the undo fails, and shows the alert", async () => {
+      actions.setPlannedMeal.mockRejectedValueOnce(new Error("The recipe is gone"));
+      const { user } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+      await screen.findByRole("alert");
+      expect(status()).not.toHaveTextContent("Saved");
+    });
+
+    it("has no accessibility violations with the notice showing", async () => {
+      const { user, container } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      await screen.findByRole("button", { name: "Undo clearing Monday" });
+
+      await expectNoAxeViolations(container);
     });
   });
 
@@ -958,6 +1120,15 @@ describe("DayCard", () => {
       expect(screen.getByLabelText("Personen")).toHaveValue(3);
       expect(screen.getByRole("textbox", { name: "Notiz für Montag" })).toHaveAttribute("placeholder", "Notiz (optional)");
       expect(screen.getByRole("button", { name: "Tag leeren" })).toBeInTheDocument();
+    });
+
+    it("offers the undo after clearing in German", async () => {
+      const { user } = renderGerman({ meal: PLANNED });
+      await user.click(screen.getByRole("button", { name: "Tag leeren" }));
+
+      const undo = await screen.findByRole("button", { name: "Rückgängig: Montag wurde geleert" });
+      expect(undo).toHaveTextContent("Rückgängig");
+      await waitFor(() => expect(status()).toHaveTextContent("Tag geleert"));
     });
 
     it("confirms a save in German", async () => {

@@ -49,7 +49,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   const [choice, setChoice, resyncChoice] = useChoice(meal, recipes);
   const formRef = useServerSync(meal);
   const router = useRouter();
-  const [pending, failed, saved, submit] = useAutoSave(() => {
+  const [pending, failed, saved, undo, submit] = useAutoSave(() => {
     // E.g. the picked recipe was deleted in another tab. Show what is saved
     // (as of the latest render, not the one the save started in), and fetch
     // the current recipes so the stale one is no longer suggested.
@@ -62,7 +62,13 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   // Text and number fields save on blur rather than on change, so a save never
   // lands in the middle of typing.
   const save = () => formRef.current?.requestSubmit();
-  const saveStatus = pending ? t(i18n)`Saving…` : saved ? t(i18n)`Saved` : "";
+  const saveStatus = pending
+    ? t(i18n)`Saving…`
+    : undo
+      ? t(i18n)`Day cleared`
+      : saved
+        ? t(i18n)`Saved`
+        : "";
 
   // A new choice reaches the hidden fields only with the next render, so the
   // save that follows a pick waits for it.
@@ -108,12 +114,24 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
         }}
       />
 
+      {undo && (
+        <ClearedNotice
+          weekday={weekdayLabel}
+          onUndo={() => {
+            undo();
+            // The undo button goes away with the notice; the dinner field is where the day comes back.
+            document.getElementById(`dinner-${dayKey}`)?.focus();
+          }}
+        />
+      )}
+
       {choice.dinner !== "" && (
         <PlannedDetails
           day={day}
           meal={meal}
           recipeId={choice.recipeId}
-          status={saveStatus}
+          // "Day cleared" is shown by the notice that comes with the undo, not beside "Serves".
+          status={undo ? "" : saveStatus}
           confirmed={saved && !pending}
           onSave={save}
         />
@@ -160,6 +178,9 @@ function useAutoSave(onFailure: () => void) {
   // The number of the save whose "Saved" is showing, or 0. A new number for
   // every finished save restarts the timer below.
   const [saved, setSaved] = useState(0);
+  // What the last "Clear day" removed, in the shape `setPlannedMeal` reads, so
+  // that undoing it is saving it again. It stays until the next save.
+  const [cleared, setCleared] = useState<FormData | null>(null);
   // Saves can overlap (a blur while an earlier save is in flight). Only the
   // latest one reports: an older one finishing late must not confirm, or
   // blame, a write the user has since replaced.
@@ -172,20 +193,19 @@ function useAutoSave(onFailure: () => void) {
     return () => clearTimeout(timer);
   }, [saved]);
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const clearing = submitter?.dataset.intent === "clear";
-    const action = clearing ? clearPlannedMeal : setPlannedMeal;
-    const data = new FormData(event.currentTarget);
+  const run = (action: typeof setPlannedMeal, data: FormData, clearing = false) => {
     const save = ++latest.current;
     setFailed(false);
     setSaved(0);
+    setCleared(null);
     startTransition(async () => {
       try {
         await action(data);
-        // Clearing has nothing left on the card to say "Saved" next to.
-        if (save === latest.current && !clearing) setSaved(save);
+        if (save !== latest.current) return;
+        // Clearing has nothing left on the card to say "Saved" next to; it
+        // offers the undo instead.
+        if (clearing) setCleared(data);
+        else setSaved(save);
       } catch {
         if (save !== latest.current) return;
         // Without this, a failed save would end on Next's error page.
@@ -194,7 +214,15 @@ function useAutoSave(onFailure: () => void) {
       }
     });
   };
-  return [pending, failed, saved > 0, submit] as const;
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const clearing = submitter?.dataset.intent === "clear";
+    run(clearing ? clearPlannedMeal : setPlannedMeal, new FormData(event.currentTarget), clearing);
+  };
+  const undo = cleared && (() => run(setPlannedMeal, cleared));
+  return [pending, failed, saved > 0, undo, submit] as const;
 }
 
 /**
@@ -438,6 +466,37 @@ function SuggestionList({
           </li>
         ))}
     </ul>
+  );
+}
+
+/**
+ * Offered after "Clear day". The words are hidden from assistive technology,
+ * since the card's status region already announces them. It stays until the
+ * next save rather than timing out, so there is no clock to beat.
+ */
+function ClearedNotice({ weekday, onUndo }: { weekday: string; onUndo: () => void }) {
+  const { i18n } = useLingui();
+  const undoButton = useRef<HTMLButtonElement>(null);
+  // "Clear day" had the focus and goes with the rest of the details, which drops the focus on the
+  // page. Undo is what the user may want next. Focus that has moved on to a field or another card
+  // in the meantime is left alone.
+  useEffect(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || active === document.body || active.dataset.intent === "clear") undoButton.current?.focus();
+  }, []);
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted">
+      <span aria-hidden>{t(i18n)`Day cleared`}</span>
+      <button
+        ref={undoButton}
+        type="button"
+        onClick={onUndo}
+        className="btn-secondary px-2 py-1 text-xs"
+        aria-label={t(i18n)`Undo clearing ${weekday}`}
+      >
+        {t(i18n)`Undo`}
+      </button>
+    </div>
   );
 }
 

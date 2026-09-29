@@ -118,3 +118,9 @@ export function groceryRow(page: Page, label: string): Locator {
     .locator("form")
     .filter({ has: page.getByRole("checkbox", { name: `Tick off ${label}`, exact: true }) });
 }
+
+/** Open a destructive action's question ("Delete", "Clear the whole week") and answer it with `confirmLabel`. */
+export async function confirmAction(page: Page, label: string, confirmLabel: string): Promise<void> {
+  await page.locator("summary", { hasText: new RegExp(`^${label}$`) }).click();
+  await page.getByRole("button", { name: confirmLabel, exact: true }).click();
+}

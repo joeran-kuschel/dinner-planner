@@ -1,7 +1,8 @@
-import { t } from "@lingui/core/macro";
+import { plural, t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import Link from "next/link";
 import { clearWeek } from "@/app/actions/meals";
+import { ConfirmAction } from "@/components/confirm-action";
 import { DayCard } from "@/components/day-card";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
@@ -44,7 +45,9 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Dinner plan`}</h1>
+          <h1 id="week-plan-title" tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+            {t(i18n)`Dinner plan`}
+          </h1>
           <p className="mt-1 text-sm text-muted">
             {formatWeekRange(weekStart, locale)} ·{" "}
             {t(i18n)`${plannedCount} of 7 planned`}
@@ -96,12 +99,15 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
           {t(i18n)`Grocery list for this week`}
         </Link>
         {plannedCount > 0 && (
-          <form action={clearWeek}>
-            <input type="hidden" name="weekStart" value={dayKey(weekStart)} />
-            <button type="submit" className="btn-ghost">
-              {t(i18n)`Clear the whole week`}
-            </button>
-          </form>
+          <ConfirmAction
+            label={t(i18n)`Clear the whole week`}
+            question={t(i18n)`Remove ${plural(plannedCount, { one: "# planned dinner", other: "# planned dinners" })} from this week?`}
+            confirmLabel={t(i18n)`Clear week`}
+            action={clearWeek}
+            fields={{ weekStart: dayKey(weekStart) }}
+            openUpward
+            focusAfter="week-plan-title"
+          />
         )}
       </footer>
     </div>

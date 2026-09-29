@@ -74,9 +74,28 @@ message below.
 
 - The words appear on the card only while a dinner is planned, since **Serves** and **Note** are shown then too. Screen
   readers hear them either way (see Accessibility).
-- **Clear day** has no "Saved": the card is empty afterwards, so there is nothing to put it next to.
+- **Clear day** has no "Saved": the card is empty afterwards. It says "Day cleared" and offers **Undo** instead (see
+  Clearing).
 - Saves can overlap, for example a note left while the servings are still saving. Only the latest save reports back;
   an older one that finishes late neither confirms nor blames what the user has since changed.
+
+## Clearing
+
+**Clear day** empties one day at once, without asking, because it can be undone. Afterwards the card says "Day cleared"
+with an **Undo** button, and the focus moves to it, since the **Clear day** button that had it is gone.
+
+- **Undo** puts the day back as it was: the dinner (a recipe or a one-off title), the servings and the note. Afterwards
+  the focus is on the dinner field.
+- The offer stays until the next save on that card, however long that takes; there is no timer to beat. Reloading the
+  page or leaving the week ends it.
+- If the undo cannot be saved, for example because the recipe was deleted in the meantime, the card shows the usual
+  "could not be saved" message.
+
+**Clear the whole week** (bottom of the page, only when something is planned) asks first, because it cannot be undone:
+a small question opens above the button (on a screen narrower than 640 px, as a sheet at the bottom of the screen, so it
+never runs off the side), "Remove 3 planned dinners from this week?", with **Clear week** and **Cancel**.
+Cancel, Escape, or using the button again closes the question and puts the focus back on the button. Once confirmed, the button goes away with the plan, so the focus moves to the page heading; the confirm button is off while the week is being cleared, so a double click cannot run it twice. The same question
+pattern is used for deleting a recipe; see [Recipes](recipes.md).
 
 ## When a save fails
 
@@ -95,14 +114,17 @@ The message is announced to screen readers (`role="alert"`) and disappears with 
   planned, so a screen reader is already listening when the first save of an empty day finishes. It says "Saving…"
   while a save is in flight and "Saved" when it has gone through. The words shown beside **Serves** are the same text,
   hidden from assistive technology so nothing is read twice; the check mark is decoration.
-- Saving never moves the keyboard focus, and the page never focuses a field on load.
+- Saving never moves the keyboard focus, and the page never focuses a field on load. Only clearing a day does, to Undo
+  and then to the dinner field, because the focused button is removed.
 
 ## Without JavaScript
 
 The dinner field is a plain text field. Pressing Enter saves the day: a name that matches a recipe plans that recipe,
-anything else is planned for that day only. Adding a new recipe from the day card needs JavaScript.
+anything else is planned for that day only. Adding a new recipe from the day card needs JavaScript. **Clear the whole
+week** asks first without JavaScript too; **Undo** for a cleared day needs it.
 
 ## Related
 
 - [Planned meals](../backend/planned-meals.md): how the server stores what the card sends.
 - [Grocery list](groceries.md): the shopping list worked out from the week, with the same week buttons.
+- [Recipes](recipes.md): the recipe pages, including deleting a recipe.

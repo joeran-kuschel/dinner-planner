@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   afterServerAction,
+  confirmAction,
   createRecipe,
   dayCard,
   dinnerField,
@@ -215,6 +216,80 @@ test.describe("week plan", () => {
     await expect(dayCard(page, "Friday").getByRole("link")).toHaveCount(0);
   });
 
+  test("clears the whole week only after asking", async ({ page }) => {
+    const name = unique("Stew");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Carrot" }] });
+
+    await page.goto("/?week=2027-05-24");
+    await planRecipe(page, "Monday", name);
+    await planRecipe(page, "Tuesday", name);
+    await expect(summary(page)).toHaveText(/· 2 of 7 planned$/);
+
+    await page.locator("summary", { hasText: /^Clear the whole week$/ }).click();
+    await expect(page.getByRole("group", { name: "Remove 2 planned dinners from this week?" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(summary(page)).toHaveText(/· 2 of 7 planned$/);
+
+    await confirmAction(page, "Clear the whole week", "Clear week");
+    await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
+    // The button is gone with the plan; the focus must not fall back to the top of the page.
+    await expect(page.getByRole("heading", { level: 1, name: "Dinner plan" })).toBeFocused();
+    await page.reload();
+    await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
+  });
+
+  // At 320 px no edge of the button is a safe anchor, so the question is a sheet at the bottom
+  // of the screen (WCAG 1.4.10): it must fit, and the page must not scroll sideways.
+  test("keeps the question of Clear the whole week on a 320 px screen", async ({ page }) => {
+    const name = unique("Dal");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
+    await page.goto("/?week=2027-07-05");
+    await planRecipe(page, "Monday", name);
+
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.locator("summary", { hasText: /^Clear the whole week$/ }).click();
+    const question = page.getByRole("group", { name: "Remove 1 planned dinner from this week?" });
+    await expect(question).toBeVisible();
+
+    const box = await question.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(700);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  });
+
+  test("undoes clearing a day, with its servings and note", async ({ page }) => {
+    const name = unique("Frittata");
+    await createRecipe(page, { name, ingredients: [{ quantity: "6", name: "Eggs" }] });
+
+    await page.goto("/?week=2027-05-31");
+    await planRecipe(page, "Monday", name);
+    await setServings(page, "Monday", 5);
+    const note = dayCard(page, "Monday").getByPlaceholder("Note (optional)");
+    await note.fill("Use the chives");
+    await afterServerAction(page, () => note.blur());
+
+    const card = dayCard(page, "Monday");
+    await afterServerAction(page, () => card.getByRole("button", { name: "Clear day" }).click());
+    await expect(dinnerField(page, "Monday")).toHaveValue("");
+    const undo = card.getByRole("button", { name: "Undo clearing Monday" });
+    await expect(undo).toBeVisible();
+    await expect(undo).toBeFocused();
+    await expectAccessible(page);
+
+    await afterServerAction(page, () => undo.click());
+    await expect(dinnerField(page, "Monday")).toHaveValue(name);
+    await expect(dinnerField(page, "Monday")).toBeFocused();
+    await expect(card.getByLabel("Serves", { exact: true })).toHaveValue("5");
+    await expect(card.getByPlaceholder("Note (optional)")).toHaveValue("Use the chives");
+    await expect(undo).toHaveCount(0);
+
+    await page.reload();
+    await expect(dinnerField(page, "Monday")).toHaveValue(name);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+  });
+
   test("moves between weeks with the week query parameter", async ({ page }) => {
     const title = unique("Pizza night");
     // Any day of the week opens the week from its Monday.
@@ -261,7 +336,7 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText(/· 3 of 7 planned$/);
 
     await page.goto(`/recipes/${id}`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirmAction(page, "Delete", "Delete recipe");
     await expect(page).toHaveURL("/recipes");
 
     await page.goto("/?week=2027-02-15");

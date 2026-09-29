@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createRecipe, fillIngredients, unique } from "@/tests/e2e/support/helpers";
+import { confirmAction, createRecipe, expectAccessible, fillIngredients, unique } from "@/tests/e2e/support/helpers";
 
 function ingredientItems(page: Page) {
   return page
@@ -149,12 +149,34 @@ test.describe("recipes", () => {
     const name = unique("Short-lived soup");
     const id = await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Leek" }] });
 
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirmAction(page, "Delete", "Delete recipe");
 
     await expect(page).toHaveURL("/recipes");
     await expect(page.getByRole("heading", { level: 1, name: "Recipes" })).toBeVisible();
     await expect(page.getByRole("heading", { name, exact: true })).toHaveCount(0);
     const response = await page.goto(`/recipes/${id}`);
     expect(response?.status()).toBe(404);
+  });
+
+  test("keeps a recipe when the deletion is cancelled, with the button or Escape", async ({ page }) => {
+    const name = unique("Kept soup");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Leek" }] });
+
+    const asking = page.locator("summary", { hasText: /^Delete$/ });
+    const question = page.getByRole("group", { name: `Delete “${name}”? Days that only plan it are cleared too.` });
+    await asking.click();
+    await expect(question).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(question).toBeHidden();
+    await expect(asking).toBeFocused();
+
+    await asking.click();
+    await expect(question).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(question).toBeHidden();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
   });
 });

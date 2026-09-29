@@ -68,6 +68,7 @@ msgstr "Risottoreis"
 msgid "Back to the plan"
 msgstr "Zurück zum Plan"
 
+#: components/confirm-action.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -80,13 +81,29 @@ msgstr "Tag leeren"
 msgid "Clear the whole week"
 msgstr "Ganze Woche leeren"
 
+#: app/page.tsx
+msgid "Clear week"
+msgstr "Woche leeren"
+
 #: components/recipe-form.tsx
 msgid "Create recipe"
 msgstr "Rezept anlegen"
 
+#: components/day-card.tsx
+msgid "Day cleared"
+msgstr "Tag geleert"
+
 #: app/recipes/[id]/page.tsx
 msgid "Delete"
 msgstr "Löschen"
+
+#: app/recipes/[id]/page.tsx
+msgid "Delete “{recipeName}”? Days that only plan it are cleared too."
+msgstr "„{recipeName}“ löschen? Tage, an denen nur dieses Rezept geplant ist, werden ebenfalls geleert."
+
+#: app/recipes/[id]/page.tsx
+msgid "Delete recipe"
+msgstr "Rezept löschen"
 
 #: components/recipe-form.tsx
 msgid "Description"
@@ -293,6 +310,10 @@ msgstr "Rezepte"
 msgid "Remove {label}"
 msgstr "{label} entfernen"
 
+#: app/page.tsx
+msgid "Remove {plannedCount, plural, one {# planned dinner} other {# planned dinners}} from this week?"
+msgstr "{plannedCount, plural, one {# geplantes Abendessen} other {# geplante Abendessen}} aus dieser Woche entfernen?"
+
 #: components/recipe-form.tsx
 msgid "Remove ingredient {number}"
 msgstr "Zutat {number} entfernen"
@@ -359,6 +380,14 @@ msgstr "nach Geschmack"
 #: components/day-card.tsx
 msgid "today"
 msgstr "heute"
+
+#: components/day-card.tsx
+msgid "Undo"
+msgstr "Rückgängig"
+
+#: components/day-card.tsx
+msgid "Undo clearing {weekday}"
+msgstr "Rückgängig: {weekday} wurde geleert"
 
 #: app/groceries/page.tsx
 msgid "Unit"
