@@ -39,6 +39,19 @@ const alive = (pid: number) => {
   }
 };
 
+/**
+ * Whether the process is gone shortly after the stage's result. A killed process still answers
+ * `kill(pid, 0)` until its parent (here init) has reaped it, so a single look right after the result
+ * would fail on a busy machine.
+ */
+async function isGone(pid: number): Promise<boolean> {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (!alive(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return false;
+}
+
 describe("the real plan", () => {
   it("has the limits of the issue: 2, 2, 3 and 5 minutes per stage, 8 for the whole check", () => {
     const limits = Object.fromEntries(PHASES.flat().map((s) => [s.name, s.limitMs / 60_000]));
@@ -113,7 +126,7 @@ describe("running the stages", () => {
     const pidFile = path.join(dir, "pid");
     const results = await run([[stage("hang", `sleep 30 & echo $! > ${pidFile}; wait`, 400)]]);
     expect(results[0]).toMatchObject({ status: "timeout", note: "stage limit" });
-    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+    expect(await isGone(Number(fs.readFileSync(pidFile, "utf8")))).toBe(true);
     expect(exitCode(results)).toBe(1);
   });
 
@@ -138,21 +151,21 @@ describe("running the stages", () => {
     );
     const results = await run([[stage("server", `node ${script}`, 600)]]);
     expect(results[0].status).toBe("timeout");
-    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+    expect(await isGone(Number(fs.readFileSync(pidFile, "utf8")))).toBe(true);
   });
 
   it("kills what is left after the grace period when a stage ignores SIGINT", async () => {
     const pidFile = path.join(dir, "pid");
     const results = await run([[stage("stubborn", `trap '' INT; sleep 30 & echo $! > ${pidFile}; wait`, 300)]]);
     expect(results[0].status).toBe("timeout");
-    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+    expect(await isGone(Number(fs.readFileSync(pidFile, "utf8")))).toBe(true);
   }, 15_000);
 
   it("reports a stage that exited 0 as passed even when a background process holds its output", async () => {
     const pidFile = path.join(dir, "pid");
     const results = await run([[stage("leaky", `sleep 30 & echo $! > ${pidFile}; exit 0`, 20_000)]]);
     expect(results[0].status).toBe("passed");
-    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+    expect(await isGone(Number(fs.readFileSync(pidFile, "utf8")))).toBe(true);
   }, 15_000);
 
   it("stops the running stages when the check is interrupted", async () => {
@@ -162,7 +175,7 @@ describe("running the stages", () => {
     await stopAllStages();
     const results = await pending;
     expect(results[0]).toMatchObject({ status: "failed", note: "interrupted" });
-    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+    expect(await isGone(Number(fs.readFileSync(pidFile, "utf8")))).toBe(true);
   }, 15_000);
 
   it("keeps the end of the output of a stage that timed out", async () => {
