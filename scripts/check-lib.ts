@@ -43,28 +43,46 @@ export const TOTAL_LIMIT_MS = 8 * MINUTE;
 /** The phases run the compile themselves, so Vitest must not start a second one next to the typecheck. */
 export const CHILD_ENV = { CHECK_CATALOGS_COMPILED: "1" };
 
+/** How long a stage gets to shut down after SIGINT before everything it started is killed. */
+export const KILL_GRACE_MS = 2000;
+/** How long the output pipes may stay open after a stage has exited, for a background process that holds them. */
+const PIPE_GRACE_MS = 1000;
+
+type Running = { terminate: (reason: "limit" | "interrupt") => void; settled: Promise<void> };
+const running = new Set<Running>();
+
 function lastLines(text: string): string {
   return text.trimEnd().split("\n").slice(-TAIL_LINES).join("\n");
 }
 
-function killGroup(pid: number | undefined) {
+function signalGroup(pid: number | undefined, signal: NodeJS.Signals) {
   if (!pid) return;
   try {
-    process.kill(-pid, "SIGKILL");
+    process.kill(-pid, signal);
   } catch {
     // Already gone.
   }
 }
 
-/** Runs one stage, once. It is killed, with everything it started, when its limit is reached. */
+/**
+ * Runs one stage, once. At its limit it gets SIGINT, as if Ctrl+C was pressed: Playwright stops
+ * the web server it started in a group of its own on SIGINT and on nothing else. After a short
+ * grace period everything left in the stage's process group is killed.
+ */
 export function runStage(stage: Stage, limitMs: number, logDir: string): Promise<StageResult> {
   const started = Date.now();
   const logFile = path.join(logDir, `${stage.name}.log`);
   const log = fs.createWriteStream(logFile);
   let output = "";
-  let timedOut = false;
+  let stopReason: "limit" | "interrupt" | undefined;
+  let exitCode: number | null = null;
+  let failure: string | undefined;
+  let finished = false;
+  let markSettled!: () => void;
+  const settled = new Promise<void>((resolve) => (markSettled = resolve));
+  const timers: NodeJS.Timeout[] = [];
 
-  return new Promise((resolve) => {
+  const result = new Promise<StageResult>((resolve) => {
     const child = spawn("sh", ["-c", stage.command], {
       detached: true,
       env: { ...process.env, ...CHILD_ENV },
@@ -77,29 +95,74 @@ export function runStage(stage: Stage, limitMs: number, logDir: string): Promise
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);
 
-    const timer = setTimeout(() => {
-      timedOut = true;
-      killGroup(child.pid);
-    }, limitMs);
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      timers.forEach(clearTimeout);
+      child.stdout.destroy();
+      child.stderr.destroy();
+      running.delete(handle);
 
-    const finish = (status: StageResult["status"], note?: string) => {
-      clearTimeout(timer);
-      log.end();
-      resolve({
-        name: stage.name,
-        status,
-        note,
-        seconds: Math.round((Date.now() - started) / 100) / 10,
-        tail: status === "passed" ? "" : lastLines(output),
-        logFile,
+      let status: StageResult["status"];
+      let note: string | undefined;
+      if (stopReason === "limit") {
+        status = "timeout";
+        note = limitMs < stage.limitMs ? "whole-check limit" : "stage limit";
+      } else if (stopReason === "interrupt") {
+        status = "failed";
+        note = "interrupted";
+      } else if (failure) {
+        status = "failed";
+        note = failure;
+      } else {
+        status = exitCode === 0 ? "passed" : "failed";
+      }
+      // Resolve once the log is on disk, so the path in the report never points at a cut-off file.
+      log.end(() => {
+        resolve({
+          name: stage.name,
+          status,
+          note,
+          seconds: Math.round((Date.now() - started) / 100) / 10,
+          tail: status === "passed" ? "" : lastLines(output),
+          logFile,
+        });
+        markSettled();
       });
     };
-    child.on("error", (error) => finish("failed", error.message));
-    child.on("close", (code) => {
-      if (timedOut) finish("timeout", limitMs < stage.limitMs ? "whole-check limit" : "stage limit");
-      else finish(code === 0 ? "passed" : "failed");
+
+    const terminate = (reason: "limit" | "interrupt") => {
+      if (stopReason || finished) return;
+      stopReason = reason;
+      signalGroup(child.pid, "SIGINT");
+      timers.push(setTimeout(() => signalGroup(child.pid, "SIGKILL"), KILL_GRACE_MS));
+      // If neither the exit nor the close ever arrives, stop waiting for them.
+      timers.push(setTimeout(finish, KILL_GRACE_MS + PIPE_GRACE_MS));
+    };
+    const handle: Running = { terminate, settled };
+    running.add(handle);
+
+    timers.push(setTimeout(() => terminate("limit"), limitMs));
+    child.on("error", (error) => {
+      failure = error.message;
+      finish();
     });
+    child.on("exit", (code) => {
+      exitCode = code;
+      // A process the stage left behind must not outlive it, or keep the pipes open.
+      signalGroup(child.pid, "SIGKILL");
+      timers.push(setTimeout(finish, PIPE_GRACE_MS));
+    });
+    child.on("close", finish);
   });
+  return result;
+}
+
+/** Stops every stage that is running (Ctrl+C or a kill of the check), and waits until they are gone. */
+export async function stopAllStages(): Promise<void> {
+  const handles = [...running];
+  handles.forEach((handle) => handle.terminate("interrupt"));
+  await Promise.all(handles.map((handle) => handle.settled));
 }
 
 /**

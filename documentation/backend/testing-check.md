@@ -2,7 +2,8 @@
 
 `npm run check` is the whole check that has to pass before every push and every merge: typecheck, lint, the Vitest
 suite and the Playwright specs. It is what the `test-engineer` agent runs (`.claude/agents/test-engineer.md`), and you can
-run it yourself. On a normal tree it takes about a minute, most of it Playwright's build and run.
+run it yourself. On the developer's Mac it takes about a minute (56 s when this was written), most of it Playwright's
+build and run.
 
 ```bash
 npm run check
@@ -46,15 +47,21 @@ stops at once with "the database does not answer" instead of letting tests hang.
 | playwright (build and all specs) | 5 minutes |
 | the whole check | 8 minutes |
 
-A stage that reaches its limit is killed, together with every process it started, and counts as failed. The table
-says whether it was the stage's own limit or the limit of the whole check.
+A stage that reaches its limit counts as failed. It first gets SIGINT, as if Ctrl+C was pressed, because Playwright stops
+the web server it started (which runs in a process group of its own) on SIGINT and on nothing else. Two seconds later
+everything left in the stage's own process group is killed. After a timeout, port 3100 is free again for the next run.
+The table says whether it was the stage's own limit or the limit of the whole check.
+
+Ctrl+C, or a kill of `npm run check`, stops all running stages the same way and exits with 1. A stage that has exited
+is final: if it left a background process behind, that process is killed, and a stage that exited 0 is still reported as
+passed.
 
 ## No retries
 
 - A stage runs once. A failed or timed-out stage is reported as it is, and is never run again to see whether it passes.
 - When a stage has failed, the later phases are skipped (shown as `skipped`): the first failure is the one to fix.
-- The table lists, for each stage that did not pass, the last 20 lines of its output and the path of its full log
-  (in the system's temporary folder).
+- For each stage that failed or timed out, the report adds the last 20 lines of its output and the path of its full log
+  (in the system's temporary folder). Skipped stages have no output and print nothing.
 
 The `test-engineer` agent follows the same rules: no re-run unless a named infrastructure cause (a port in use, the
 database not started) was the reason, and never with changed flags.

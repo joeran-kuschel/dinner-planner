@@ -9,11 +9,16 @@ import { config as loadEnv } from "dotenv";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PHASES, TOTAL_LIMIT_MS, databaseReachable, exitCode, formatReport, runCheck } from "./check-lib";
+import { PHASES, TOTAL_LIMIT_MS, databaseReachable, exitCode, formatReport, runCheck, stopAllStages } from "./check-lib";
 
 async function main() {
   loadEnv({ quiet: true });
   const started = Date.now();
+
+  // The stages run in process groups of their own, so they do not get a Ctrl+C: stop them here.
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, () => void stopAllStages().then(() => process.exit(1)));
+  }
 
   if (!(await databaseReachable(process.env.DATABASE_URL))) {
     console.error("Check not run: the database does not answer. Start it with `npm run db:up`.");

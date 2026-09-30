@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
  * does not rewrite the files while the typecheck reads them.
  */
 export default function compileCatalogs() {
-  if (process.env.CHECK_CATALOGS_COMPILED) return;
+  if (process.env.CHECK_CATALOGS_COMPILED === "1") return;
   // One process: Lingui's worker threads crash when started from Vitest.
   execFileSync("npx", ["lingui", "compile", "--strict", "--typescript", "--workers", "1"], { stdio: "pipe" });
 }

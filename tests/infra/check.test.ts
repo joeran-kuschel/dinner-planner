@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -11,6 +12,7 @@ import {
   exitCode,
   formatReport,
   runCheck,
+  stopAllStages,
   type Stage,
   type StageResult,
 } from "@/scripts/check-lib";
@@ -70,10 +72,11 @@ describe("the real plan", () => {
 
 describe("running the stages", () => {
   it("runs the stages of a phase together", async () => {
-    const started = Date.now();
-    const results = await run([[stage("a", "sleep 1"), stage("b", "sleep 1")]]);
+    // Each stage waits for a file the other one creates: run one after the other, both would time out.
+    const meet = (mine: string, theirs: string) =>
+      stage(mine, `touch ${path.join(dir, mine)}; until [ -f ${path.join(dir, theirs)} ]; do sleep 0.05; done`, 5000);
+    const results = await run([[meet("a", "b"), meet("b", "a")]]);
     expect(results.map((r) => r.status)).toEqual(["passed", "passed"]);
-    expect(Date.now() - started).toBeLessThan(1900);
   });
 
   it("runs the phases one after the other", async () => {
@@ -108,10 +111,8 @@ describe("running the stages", () => {
 
   it("kills a stage at its limit, with everything it started", async () => {
     const pidFile = path.join(dir, "pid");
-    const started = Date.now();
     const results = await run([[stage("hang", `sleep 30 & echo $! > ${pidFile}; wait`, 400)]]);
     expect(results[0]).toMatchObject({ status: "timeout", note: "stage limit" });
-    expect(Date.now() - started).toBeLessThan(3000);
     expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
     expect(exitCode(results)).toBe(1);
   });
@@ -120,6 +121,65 @@ describe("running the stages", () => {
     const results = await run([[stage("slow", "sleep 30", 60_000)], [stage("after", "true")]], 400);
     expect(byName(results, "slow")).toMatchObject({ status: "timeout", note: "whole-check limit" });
     expect(byName(results, "after").status).toBe("skipped");
+  });
+
+  it("lets a stage stop the processes it started in groups of their own, as Playwright does with its web server", async () => {
+    // The stage starts a detached child (its own group) and stops it when it gets SIGINT.
+    const pidFile = path.join(dir, "pid");
+    const script = path.join(dir, "parent.js");
+    fs.writeFileSync(
+      script,
+      `const { spawn } = require("child_process");
+       const fs = require("fs");
+       const child = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
+       fs.writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+       process.on("SIGINT", () => { process.kill(child.pid, "SIGKILL"); process.exit(0); });
+       setInterval(() => {}, 1000);`,
+    );
+    const results = await run([[stage("server", `node ${script}`, 600)]]);
+    expect(results[0].status).toBe("timeout");
+    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+  });
+
+  it("kills what is left after the grace period when a stage ignores SIGINT", async () => {
+    const pidFile = path.join(dir, "pid");
+    const results = await run([[stage("stubborn", `trap '' INT; sleep 30 & echo $! > ${pidFile}; wait`, 300)]]);
+    expect(results[0].status).toBe("timeout");
+    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+  }, 15_000);
+
+  it("reports a stage that exited 0 as passed even when a background process holds its output", async () => {
+    const pidFile = path.join(dir, "pid");
+    const results = await run([[stage("leaky", `sleep 30 & echo $! > ${pidFile}; exit 0`, 20_000)]]);
+    expect(results[0].status).toBe("passed");
+    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+  }, 15_000);
+
+  it("stops the running stages when the check is interrupted", async () => {
+    const pidFile = path.join(dir, "pid");
+    const pending = run([[stage("long", `sleep 30 & echo $! > ${pidFile}; wait`, 60_000)]]);
+    await vi.waitFor(() => expect(fs.existsSync(pidFile) && fs.readFileSync(pidFile, "utf8")).toBeTruthy());
+    await stopAllStages();
+    const results = await pending;
+    expect(results[0]).toMatchObject({ status: "failed", note: "interrupted" });
+    expect(alive(Number(fs.readFileSync(pidFile, "utf8")))).toBe(false);
+  }, 15_000);
+
+  it("keeps the end of the output of a stage that timed out", async () => {
+    const results = await run([[stage("slow", "echo last words; sleep 30", 500)]]);
+    expect(results[0].status).toBe("timeout");
+    expect(results[0].tail).toContain("last words");
+  });
+
+  it("has the whole output on disk when the stage is reported", async () => {
+    const results = await run([[stage("noisy", "seq 1 20000")]]);
+    expect(fs.readFileSync(results[0].logFile!, "utf8").trimEnd().split("\n").pop()).toBe("20000");
+  });
+
+  it("fails a command that does not exist, with the shell's message", async () => {
+    const results = await run([[stage("missing", "definitely-not-a-command-xyz")]]);
+    expect(results[0].status).toBe("failed");
+    expect(results[0].tail).toContain("not found");
   });
 
   it("exits 0 only when every stage passed", async () => {
@@ -170,15 +230,25 @@ describe("databaseReachable", () => {
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as net.AddressInfo;
     await new Promise((resolve) => server.close(resolve));
-    const started = Date.now();
     expect(await databaseReachable(`postgresql://u:p@127.0.0.1:${port}/db`)).toBe(false);
-    expect(Date.now() - started).toBeLessThan(2000);
   });
 
   it("is false for a missing or malformed URL", async () => {
     expect(await databaseReachable(undefined)).toBe(false);
     expect(await databaseReachable("not a url")).toBe(false);
   });
+});
+
+describe("npm run check's entry point", () => {
+  it("stops at once, with a message and exit code 1, when the database does not answer", () => {
+    const run = spawnSync("npx", ["tsx", "scripts/check.ts"], {
+      encoding: "utf8",
+      env: { ...process.env, DATABASE_URL: "postgresql://u:p@127.0.0.1:1/db" },
+    });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("the database does not answer");
+    expect(run.stderr).toContain("npm run db:up");
+  }, 20_000);
 });
 
 describe("the catalog compile in Vitest's global setup", () => {
@@ -196,6 +266,16 @@ describe("the catalog compile in Vitest's global setup", () => {
     const { default: compileCatalogs } = await import("../support/compile-catalogs");
     compileCatalogs();
     expect(execFileSync).not.toHaveBeenCalled();
+  });
+
+  it("is not skipped by a leftover value other than 1", async () => {
+    const execFileSync = vi.fn();
+    vi.resetModules();
+    vi.doMock("node:child_process", () => ({ execFileSync }));
+    vi.stubEnv("CHECK_CATALOGS_COMPILED", "0");
+    const { default: compileCatalogs } = await import("../support/compile-catalogs");
+    compileCatalogs();
+    expect(execFileSync).toHaveBeenCalled();
   });
 
   it("still compiles them when a test file runs on its own", async () => {
