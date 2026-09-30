@@ -41,8 +41,18 @@ model Recipe {
   ingredients Ingredient[]
   plannedFor  PlannedMeal[]
   photo       RecipePhoto?
+  tags        Tag[]
 
   @@index([name])
+}
+
+/// A label on recipes ("vegetarian", "quick"). Names are stored normalised (see
+/// normalizeTag in lib/tags.ts), so the unique index treats "Quick" and "quick " as one.
+/// A tag no recipe uses any more is deleted with the change that orphaned it.
+model Tag {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  recipes Recipe[]
 }
 
 /// The photo of a recipe, kept in the database so that the app stays stateless and

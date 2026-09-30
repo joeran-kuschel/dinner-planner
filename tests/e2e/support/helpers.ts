@@ -1,6 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page } from "@playwright/test";
 
+/** A single word no other test uses, for a tag or a search: lowercase letters and digits only. */
+export function uniqueWord(prefix = "w"): string {
+  return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 /** A name no other test uses, since all tests share one database. */
 export function unique(label: string): string {
   return `${label} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -38,12 +43,17 @@ export async function fillIngredients(page: Page, ingredients: IngredientRow[]):
 /** Create a recipe through the UI and return its id, leaving the page on its detail view. */
 export async function createRecipe(
   page: Page,
-  recipe: { name: string; servings?: number; ingredients?: IngredientRow[] },
+  recipe: { name: string; servings?: number; ingredients?: IngredientRow[]; tags?: string[] },
 ): Promise<string> {
   await page.goto("/recipes/new");
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(recipe.name);
   await page.getByLabel("Serves", { exact: true }).fill(String(recipe.servings ?? 2));
   await fillIngredients(page, recipe.ingredients ?? []);
+  for (const tag of recipe.tags ?? []) {
+    await page.getByRole("combobox", { name: "Tags", exact: true }).fill(tag);
+    await page.getByRole("combobox", { name: "Tags", exact: true }).press("Enter");
+    await expect(page.getByRole("button", { name: `Remove tag ${tag}`, exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Create recipe" }).click();
   await expect(page.getByRole("heading", { level: 1, name: recipe.name, exact: true })).toBeVisible();
   const id = new URL(page.url()).pathname.split("/").pop();

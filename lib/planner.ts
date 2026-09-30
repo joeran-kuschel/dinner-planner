@@ -26,3 +26,13 @@ export function isSameDinner(recipeName: string, typed: string): boolean {
 export function suggestsRecipe(recipeName: string, typed: string): boolean {
   return normalize(recipeName).includes(normalize(typed));
 }
+
+/**
+ * The tag that makes a recipe a suggestion although its name does not contain what was
+ * typed, if there is one. A recipe whose name matches needs no tag to be found, so the
+ * suggestion does not mention one.
+ */
+export function matchingTag(recipe: { name: string; tags: string[] }, typed: string): string | null {
+  if (!normalize(typed) || suggestsRecipe(recipe.name, typed)) return null;
+  return recipe.tags.find((tag) => normalize(tag).includes(normalize(typed))) ?? null;
+}

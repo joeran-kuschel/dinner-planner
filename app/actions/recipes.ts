@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, parseQuantity, rawText } from "@/lib/form-data";
+import { MAX_TAG_LENGTH, MAX_TAGS, parseTags, tagsWithinLimits } from "@/lib/tags";
 import { parseGroceryCategory } from "@/lib/grocery-category";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
@@ -36,6 +37,7 @@ function readValues(formData: FormData): RecipeFormValues {
     sourceUrl: rawText(formData.get("sourceUrl")),
     instructions: rawText(formData.get("instructions")),
     photoAlt: rawText(formData.get("photoAlt")),
+    tags: parseTags(formData.getAll("tag").map(rawText), rawText(formData.get("tags"))),
     ingredients: names.map((name, index) => ({
       name,
       quantity: quantities[index] ?? "",
@@ -57,6 +59,8 @@ function validationError(values: RecipeFormValues): MessageDescriptor | null {
   if ((parsePositiveInt(values.prepMinutes) ?? 0) > MAX_PREP_MINUTES) {
     return msg`Prep time can be at most ${MAX_PREP_MINUTES} minutes.`;
   }
+  if (values.tags.length > MAX_TAGS) return msg`A recipe can have at most ${MAX_TAGS} tags.`;
+  if (!tagsWithinLimits(values.tags)) return msg`A tag can be at most ${MAX_TAG_LENGTH} characters.`;
   const sourceUrl = values.sourceUrl.trim();
   if (sourceUrl && !isWebUrl(sourceUrl)) {
     return msg`The source has to be a web address starting with http:// or https://.`;
@@ -74,6 +78,27 @@ function toRecipeData(values: RecipeFormValues) {
     instructions: values.instructions.trim() || null,
   };
 }
+
+/** Tags are shared between recipes, so each one is connected if it exists and created if not. */
+function toTagData(values: RecipeFormValues) {
+  return values.tags.map((name) => ({ where: { name }, create: { name } }));
+}
+
+/**
+ * Two saves adding the same new tag at once both find it missing, and the second insert breaks the
+ * unique name. By then the tag exists, so the same save goes through the second time.
+ */
+async function retryOnTagRace<T>(save: () => Promise<T>): Promise<T> {
+  try {
+    return await save();
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") return save();
+    throw error;
+  }
+}
+
+/** Tags no recipe uses any more, so the filter and the suggestions list only what is in use. */
+const pruneTags = () => prisma.tag.deleteMany({ where: { recipes: { none: {} } } });
 
 function toIngredientData(values: RecipeFormValues) {
   return values.ingredients.flatMap((row, index) => {
@@ -159,13 +184,16 @@ export async function createRecipe(
   const change = await readPhotoChange(formData, values, null);
   if ("error" in change) return reject(prev, values, change.error);
 
-  const recipe = await prisma.recipe.create({
-    data: {
-      ...toRecipeData(values),
-      ingredients: { create: toIngredientData(values) },
-      ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
-    },
-  });
+  const recipe = await retryOnTagRace(() =>
+    prisma.recipe.create({
+      data: {
+        ...toRecipeData(values),
+        ingredients: { create: toIngredientData(values) },
+        tags: { connectOrCreate: toTagData(values) },
+        ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
+      },
+    }),
+  );
 
   revalidateRecipeViews();
   redirect(`/recipes/${recipe.id}`);
@@ -188,14 +216,20 @@ export async function updateRecipe(
 
   // Ingredient rows have no stable identity in the form, so the whole set is
   // replaced. Cheaper than diffing, and it keeps row order authoritative.
-  await prisma.recipe.update({
-    where: { id },
-    data: {
-      ...toRecipeData(values),
-      ingredients: { deleteMany: {}, create: toIngredientData(values) },
-      ...photoUpdate(change),
-    },
-  });
+  await retryOnTagRace(() =>
+    prisma.$transaction([
+      prisma.recipe.update({
+        where: { id },
+        data: {
+          ...toRecipeData(values),
+          ingredients: { deleteMany: {}, create: toIngredientData(values) },
+          tags: { set: [], connectOrCreate: toTagData(values) },
+          ...photoUpdate(change),
+        },
+      }),
+      pruneTags(),
+    ]),
+  );
 
   revalidateRecipeViews();
   redirect(`/recipes/${id}`);
@@ -228,6 +262,7 @@ export async function deleteRecipe(formData: FormData) {
     // title would keep it.
     prisma.plannedMeal.deleteMany({ where: { recipeId: id, customTitle: null } }),
     prisma.recipe.delete({ where: { id } }),
+    pruneTags(),
   ]);
 
   revalidateRecipeViews();

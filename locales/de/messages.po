@@ -8,6 +8,7 @@ msgstr ""
 "Language: de\n"
 
 #: components/day-card.tsx
+#: components/recipe-search-box.tsx
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
 msgstr "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
 
@@ -27,13 +28,26 @@ msgstr "{prepMinutes} Min."
 msgid "{recipeCount, plural, one {# recipe} other {# recipes}} to plan from"
 msgstr "{recipeCount, plural, one {# Rezept} other {# Rezepte}} zur Auswahl"
 
+#: app/recipes/page.tsx
+msgid "{recipeCount} of {totalCount, plural, one {# recipe} other {# recipes}}"
+msgstr "{recipeCount} von {totalCount, plural, one {# Rezept} other {# Rezepten}}"
+
 #: components/recipe-form.tsx
 msgid "A bowl of red lentil dal with coriander"
 msgstr "Eine Schüssel rotes Linsen-Dal mit Koriander"
 
 #: app/actions/recipes.ts
+#: components/tag-input.tsx
+msgid "A recipe can have at most {MAX_TAGS} tags."
+msgstr "Ein Rezept kann höchstens {MAX_TAGS} Tags haben."
+
+#: app/actions/recipes.ts
 msgid "A recipe can serve at most {MAX_SERVINGS} people."
 msgstr "Ein Rezept reicht für höchstens {MAX_SERVINGS} Personen."
+
+#: app/actions/recipes.ts
+msgid "A tag can be at most {MAX_TAG_LENGTH} characters."
+msgstr "Ein Tag darf höchstens {MAX_TAG_LENGTH} Zeichen lang sein."
 
 #: app/groceries/page.tsx
 msgid "Add"
@@ -54,6 +68,10 @@ msgstr "Etwas anderes hinzufügen"
 #: components/grocery-list.tsx
 msgid "added by hand"
 msgstr "von Hand hinzugefügt"
+
+#: components/tag-input.tsx
+msgid "Added tag {added}"
+msgstr "Tag {added} hinzugefügt"
 
 #: app/groceries/page.tsx
 msgid "Amount"
@@ -88,6 +106,10 @@ msgstr "Kategorie"
 #: components/recipe-form.tsx
 msgid "Category for ingredient {number}"
 msgstr "Kategorie für Zutat {number}"
+
+#: app/recipes/page.tsx
+msgid "Clear"
+msgstr "Zurücksetzen"
 
 #: components/day-card.tsx
 msgid "Clear day"
@@ -208,6 +230,10 @@ msgstr "Einkaufsliste für diese Woche"
 msgid "In the basket ({doneCount})"
 msgstr "Im Korb ({doneCount})"
 
+#: components/recipe-search-box.tsx
+msgid "ingredient"
+msgstr "Zutat"
+
 #: app/recipes/[id]/page.tsx
 #: components/recipe-form.tsx
 msgid "Ingredients"
@@ -262,6 +288,10 @@ msgstr "Name"
 msgid "Name of ingredient {number}"
 msgstr "Name von Zutat {number}"
 
+#: components/recipe-search-box.tsx
+msgid "Name, tag or ingredient"
+msgstr "Name, Tag oder Zutat"
+
 #: app/recipes/new/page.tsx
 #: app/recipes/page.tsx
 msgid "New recipe"
@@ -270,6 +300,10 @@ msgstr "Neues Rezept"
 #: components/week-nav.tsx
 msgid "Next week"
 msgstr "Nächste Woche"
+
+#: app/recipes/page.tsx
+msgid "No recipe matches. Try fewer tags or another word."
+msgstr "Kein Rezept passt. Versuche weniger Tags oder ein anderes Wort."
 
 #: app/page.tsx
 msgid "No recipes yet. <0>Add your first one</0> and it will be suggested for every day."
@@ -310,6 +344,10 @@ msgid "One step per line.\n"
 msgstr "Ein Schritt pro Zeile.\n"
 "Zwiebel glasig dünsten…\n"
 "Reis anrösten…"
+
+#: app/recipes/page.tsx
+msgid "Only recipes with all of these tags"
+msgstr "Nur Rezepte mit allen diesen Tags"
 
 #: lib/grocery-category.ts
 msgid "Other"
@@ -355,6 +393,10 @@ msgstr "Geplant: {plannedDays}"
 msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
 msgstr "Die Zubereitungszeit darf höchstens {MAX_PREP_MINUTES} Minuten betragen."
 
+#: components/tag-input.tsx
+msgid "Press Enter or type a comma to add a tag. Up to {MAX_TAGS} tags of {MAX_TAG_LENGTH} characters."
+msgstr "Mit Enter oder Komma ein Tag hinzufügen. Bis zu {MAX_TAGS} Tags mit je {MAX_TAG_LENGTH} Zeichen."
+
 #: components/week-nav.tsx
 msgid "Previous week"
 msgstr "Vorige Woche"
@@ -362,6 +404,10 @@ msgstr "Vorige Woche"
 #: components/recipe-form.tsx
 msgid "Quantities below are for this many people."
 msgstr "Die Mengen unten gelten für so viele Personen."
+
+#: components/recipe-search-box.tsx
+msgid "recipe"
+msgstr "Rezept"
 
 #: app/recipes/[id]/page.tsx
 #: app/recipes/new/page.tsx
@@ -385,6 +431,14 @@ msgstr "Zutat {number} entfernen"
 #: components/recipe-form.tsx
 msgid "Remove photo"
 msgstr "Foto entfernen"
+
+#: components/tag-input.tsx
+msgid "Remove tag {tag}"
+msgstr "Tag {tag} entfernen"
+
+#: components/tag-input.tsx
+msgid "Removed tag {tag}"
+msgstr "Tag {tag} entfernt"
 
 #: components/recipe-form.tsx
 msgid "Replace photo"
@@ -417,6 +471,14 @@ msgstr "Wird gespeichert…"
 msgid "Say what it shows, for people who cannot see it. Needed for every photo."
 msgstr "Sag, was es zeigt, für Menschen, die es nicht sehen können. Für jedes Foto nötig."
 
+#: app/recipes/page.tsx
+msgid "Search"
+msgstr "Suchen"
+
+#: components/recipe-search-box.tsx
+msgid "Search recipes"
+msgstr "Rezepte suchen"
+
 #: components/day-card.tsx
 #: components/recipe-form.tsx
 msgid "Serves"
@@ -433,6 +495,25 @@ msgstr "Quelle"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Quelle"
+
+#: components/recipe-search-box.tsx
+msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
+msgstr "Vorschläge erscheinen ab {MIN_SUGGESTION_LENGTH} Buchstaben."
+
+#: components/day-card.tsx
+#: components/recipe-search-box.tsx
+msgid "tag"
+msgstr "Tag"
+
+#: app/recipes/[id]/page.tsx
+#: app/recipes/page.tsx
+#: components/tag-input.tsx
+msgid "Tags"
+msgstr "Tags"
+
+#: components/tag-input.tsx
+msgid "Tags of this recipe"
+msgstr "Tags dieses Rezepts"
 
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
@@ -507,6 +588,10 @@ msgstr "Einheit für Zutat {number}"
 #: app/groceries/page.tsx
 msgid "Untick everything"
 msgstr "Alle Haken entfernen"
+
+#: components/tag-input.tsx
+msgid "vegetarian"
+msgstr "vegetarisch"
 
 #: components/day-card.tsx
 msgid "View recipe"

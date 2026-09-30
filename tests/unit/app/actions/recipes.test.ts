@@ -261,6 +261,7 @@ describe("createRecipe", () => {
           sourceUrl: "https://example.com/soup",
           instructions: "Chop\nSimmer",
           photoAlt: "",
+          tags: [],
           ingredients: [
             { name: "Tomatoes", quantity: "800", unit: "g", category: "OTHER" },
             { name: "Onion", quantity: "1", unit: "", category: "OTHER" },
@@ -350,6 +351,115 @@ describe("createRecipe", () => {
         { name: "Salt", quantity: "lots", unit: "", category: "PANTRY" },
       ],
     });
+  });
+});
+
+describe("tags", () => {
+  const tagsOf = async () => (await prisma.recipe.findMany({ include: { tags: true } })).map((r) => r.tags.map((t) => t.name).sort());
+  const allTags = async () => (await prisma.tag.findMany({ orderBy: { name: "asc" } })).map((t) => t.name);
+
+  it("creates a recipe with its tags, normalised and without duplicates", async () => {
+    await submitCreate(recipeForm({ tag: ["Quick", "quick ", "One  Pan"] }));
+    expect(await tagsOf()).toEqual([["one pan", "quick"]]);
+  });
+
+  it("reads the tags typed into the text field, as a browser without JavaScript posts them", async () => {
+    await submitCreate(recipeForm({ tags: "Vegan, Quick,, " }));
+    expect(await tagsOf()).toEqual([["quick", "vegan"]]);
+  });
+
+  it("merges the chips and the typed text", async () => {
+    await submitCreate(recipeForm({ tag: ["vegan"], tags: "quick, vegan" }));
+    expect(await tagsOf()).toEqual([["quick", "vegan"]]);
+  });
+
+  it("creates a recipe without tags when none are posted", async () => {
+    await submitCreate(recipeForm());
+    expect(await tagsOf()).toEqual([[]]);
+    expect(await allTags()).toEqual([]);
+  });
+
+  it("shares a tag between recipes instead of creating it twice", async () => {
+    await submitCreate(recipeForm({ name: "One", tag: ["quick"] }));
+    await submitCreate(recipeForm({ name: "Two", tag: ["QUICK"] }));
+    expect(await allTags()).toEqual(["quick"]);
+    expect((await prisma.tag.findFirstOrThrow({ include: { recipes: true } })).recipes).toHaveLength(2);
+  });
+
+  it("replaces a recipe's tags on update and keeps a tag another recipe still uses", async () => {
+    await submitCreate(recipeForm({ name: "One", tag: ["quick", "vegan"] }));
+    const other = await prisma.recipe.create({ data: { name: "Two", tags: { connect: { name: "quick" } } } });
+    const one = await prisma.recipe.findFirstOrThrow({ where: { name: "One" } });
+
+    await expectRedirect(
+      updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: one.id, name: "One", tag: ["spicy"] })),
+      `/recipes/${one.id}`,
+    );
+
+    const updated = await prisma.recipe.findUniqueOrThrow({ where: { id: one.id }, include: { tags: true } });
+    expect(updated.tags.map((t) => t.name)).toEqual(["spicy"]);
+    const untouched = await prisma.recipe.findUniqueOrThrow({ where: { id: other.id }, include: { tags: true } });
+    expect(untouched.tags.map((t) => t.name)).toEqual(["quick"]);
+    // "vegan" was only on the edited recipe and is gone; "quick" stays for the other one.
+    expect(await allTags()).toEqual(["quick", "spicy"]);
+  });
+
+  it("removes every tag when the form posts none, and the tags nobody uses", async () => {
+    await submitCreate(recipeForm({ tag: ["quick"] }));
+    const recipe = await prisma.recipe.findFirstOrThrow();
+    await expectRedirect(updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: recipe.id })), `/recipes/${recipe.id}`);
+    expect(await tagsOf()).toEqual([[]]);
+    expect(await allTags()).toEqual([]);
+  });
+
+  it("deletes the tags only the deleted recipe used", async () => {
+    await submitCreate(recipeForm({ name: "One", tag: ["quick", "vegan"] }));
+    await prisma.recipe.create({ data: { name: "Two", tags: { connect: { name: "quick" } } } });
+    const one = await prisma.recipe.findFirstOrThrow({ where: { name: "One" } });
+
+    await expectRedirect(deleteRecipe(formData({ id: one.id })), "/recipes");
+    expect(await allTags()).toEqual(["quick"]);
+  });
+
+  it("saves a new recipe again when another save created the same tag a moment earlier", async () => {
+    const create = vi.spyOn(prisma.recipe, "create");
+    create.mockRejectedValueOnce(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+    await submitCreate(recipeForm({ tag: ["quick"] }));
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(await tagsOf()).toEqual([["quick"]]);
+    create.mockRestore();
+  });
+
+  it("does not hide other database errors behind the retry", async () => {
+    const create = vi.spyOn(prisma.recipe, "create");
+    create.mockRejectedValue(new Error("connection lost"));
+    await expect(createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ tag: ["quick"] }))).rejects.toThrow("connection lost");
+    expect(create).toHaveBeenCalledTimes(1);
+    create.mockRestore();
+  });
+
+  it("refuses more than ten tags, echoing what was typed and changing nothing", async () => {
+    const tags = Array.from({ length: 11 }, (_, i) => `tag${i}`);
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ tag: tags }));
+    expect(state.attempt).toBe(1);
+    expect(state.error).toMatchObject({ message: expect.stringContaining("tags") });
+    expect(state.values?.tags).toEqual(tags);
+    expect(await prisma.recipe.count()).toBe(0);
+    expect(await allTags()).toEqual([]);
+  });
+
+  it("accepts ten tags and refuses a tag over thirty characters", async () => {
+    await submitCreate(recipeForm({ tag: Array.from({ length: 10 }, (_, i) => `tag${i}`) }));
+    expect((await tagsOf())[0]).toHaveLength(10);
+
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ name: "Long", tag: ["x".repeat(31)] }));
+    expect(state.error).not.toBeNull();
+    expect(await prisma.recipe.count()).toBe(1);
+  });
+
+  it("echoes the normalised tags when the form is refused for another reason", async () => {
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ name: " ", tag: ["Quick"], tags: "Vegan" }));
+    expect(state.values?.tags).toEqual(["quick", "vegan"]);
   });
 });
 

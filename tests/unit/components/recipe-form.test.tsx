@@ -19,6 +19,7 @@ const RISOTTO: Recipe = {
   prepMinutes: 40,
   sourceUrl: "https://example.com/risotto",
   instructions: "Soften the onion\nToast the rice",
+  tags: ["vegetarian", "italian"],
   ingredients: [
     { name: "Arborio rice", quantity: 300, unit: "g", category: "PANTRY" },
     { name: "Salt", quantity: null, unit: null, category: "OTHER" },
@@ -33,6 +34,7 @@ const REJECTED_VALUES: RecipeFormValues = {
   sourceUrl: "https://example.com/soup",
   instructions: "Chop\nSimmer",
   photoAlt: "",
+  tags: ["soup", "quick"],
   ingredients: [
     { name: "Leek", quantity: "2", unit: "", category: "PRODUCE" },
     { name: "Stock", quantity: "1,5", unit: "l", category: "PANTRY" },
@@ -196,6 +198,62 @@ describe("RecipeForm", () => {
     });
   });
 
+  describe("tags", () => {
+    const chips = () => within(screen.getByRole("list", { name: "Tags of this recipe" })).getAllByRole("listitem").map((item) => item.textContent?.replace("✕", ""));
+
+    it("starts without tags for a new recipe", () => {
+      renderForm();
+      expect(screen.getByRole("combobox", { name: "Tags" })).toHaveValue("");
+      expect(screen.queryByRole("list", { name: "Tags of this recipe" })).not.toBeInTheDocument();
+    });
+
+    it("shows a recipe's tags when editing", () => {
+      renderForm(undefined, RISOTTO);
+      const list = screen.getByRole("list", { name: "Tags of this recipe" });
+      expect(within(list).getAllByRole("listitem").map((item) => item.textContent?.replace("✕", ""))).toEqual([
+        "vegetarian",
+        "italian",
+      ]);
+    });
+
+    it("offers the tags in use while typing", () => {
+      const { container } = renderWithI18n(
+        <RecipeForm action={vi.fn<Action>(async (prev) => prev)} tagSuggestions={["pasta", "vegan"]} />,
+      );
+      expect([...container.querySelectorAll("datalist option")].map((o) => (o as HTMLOptionElement).value)).toEqual(["pasta", "vegan"]);
+    });
+
+    it("posts the chips and the text still in the field", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action, RISOTTO);
+      await user.type(screen.getByRole("combobox", { name: "Tags" }), "spicy");
+      await user.click(screen.getByRole("button", { name: "Remove tag italian" }));
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      await waitFor(() => expect(action).toHaveBeenCalled());
+      expect(submittedData(action).getAll("tag")).toEqual(["vegetarian"]);
+      expect(submittedData(action).get("tags")).toBe("spicy");
+    });
+
+    it("does not send the form when Enter adds a tag", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action);
+      await user.type(screen.getByRole("combobox", { name: "Tags" }), "quick{Enter}");
+      expect(action).not.toHaveBeenCalled();
+      expect(chips()).toContain("quick");
+    });
+
+    it("keeps the tags after a rejection", async () => {
+      const { user } = renderForm(rejectingAction(NAME_MISSING, REJECTED_VALUES));
+      await user.type(field("Name"), " ");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+      await screen.findByRole("alert");
+
+      const list = screen.getByRole("list", { name: "Tags of this recipe" });
+      expect(within(list).getAllByRole("listitem").map((item) => item.textContent?.replace("✕", ""))).toEqual(["soup", "quick"]);
+    });
+  });
+
   describe("ingredient categories", () => {
     const category = (n: number) => screen.getByRole("combobox", { name: `Category for ingredient ${n}` });
 
@@ -355,6 +413,7 @@ describe("RecipeForm", () => {
           sourceUrl: String(data.get("sourceUrl")),
           instructions: String(data.get("instructions")),
           photoAlt: String(data.get("photoAlt")),
+          tags: data.getAll("tag").map(String),
           ingredients: data.getAll("ingredientName").map((name, i) => ({
             name: String(name),
             quantity: String(data.getAll("ingredientQuantity")[i]),

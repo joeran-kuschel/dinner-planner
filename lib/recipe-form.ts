@@ -38,6 +38,8 @@ export type RecipeFormValues = {
   instructions: string;
   /** What the photo shows, for screen readers. The photo file itself cannot be echoed back. */
   photoAlt: string;
+  /** Normalised, see lib/tags.ts. */
+  tags: string[];
   ingredients: IngredientValues[];
 };
 

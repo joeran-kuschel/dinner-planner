@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearPlannedMeal, setPlannedMeal } from "@/app/actions/meals";
-import { isSameDinner, MAX_SERVINGS, suggestsRecipe } from "@/lib/planner";
+import { isSameDinner, matchingTag, MAX_SERVINGS, suggestsRecipe } from "@/lib/planner";
 
 export type DayCardMeal = {
   recipeId: string | null;
@@ -30,7 +30,8 @@ export type DayCardProps = {
   weekdayLabel: string;
   dateLabel: string;
   isToday: boolean;
-  recipes: { id: string; name: string }[];
+  /** `tags` are what the dinner field can also find a recipe by. */
+  recipes: { id: string; name: string; tags: string[] }[];
   meal: DayCardMeal | null;
 };
 
@@ -274,7 +275,8 @@ function DayHeading({
 
 /** One entry in the dinner suggestions. */
 type Suggestion =
-  | { kind: "recipe"; id: string; name: string }
+  /** `tag` is the tag that matched what was typed, when the name did not. */
+  | { kind: "recipe"; id: string; name: string; tag: string | null }
   | { kind: "once"; name: string }
   | { kind: "new"; name: string };
 
@@ -299,8 +301,9 @@ function suggestionsFor(text: string, planned: string, recipes: DayCardProps["re
   // Opening the field on the planned dinner lists every recipe, not just that one.
   const filter = text === planned ? "" : typed;
   const matches: Suggestion[] = recipes
-    .filter((recipe) => suggestsRecipe(recipe.name, filter))
-    .map((recipe) => ({ kind: "recipe", ...recipe }));
+    .map((recipe) => ({ recipe, tag: matchingTag(recipe, filter) }))
+    .filter(({ recipe, tag }) => tag !== null || suggestsRecipe(recipe.name, filter))
+    .map(({ recipe, tag }): Suggestion => ({ kind: "recipe", id: recipe.id, name: recipe.name, tag }));
   if (!typed || recipes.some((recipe) => isSameDinner(recipe.name, typed))) return matches;
   return [...matches, { kind: "once", name: typed }, { kind: "new", name: typed }];
 }
@@ -349,7 +352,7 @@ function DinnerCombobox({
       return true;
     }
     const recipe = recipes.find((r) => isSameDinner(r.name, text));
-    if (recipe) choose(choiceFor({ kind: "recipe", ...recipe }));
+    if (recipe) choose(choiceFor({ kind: "recipe", id: recipe.id, name: recipe.name, tag: null }));
     return Boolean(recipe);
   };
 
@@ -463,6 +466,12 @@ function SuggestionList({
             }`}
           >
             {suggestionLabel(suggestion, i18n)}
+            {suggestion.kind === "recipe" && suggestion.tag && (
+              <span className="ml-2 text-xs text-muted">
+                <span className="sr-only">{t(i18n)`tag`} </span>
+                {suggestion.tag}
+              </span>
+            )}
           </li>
         ))}
     </ul>

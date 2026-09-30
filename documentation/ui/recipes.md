@@ -37,11 +37,30 @@ the form says so and you choose another.
 servings, the number of ingredients, the prep time and how often it is planned. **New recipe** opens the form. With no
 recipes yet, the page says what a recipe needs: a name and its ingredients; the method is optional.
 
+### Searching
+
+Above the cards, the **Search recipes** form finds recipes by **name, tag or ingredient**: type a word and press
+**Search**. The tags in use are shown as checkboxes under it ("Only recipes with all of these tags"); with several
+ticked, a recipe must have every one of them. The word and the tags work together. The header then reads "3 of 12
+recipes", and **Clear** starts over. When nothing matches, the page says so. The search is an ordinary form, so it works
+without JavaScript, and the result has an address of its own (`/recipes?q=lentil&tag=quick&tag=vegan`) that can be
+bookmarked. A tag in the address that no recipe has any more still filters, so it appears among the checkboxes, ticked, and can be
+unticked. Only the first 100 characters of the word and up to ten tags are read. Capital letters do not matter; `%` and `_` are searched for as the characters they are. Only the name,
+tags and ingredient names are searched, not the description or the method.
+
+**Suggestions:** from the **third letter** on, the field lists up to eight recipe names, tags and ingredients that
+contain what you typed (those that start with it first), each marked "recipe", "tag" or "ingredient". Fewer letters
+would match too much to help, and a line under the field says so. Picking a suggestion, with the mouse or with the arrow
+keys and Enter, fills the field and runs the search. Enter with nothing highlighted searches for what is typed, and Tab
+leaves the field without picking. The number of suggestions is announced. Without JavaScript the field is a plain one.
+
+A card shows the recipe's tags under its description.
+
 ## A recipe
 
 A recipe's page shows its photo (if it has one), its facts (with a link to the source, if it has one), the ingredients with their amounts, the
 method as numbered steps, and the days it is planned for, from the current week on. **Edit** opens the form again; **Back to the plan**
-returns to the current week.
+returns to the current week. Its tags are links to the list filtered by that tag.
 
 ## The form
 
@@ -55,6 +74,14 @@ Creating and editing use the same form.
   default) that decides where the ingredient sits on the [grocery list](groceries.md); screen readers hear it as
   "Category for ingredient 2". **Add ingredient** adds a
   row, ✕ removes one (the last row stays).
+- **Tags** label the recipe ("vegetarian", "quick") so it can be found again. Type a tag and press **Enter** or type
+  a **comma**: it becomes a chip under the field. A chip's ✕ ("Remove tag vegetarian") takes it away again; the focus moves on to the next chip's ✕, or to the field
+  when none is left. A recipe
+  has up to 10 tags of up to 30 characters. Tags are lowercased ("Quick" and "quick" are one tag) and a tag is only
+  added once. The tags already used by other recipes are offered while you type. Enter with nothing typed sends the
+  form like in any other field, and text still in the field when you save is added as a tag. Chips appearing and
+  disappearing are announced to screen readers ("Added tag quick", "Removed tag quick"). Without JavaScript, type the
+  tags into the field separated by commas.
 - **Method** is free text, one step per line.
 
 Saving replaces the recipe's ingredients with the rows in the form, in that order. When the server rejects the form, for

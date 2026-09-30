@@ -7,6 +7,7 @@ export async function resetDatabase(): Promise<void> {
     prisma.plannedMeal.deleteMany(),
     prisma.ingredient.deleteMany(),
     prisma.recipe.deleteMany(),
+    prisma.tag.deleteMany(),
   ]);
 }
 

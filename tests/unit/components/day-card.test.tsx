@@ -15,8 +15,8 @@ const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const RECIPES = [
-  { id: "r-risotto", name: "Mushroom risotto" },
-  { id: "r-curry", name: "Chickpea curry" },
+  { id: "r-risotto", name: "Mushroom risotto", tags: ["vegetarian", "italian"] },
+  { id: "r-curry", name: "Chickpea curry", tags: ["vegan", "quick"] },
 ];
 
 const PLANNED: DayCardMeal = { recipeId: "r-risotto", customTitle: null, servings: 3, notes: "Use the good stock" };
@@ -172,6 +172,30 @@ describe("DayCard", () => {
       const { user } = renderCard({ meal: PLANNED });
       await user.click(dinnerField());
       expect(suggestions()).toEqual(["Mushroom risotto", "Chickpea curry"]);
+    });
+
+    it("also finds a recipe by one of its tags and shows which tag matched", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "ital");
+      expect(suggestions()).toEqual([
+        "Mushroom risottotag italian",
+        "Plan “ital” for this day only",
+        "Add “ital” as a new recipe",
+      ]);
+      expect(screen.getByRole("option", { name: /Mushroom risotto/ })).toHaveTextContent("italian");
+    });
+
+    it("shows no tag for a recipe whose name matches", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "risotto");
+      expect(suggestions()[0]).toBe("Mushroom risotto");
+    });
+
+    it("puts the picked recipe's name, not its tag, into the field", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "quick");
+      await user.click(screen.getByRole("option", { name: /Chickpea curry/ }));
+      expect(dinnerField()).toHaveValue("Chickpea curry");
     });
 
     it("filters recipes by any part of the name, ignoring case", async () => {
@@ -464,8 +488,8 @@ describe("DayCard", () => {
   describe("leaving the field unchanged", () => {
     it("keeps the planned one of two recipes with the same name", async () => {
       const recipes = [
-        { id: "r-curry-1", name: "Curry" },
-        { id: "r-curry-2", name: "Curry" },
+        { id: "r-curry-1", name: "Curry", tags: [] },
+        { id: "r-curry-2", name: "Curry", tags: [] },
       ];
       const { user } = renderCard({ recipes, meal: { ...PLANNED, recipeId: "r-curry-2" } });
       await user.click(dinnerField());
@@ -482,7 +506,7 @@ describe("DayCard", () => {
     });
 
     it("keeps a one-off dinner when a recipe of that name exists", async () => {
-      const recipes = [...RECIPES, { id: "r-pizza", name: "Pizza night" }];
+      const recipes = [...RECIPES, { id: "r-pizza", name: "Pizza night", tags: [] }];
       const { user } = renderCard({ recipes, meal: ONE_OFF });
       await user.click(dinnerField());
       await user.tab();
@@ -1016,7 +1040,7 @@ describe("DayCard", () => {
       rerender(
         <DayCard
           {...props({
-            recipes: [...RECIPES, { id: "r-new", name: "Shakshuka" }],
+            recipes: [...RECIPES, { id: "r-new", name: "Shakshuka", tags: [] }],
             meal: { recipeId: "r-new", customTitle: null, servings: 2, notes: null },
           })}
         />,
@@ -1039,7 +1063,7 @@ describe("DayCard", () => {
       rerender(
         <DayCard
           {...props({
-            recipes: [...RECIPES, { id: "r-new", name: "Shakshuka" }],
+            recipes: [...RECIPES, { id: "r-new", name: "Shakshuka", tags: [] }],
             meal: { recipeId: "r-new", customTitle: null, servings: 2, notes: null },
           })}
         />,
@@ -1074,7 +1098,7 @@ describe("DayCard", () => {
 
     it("follows a planned recipe being renamed", () => {
       const { rerender } = renderCard({ meal: PLANNED });
-      rerender(<DayCard {...props({ meal: PLANNED, recipes: [{ id: "r-risotto", name: "Porcini risotto" }] })} />);
+      rerender(<DayCard {...props({ meal: PLANNED, recipes: [{ id: "r-risotto", name: "Porcini risotto", tags: [] }] })} />);
 
       expect(dinnerField()).toHaveValue("Porcini risotto");
     });

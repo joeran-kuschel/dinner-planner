@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updateRecipe } from "@/app/actions/recipes";
 import { RecipeForm } from "@/components/recipe-form";
 import { prisma } from "@/lib/db";
+import { tagNames } from "@/lib/recipe-search";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export default async function EditRecipePage({ params }: PageProps<"/recipes/[id]/edit">) {
@@ -14,6 +15,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
     where: { id },
     include: {
       ingredients: { orderBy: { position: "asc" } },
+      tags: { select: { name: true }, orderBy: { name: "asc" } },
       // Not the image bytes: the form shows the photo through its address.
       photo: { select: { alt: true, updatedAt: true } },
     },
@@ -31,6 +33,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
       </header>
       <RecipeForm
         action={updateRecipe}
+        tagSuggestions={await tagNames()}
         recipe={{
           id: recipe.id,
           name: recipe.name,
@@ -39,6 +42,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
           prepMinutes: recipe.prepMinutes,
           sourceUrl: recipe.sourceUrl,
           instructions: recipe.instructions,
+          tags: recipe.tags.map((tag) => tag.name),
           photo: recipe.photo && { alt: recipe.photo.alt, version: recipe.photo.updatedAt.getTime() },
           ingredients: recipe.ingredients.map(({ name, quantity, unit, category }) => ({
             name,

@@ -26,6 +26,21 @@ async function plan(): Promise<string[]> {
 }
 
 describe("prisma/seed.ts", () => {
+  it("tags the sample recipes and keeps a tag added since when it runs again", async () => {
+    seed();
+    const tagsOf = async (name: string) =>
+      (await prisma.recipe.findFirstOrThrow({ where: { name }, include: { tags: true } })).tags.map((tag) => tag.name).sort();
+    expect(await tagsOf("Red Lentil Dal")).toEqual(["freezer-friendly", "vegan", "vegetarian"]);
+
+    const shakshuka = await prisma.recipe.findFirstOrThrow({ where: { name: "Shakshuka" } });
+    await prisma.recipe.update({ where: { id: shakshuka.id }, data: { tags: { connectOrCreate: { where: { name: "brunch" }, create: { name: "brunch" } } } } });
+    seed();
+
+    expect(await tagsOf("Shakshuka")).toEqual(["brunch", "eggs", "quick", "vegetarian"]);
+    // Shared tags exist once.
+    expect(await prisma.tag.count({ where: { name: "vegetarian" } })).toBe(1);
+  });
+
   it("files the sample ingredients under shop sections", async () => {
     seed();
 
