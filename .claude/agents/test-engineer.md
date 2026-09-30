@@ -76,18 +76,34 @@ need a test, write the tests, and run only them and the tests affected by the ch
    Before a merge: `git log <target>..<branch>` and `git diff <target>...<branch>` (the target is usually `main`),
    plus any uncommitted changes that are part of it. Never only the last commit of the branch.
    Run the suite on the branch being merged, since that is the code the merge brings in.
-2. Run the entire suite and the static checks: every test script in `package.json`, `npm run typecheck` and
-   `npm run lint`. Run end-to-end tests too if they are set up.
+2. Run `npm run check`: typecheck, lint, the entire Vitest suite and the Playwright specs, with time limits and
+   no retries (see "Time and retry limits"). It takes about a minute. Don't assemble the stages yourself.
 3. Check that every changed behavior in step 1 is covered by a test. Write the missing tests, then run them.
 4. The push or merge is ready only if everything passes and nothing is untested. A flaky test is a failure: report it, don't
    rerun until it passes.
+
+## Time and retry limits
+
+`npm run check` enforces the limits: 2 minutes for typecheck, 2 for lint, 3 for Vitest, 5 for Playwright and 8 for the
+whole check; Playwright gives each test 10 seconds and stops at the first failure. Details:
+`documentation/backend/testing-check.md`.
+
+- **No retries.** A failed or timed-out stage is reported as it is: stage, time and the last 20 lines of output. Never run
+  a failing stage or test again to see whether it passes.
+- **One re-run at most**, and only when an infrastructure cause stopped the check (a port in use, the database not
+  started, `npm run check` saying "the database does not answer"). Name that cause in the report, fix only the cause
+  (for example `npm run db:up`), then run `npm run check` once more.
+- **Never change flags or limits between runs** (timeouts, `--max-failures`, reporters) without saying so in the report.
+- If the whole-check limit is reached, stop and report which stages finished.
+- Don't reach for a longer timeout or another approach when a stage is slow: report the slow stage and its time.
 
 ## Report
 
 Start with one sentence on what you tested or checked. Then:
 
 - **Result:** `ready` or `not ready`, for the pre-push/pre-merge check. Otherwise, a summary of the tests you added.
-- **Commands run** and their result (passed, failed, skipped counts).
+- **Commands run** and their result (passed, failed, skipped counts). For the pre-push/pre-merge check, the table that
+  `npm run check` prints (stage, result, seconds); for a stage over 2 minutes, add its cause and a concrete suggestion.
 - **Failures:** for each, the test, the error and whether the cause is the code (a bug) or the test.
 - **Tests added or changed:** file and what they cover.
 - **Gaps:** behaviors you could not test, and why (for example contrast, which only a real browser shows).

@@ -16,3 +16,4 @@ Feature documentation, split into the user interface and the backend.
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
 
 - [Database backups](backend/database-backups.md): hourly dumps of the cluster database, restore, and the launchd job
+- [The pre-push / pre-merge check](backend/testing-check.md): `npm run check`, its stages, time limits and the no-retry rule
