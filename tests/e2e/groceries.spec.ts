@@ -90,6 +90,52 @@ test.describe("groceries", () => {
     await expect(page.getByRole("heading", { name: /^In the basket/ })).toHaveCount(0);
   });
 
+  test("groups the list by shop section under headings, and a ticked item moves to the basket", async ({ page }) => {
+    const name = unique("Caprese");
+    await createRecipe(page, {
+      name,
+      ingredients: [
+        { quantity: "3", name: "Tomatoes", category: "Fruit and vegetables" },
+        { quantity: "250", unit: "g", name: "Mozzarella", category: "Dairy and eggs" },
+        { quantity: "1", name: "Ciabatta", category: "Bakery" },
+        { name: "Basil" },
+      ],
+    });
+    await page.goto("/?week=2027-09-06");
+    await planRecipe(page, "Monday", name);
+
+    await page.goto("/groceries?week=2027-09-06");
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+      "Fruit and vegetables (1)",
+      "Bakery (1)",
+      "Dairy and eggs (1)",
+      "Other (1)",
+      "Add something else",
+    ]);
+    const produce = page.getByRole("region", { name: "Fruit and vegetables (1)" });
+    await expect(produce.getByRole("checkbox", { name: "Tick off Tomatoes" })).toBeVisible();
+    await expectAccessible(page);
+
+    await page.getByRole("checkbox", { name: "Tick off Mozzarella" }).click();
+    const basket = page.getByRole("region", { name: "In the basket (1)" });
+    await expect(basket).toContainText("Mozzarella");
+    await expect(basket).toContainText("Dairy and eggs");
+    await expect(page.getByRole("heading", { name: /^Dairy and eggs/ })).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByRole("region", { name: "In the basket (1)" })).toContainText("Mozzarella");
+  });
+
+  test("files a hand-added item under the chosen section", async ({ page }) => {
+    const item = unique("Beer");
+    await page.goto("/groceries?week=2027-09-13");
+    await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
+    await page.getByLabel("Category", { exact: true }).selectOption({ label: "Drinks" });
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(page.getByRole("region", { name: "Drinks (1)" })).toContainText(item);
+  });
+
   test("marks the mandatory item of the add form with an asterisk and explains it", async ({ page }) => {
     await page.goto("/groceries?week=2027-04-19");
     await expect(page.getByText("* required")).toBeVisible();

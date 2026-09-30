@@ -94,7 +94,8 @@ lib/
   database-url.ts       requireDatabaseUrl() — one clear error when it is unset
   prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see below
   week.ts               day/week helpers — see "Dates" below
-  grocery.ts            grocery aggregation + formatting
+  grocery.ts            grocery aggregation, grouping + formatting
+  grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
   recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
@@ -197,6 +198,13 @@ again; without that, a refused form loses the photo and the retry saves the reci
 without one. Keep that when touching the form. `sharp` is a runtime dependency (its
 native binary ships in the Alpine app image). Details:
 `documentation/backend/recipe-photos.md`.
+
+**Grocery lines are grouped by a fixed `GroceryCategory` enum.** Ingredients and
+hand-added extras carry one (default `OTHER`, which stays last). The category is
+not part of a line's key, so it never touches tick state; merged lines take the
+category that comes first in the enum wins. A category from a form goes through
+`parseGroceryCategory()`, never straight to Prisma. Details:
+`documentation/backend/grocery-categories.md`.
 
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all

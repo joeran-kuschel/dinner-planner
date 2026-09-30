@@ -40,10 +40,11 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
           sourceUrl: recipe.sourceUrl,
           instructions: recipe.instructions,
           photo: recipe.photo && { alt: recipe.photo.alt, version: recipe.photo.updatedAt.getTime() },
-          ingredients: recipe.ingredients.map(({ name, quantity, unit }) => ({
+          ingredients: recipe.ingredients.map(({ name, quantity, unit, category }) => ({
             name,
             quantity,
             unit,
+            category,
           })),
         }}
       />

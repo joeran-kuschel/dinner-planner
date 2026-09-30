@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseQuantity, readText } from "@/lib/form-data";
 import { groceryKey } from "@/lib/grocery";
+import { parseGroceryCategory } from "@/lib/grocery-category";
 import { parseDayKey, startOfWeek } from "@/lib/week";
 
 /**
@@ -38,14 +39,15 @@ export async function addGroceryExtra(formData: FormData) {
   const unit = readText(formData, "unit") || null;
   const quantity = parseQuantity(readText(formData, "quantity"));
 
+  const category = parseGroceryCategory(formData.get("category"));
   const key = groceryKey(label, unit);
 
   // Adding the same extra twice updates the amount instead of erroring on the
   // (weekStart, key) unique constraint.
   await prisma.groceryEntry.upsert({
     where: { weekStart_key: { weekStart, key } },
-    update: { label, quantity, unit, manual: true },
-    create: { weekStart, key, label, quantity, unit, manual: true },
+    update: { label, quantity, unit, category, manual: true },
+    create: { weekStart, key, label, quantity, unit, category, manual: true },
   });
 
   revalidatePath("/groceries");

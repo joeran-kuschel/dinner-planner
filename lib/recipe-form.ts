@@ -25,7 +25,7 @@ export function isWebUrl(value: string): boolean {
 }
 
 /** One ingredient row exactly as it was typed, before any parsing. */
-export type IngredientValues = { name: string; quantity: string; unit: string };
+export type IngredientValues = { name: string; quantity: string; unit: string; category: string };
 
 /** The whole form as typed. Kept as strings so a rejected submission can be
  *  put back on screen verbatim. */

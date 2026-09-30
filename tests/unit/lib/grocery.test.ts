@@ -4,6 +4,7 @@ import {
   formatGroceryQuantity,
   formatQuantity,
   groceryKey,
+  groupByCategory,
   type IngredientInput,
   type MealInput,
 } from "@/lib/grocery";
@@ -12,11 +13,12 @@ import { testI18n } from "@/tests/support/i18n";
 const en = testI18n("en");
 const de = testI18n("de");
 
-const ing = (name: string, quantity: number | null, unit: string | null = null): IngredientInput => ({
-  name,
-  quantity,
-  unit,
-});
+const ing = (
+  name: string,
+  quantity: number | null,
+  unit: string | null = null,
+  category: IngredientInput["category"] = "OTHER",
+): IngredientInput => ({ name, quantity, unit, category });
 
 const meal = (
   recipeName: string,
@@ -63,7 +65,7 @@ describe("aggregateIngredients", () => {
 
   it("builds one line per ingredient with key, label, quantity, unit and source", () => {
     expect(aggregateIngredients([meal("Pasta", [ing("Spaghetti", 200, "g")])])).toEqual([
-      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", sources: ["Pasta"] },
+      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", category: "OTHER", sources: ["Pasta"] },
     ]);
   });
 
@@ -85,7 +87,7 @@ describe("aggregateIngredients", () => {
         meal("Salad", [ing("Tomatoes", 150, "g")]),
       ]);
       expect(lines).toEqual([
-        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", sources: ["Pasta", "Salad"] },
+        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", category: "OTHER", sources: ["Pasta", "Salad"] },
       ]);
     });
 
@@ -131,7 +133,7 @@ describe("aggregateIngredients", () => {
     it("merges duplicates within one recipe and lists the recipe once", () => {
       const lines = aggregateIngredients([meal("Pizza", [ing("Cheese", 100, "g"), ing("Cheese", 50, "g")])]);
       expect(lines).toEqual([
-        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", sources: ["Pizza"] },
+        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", category: "OTHER", sources: ["Pizza"] },
       ]);
     });
 
@@ -297,5 +299,45 @@ describe("formatQuantity", () => {
 
   it("treats an empty unit like no unit", () => {
     expect(formatQuantity(3, "", en)).toBe("3");
+  });
+});
+
+describe("categories", () => {
+  it("carries an ingredient's category onto its line", () => {
+    const [line] = aggregateIngredients([meal("Soup", [ing("Carrot", 2, null, "PRODUCE")])]);
+    expect(line.category).toBe("PRODUCE");
+  });
+
+  it("takes the category that comes first in the shop when recipes file an ingredient differently", () => {
+    const soup = meal("Soup", [ing("Butter", 10, "g")]);
+    const cake = meal("Cake", [ing("Butter", 20, "g", "PANTRY")]);
+    const bread = meal("Bread", [ing("Butter", 5, "g", "DAIRY_EGGS")]);
+    // Other never wins over a real category, and the meal order makes no difference.
+    for (const meals of [[soup, cake, bread], [bread, cake, soup], [cake, soup, bread]]) {
+      expect(aggregateIngredients(meals)[0]).toMatchObject({ quantity: 35, category: "DAIRY_EGGS" });
+    }
+  });
+});
+
+describe("groupByCategory", () => {
+  const line = (label: string, category: IngredientInput["category"]) => ({ label, category });
+
+  it("orders the groups as the shop is walked, with Other last", () => {
+    const groups = groupByCategory([
+      line("Tea towels", "OTHER"),
+      line("Milk", "DAIRY_EGGS"),
+      line("Pears", "PRODUCE"),
+      line("Bread", "BAKERY"),
+    ]);
+    expect(groups.map((group) => group.category)).toEqual(["PRODUCE", "BAKERY", "DAIRY_EGGS", "OTHER"]);
+  });
+
+  it("keeps the incoming order inside a group and drops empty groups", () => {
+    const groups = groupByCategory([line("Pears", "PRODUCE"), line("Apples", "PRODUCE")]);
+    expect(groups).toEqual([{ category: "PRODUCE", lines: [line("Pears", "PRODUCE"), line("Apples", "PRODUCE")] }]);
+  });
+
+  it("returns nothing for no lines", () => {
+    expect(groupByCategory([])).toEqual([]);
   });
 });

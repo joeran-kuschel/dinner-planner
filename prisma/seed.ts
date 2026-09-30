@@ -4,11 +4,12 @@
  *
  * Run with: npm run db:seed
  */
+import type { GroceryCategory } from "../generated/prisma/enums";
 import { PrismaClient } from "../generated/prisma/client";
 import { createPgAdapter } from "../lib/prisma-adapter";
 import { addDays, startOfWeek, today } from "../lib/week";
 
-type SeedIngredient = [name: string, quantity: number | null, unit: string | null];
+type SeedIngredient = [name: string, quantity: number | null, unit: string | null, category: GroceryCategory];
 
 type SeedRecipe = {
   name: string;
@@ -32,12 +33,12 @@ const RECIPES: SeedRecipe[] = [
       "Finish off the heat with parsley and parmesan.",
     ].join("\n"),
     ingredients: [
-      ["Spaghetti", 200, "g"],
-      ["Garlic cloves", 4, null],
-      ["Olive oil", 60, "ml"],
-      ["Dried chilli flakes", null, null],
-      ["Flat-leaf parsley", 15, "g"],
-      ["Parmesan", 30, "g"],
+      ["Spaghetti", 200, "g", "PANTRY"],
+      ["Garlic cloves", 4, null, "PRODUCE"],
+      ["Olive oil", 60, "ml", "PANTRY"],
+      ["Dried chilli flakes", null, null, "PANTRY"],
+      ["Flat-leaf parsley", 15, "g", "PRODUCE"],
+      ["Parmesan", 30, "g", "DAIRY_EGGS"],
     ],
   },
   {
@@ -52,16 +53,16 @@ const RECIPES: SeedRecipe[] = [
       "Stir in coconut milk and season generously. Serve with rice.",
     ].join("\n"),
     ingredients: [
-      ["Red lentils", 300, "g"],
-      ["Onion", 1, null],
-      ["Garlic cloves", 3, null],
-      ["Fresh ginger", 20, "g"],
-      ["Ground cumin", 2, "tsp"],
-      ["Ground turmeric", 1, "tsp"],
-      ["Chopped tomatoes", 400, "g"],
-      ["Vegetable stock", 500, "ml"],
-      ["Coconut milk", 200, "ml"],
-      ["Basmati rice", 300, "g"],
+      ["Red lentils", 300, "g", "PANTRY"],
+      ["Onion", 1, null, "PRODUCE"],
+      ["Garlic cloves", 3, null, "PRODUCE"],
+      ["Fresh ginger", 20, "g", "PRODUCE"],
+      ["Ground cumin", 2, "tsp", "PANTRY"],
+      ["Ground turmeric", 1, "tsp", "PANTRY"],
+      ["Chopped tomatoes", 400, "g", "PANTRY"],
+      ["Vegetable stock", 500, "ml", "PANTRY"],
+      ["Coconut milk", 200, "ml", "PANTRY"],
+      ["Basmati rice", 300, "g", "PANTRY"],
     ],
   },
   {
@@ -76,13 +77,13 @@ const RECIPES: SeedRecipe[] = [
       "Roast 40-45 minutes until the skin is crisp and the veg is caramelised.",
     ].join("\n"),
     ingredients: [
-      ["Chicken thighs", 8, null],
-      ["Potatoes", 800, "g"],
-      ["Carrots", 400, "g"],
-      ["Red onion", 2, null],
-      ["Olive oil", 45, "ml"],
-      ["Dried oregano", 2, "tsp"],
-      ["Lemon", 1, null],
+      ["Chicken thighs", 8, null, "MEAT_FISH"],
+      ["Potatoes", 800, "g", "PRODUCE"],
+      ["Carrots", 400, "g", "PRODUCE"],
+      ["Red onion", 2, null, "PRODUCE"],
+      ["Olive oil", 45, "ml", "PANTRY"],
+      ["Dried oregano", 2, "tsp", "PANTRY"],
+      ["Lemon", 1, null, "PRODUCE"],
     ],
   },
   {
@@ -97,15 +98,15 @@ const RECIPES: SeedRecipe[] = [
       "Scatter with feta and coriander; eat with plenty of bread.",
     ].join("\n"),
     ingredients: [
-      ["Eggs", 4, null],
-      ["Red peppers", 2, null],
-      ["Onion", 1, null],
-      ["Garlic cloves", 2, null],
-      ["Chopped tomatoes", 400, "g"],
-      ["Ground cumin", 1, "tsp"],
-      ["Smoked paprika", 1, "tsp"],
-      ["Feta", 100, "g"],
-      ["Crusty bread", 1, null],
+      ["Eggs", 4, null, "DAIRY_EGGS"],
+      ["Red peppers", 2, null, "PRODUCE"],
+      ["Onion", 1, null, "PRODUCE"],
+      ["Garlic cloves", 2, null, "PRODUCE"],
+      ["Chopped tomatoes", 400, "g", "PANTRY"],
+      ["Ground cumin", 1, "tsp", "PANTRY"],
+      ["Smoked paprika", 1, "tsp", "PANTRY"],
+      ["Feta", 100, "g", "DAIRY_EGGS"],
+      ["Crusty bread", 1, null, "BAKERY"],
     ],
   },
 ];
@@ -126,10 +127,11 @@ async function main() {
       prepMinutes: recipe.prepMinutes,
       instructions: recipe.instructions,
       ingredients: {
-        create: recipe.ingredients.map(([name, quantity, unit], position) => ({
+        create: recipe.ingredients.map(([name, quantity, unit, category], position) => ({
           name,
           quantity,
           unit,
+          category,
           position,
         })),
       },

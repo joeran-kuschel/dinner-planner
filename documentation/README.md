@@ -12,6 +12,7 @@ Feature documentation, split into the user interface and the backend.
 ## Backend
 
 - [Recipe photos](backend/recipe-photos.md): where photos are kept and why, what is stored, serving and caching, upload limits, backup size
+- [Grocery categories](backend/grocery-categories.md): the shop-section enum, how it travels from recipe form to list, merging and grouping
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
 
