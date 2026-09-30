@@ -47,7 +47,8 @@ returns to the current week.
 
 Creating and editing use the same form.
 
-- **Name** is required. Description, prep time (**Minutes**) and **Source** (a web address) are optional.
+- **Name** is required (see "Mandatory fields" below). Description, prep time (**Minutes**) and **Source** (a web
+  address) are optional.
 - **Serves** is the number of people the ingredient amounts are for. The grocery list scales them to the servings
   planned for each day.
 - **Ingredients** are rows of amount, unit and name. Leave the amount blank for "to taste". **Add ingredient** adds a
@@ -56,6 +57,20 @@ Creating and editing use the same form.
 
 Saving replaces the recipe's ingredients with the rows in the form, in that order. When the server rejects the form, for
 example for a blank name, the message is announced and everything typed is still in the form.
+
+## Mandatory fields
+
+A field that has to be filled in shows a "*" after its label, and the line "* required" at the top of the form explains
+it. The mark is text, not just a colour, and it is drawn by the shared `RequiredMark` and `RequiredNote`
+(`components/required-mark.tsx`), so every form marks its mandatory fields the same way. `Field` adds the mark by itself
+whenever its input is `required`.
+
+- The asterisk has a title ("Required" / "Pflichtfeld") for mouse users. Touch and keyboard users get the note instead,
+  since a title does not show for them.
+- Screen readers skip the asterisk (`aria-hidden`): the `required` attribute already announces the field, so it is not
+  read twice.
+- **Description of the photo** is marked only while it is required: once a file is chosen, or while the current photo
+  stays. Ticking "Remove photo" takes the mark away again.
 
 ## Deleting a recipe
 

@@ -38,6 +38,9 @@ alphabetical order.
 and, if you like, an amount and a unit. Lines added by hand are marked "added by hand" and are the only ones with a ✕
 to remove them; lines that come from the plan cannot be deleted, since they would return with the plan.
 
+The **Item** is the only mandatory field. It carries an "*" in the accent colour in its label, and the line "* required" above
+the fields explains the mark (see "Mandatory fields" in [recipes](recipes.md)).
+
 ## Accessibility
 
 - Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes.

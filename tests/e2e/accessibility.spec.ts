@@ -60,11 +60,11 @@ test.describe("accessibility", () => {
     await expectAccessible(page);
 
     await page.goto(`/recipes/${id}/edit`);
-    await expect(page.getByLabel("Name", { exact: true })).toHaveValue(name);
+    await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
     await expectAccessible(page);
 
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(" ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(" ");
     await page.getByRole("button", { name: "Create recipe" }).click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText("Give the recipe a name.");
     // The hovered button is checked on its own below.
@@ -91,7 +91,7 @@ test.describe("accessibility", () => {
     await planRecipe(page, "Monday", name);
 
     await page.goto("/groceries?week=2027-06-14");
-    await page.getByLabel("Item", { exact: true }).fill("Bin bags");
+    await page.getByRole("textbox", { name: "Item", exact: true }).fill("Bin bags");
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByRole("button", { name: "Remove Bin bags" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "Tick off Eggs", exact: true })).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("accessibility", () => {
     const name = unique("Keyboard soup");
     await page.goto("/recipes/new");
 
-    await tabTo(page, page.getByLabel("Name", { exact: true }));
+    await tabTo(page, page.getByRole("textbox", { name: "Name", exact: true }));
     await page.keyboard.type(name);
     await tabTo(page, page.getByLabel("Serves", { exact: true }));
     await page.keyboard.press("ControlOrMeta+A");
@@ -159,7 +159,7 @@ test.describe("accessibility", () => {
     const item = unique("Coffee");
     await page.goto("/groceries?week=2027-06-21");
 
-    await tabTo(page, page.getByLabel("Item", { exact: true }));
+    await tabTo(page, page.getByRole("textbox", { name: "Item", exact: true }));
     await page.keyboard.type(item);
     await page.keyboard.press("Enter");
 

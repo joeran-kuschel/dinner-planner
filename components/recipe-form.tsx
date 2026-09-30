@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { RecipePhoto } from "@/components/recipe-photo";
+import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { MAX_SERVINGS } from "@/lib/planner";
 import {
   EMPTY_RECIPE_FORM_STATE,
@@ -102,6 +103,8 @@ export function RecipeForm({ action, recipe }: RecipeFormProps) {
   return (
     <form action={formAction} onSubmit={submit} className="flex flex-col gap-6">
       {recipe && <input type="hidden" name="id" value={recipe.id} />}
+
+      <RequiredNote>{t(i18n)`required`}</RequiredNote>
 
       {state.error && (
         <p role="alert" className="card border-accent bg-accent-soft p-3 text-sm">
@@ -223,10 +226,17 @@ function Field({
   hint,
   ...input
 }: { label: string; name: keyof RecipeFormValues | "photo"; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const { i18n } = useLingui();
   return (
     <div>
       <label className="label" htmlFor={name}>
         {label}
+        {input.required && (
+          <>
+            {" "}
+            <RequiredMark title={t(i18n)`Required`} />
+          </>
+        )}
       </label>
       <input
         id={name}

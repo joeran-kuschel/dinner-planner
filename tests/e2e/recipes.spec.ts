@@ -14,7 +14,7 @@ test.describe("recipes", () => {
   }) => {
     const name = unique("Risotto");
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Description", { exact: true }).fill("Creamy and slow");
     await page.getByLabel("Serves", { exact: true }).fill("4");
     await page.getByLabel("Minutes", { exact: true }).fill("35");
@@ -61,10 +61,10 @@ test.describe("recipes", () => {
 
     await page.getByRole("link", { name: "Edit", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Edit recipe" })).toBeVisible();
-    await expect(page.getByLabel("Name", { exact: true })).toHaveValue(name);
+    await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
     await expect(page.getByLabel("Name of ingredient 1", { exact: true })).toHaveValue("Beef");
 
-    await page.getByLabel("Name", { exact: true }).fill(renamed);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(renamed);
     await page.getByRole("button", { name: "Remove ingredient 1", exact: true }).click();
     await expect(page.getByLabel("Name of ingredient 1", { exact: true })).toHaveValue("Carrots");
     await fillIngredients(page, [
@@ -92,12 +92,21 @@ test.describe("recipes", () => {
     }
   });
 
+  test("marks the mandatory name with an asterisk and explains it", async ({ page }) => {
+    await page.goto("/recipes/new");
+    await expect(page.getByText("* required")).toBeVisible();
+    const mark = page.locator("label", { hasText: "Name" }).first().getByTitle("Required");
+    await expect(mark).toBeVisible();
+    await expect(mark).toHaveText("*");
+    await expectAccessible(page);
+  });
+
   test("an empty name is stopped by the browser before anything is saved", async ({ page }) => {
     await page.goto("/recipes/new");
     await page.getByLabel("Name of ingredient 1", { exact: true }).fill("Flour");
     await page.getByRole("button", { name: "Create recipe" }).click();
 
-    const nameField = page.getByLabel("Name", { exact: true });
+    const nameField = page.getByRole("textbox", { name: "Name", exact: true });
     expect(await nameField.evaluate((el: HTMLInputElement) => el.validity.valueMissing)).toBe(true);
     await expect(page).toHaveURL("/recipes/new");
     await expect(page.getByLabel("Name of ingredient 1", { exact: true })).toHaveValue("Flour");
@@ -108,7 +117,7 @@ test.describe("recipes", () => {
   }) => {
     await page.goto("/recipes/new");
     // Whitespace passes the browser's `required` check, so this reaches the action.
-    await page.getByLabel("Name", { exact: true }).fill("   ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("   ");
     await page.getByLabel("Description", { exact: true }).fill("Keep me");
     await page.getByLabel("Serves", { exact: true }).fill("6");
     await fillIngredients(page, [
@@ -134,7 +143,7 @@ test.describe("recipes", () => {
 
     // Fixing the name is enough to save what was kept; the blank row is dropped.
     const name = unique("Pancakes");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByRole("button", { name: "Create recipe" }).click();
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
     await expect(page.getByText("Serves 6", { exact: true })).toBeVisible();
