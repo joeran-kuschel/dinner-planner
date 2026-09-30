@@ -17,7 +17,9 @@ that week from its Monday, and a missing or malformed value shows the current we
 Each day has a single dinner field that suggests as you type.
 
 - **Clicking the field** lists every recipe.
-- **Typing** narrows the list to recipes whose name contains the text, ignoring upper and lower case.
+- **Typing** narrows the list to recipes whose name or one of whose [tags](recipes.md) contains the text, ignoring
+  upper and lower case. When a tag made the match, it is shown after the name ("Chickpea curry vegan"). Picking the
+  recipe puts its name in the field, never the tag.
 - **A name that is not a recipe yet** gets two extra choices below the list:
   - **Plan "…" for this day only**: the day gets that dinner, and nothing else changes. Good for leftovers, eating out,
     or something you are trying once. It adds nothing to the grocery list.

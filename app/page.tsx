@@ -31,7 +31,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
     }),
     prisma.recipe.findMany({
-      select: { id: true, name: true },
+      select: { id: true, name: true, tags: { select: { name: true }, orderBy: { name: "asc" } } },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -80,7 +80,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
               weekdayLabel={formatWeekday(day, locale)}
               dateLabel={formatDayMonth(day, locale)}
               isToday={isSameDay(day, currentDay)}
-              recipes={recipes}
+              recipes={recipes.map(({ id, name, tags }) => ({ id, name, tags: tags.map((tag) => tag.name) }))}
               meal={
                 meal && {
                   recipeId: meal.recipeId,

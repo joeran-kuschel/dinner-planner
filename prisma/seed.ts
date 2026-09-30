@@ -17,6 +17,7 @@ type SeedRecipe = {
   servings: number;
   prepMinutes: number;
   instructions: string;
+  tags: string[];
   ingredients: SeedIngredient[];
 };
 
@@ -32,6 +33,7 @@ const RECIPES: SeedRecipe[] = [
       "Toss the drained pasta through the oil with a splash of pasta water.",
       "Finish off the heat with parsley and parmesan.",
     ].join("\n"),
+    tags: ["vegetarian", "quick", "pasta"],
     ingredients: [
       ["Spaghetti", 200, "g", "PANTRY"],
       ["Garlic cloves", 4, null, "PRODUCE"],
@@ -52,6 +54,7 @@ const RECIPES: SeedRecipe[] = [
       "Add lentils, tomatoes and stock; simmer 25 minutes until collapsed.",
       "Stir in coconut milk and season generously. Serve with rice.",
     ].join("\n"),
+    tags: ["vegetarian", "vegan", "freezer-friendly"],
     ingredients: [
       ["Red lentils", 300, "g", "PANTRY"],
       ["Onion", 1, null, "PRODUCE"],
@@ -76,6 +79,7 @@ const RECIPES: SeedRecipe[] = [
       "Nestle in the chicken thighs, skin up, and scatter over the rest of the herbs.",
       "Roast 40-45 minutes until the skin is crisp and the veg is caramelised.",
     ].join("\n"),
+    tags: ["one-pan", "meat"],
     ingredients: [
       ["Chicken thighs", 8, null, "MEAT_FISH"],
       ["Potatoes", 800, "g", "PRODUCE"],
@@ -97,6 +101,7 @@ const RECIPES: SeedRecipe[] = [
       "Make four wells, crack in the eggs, cover and cook until just set.",
       "Scatter with feta and coriander; eat with plenty of bread.",
     ].join("\n"),
+    tags: ["vegetarian", "quick", "eggs"],
     ingredients: [
       ["Eggs", 4, null, "DAIRY_EGGS"],
       ["Red peppers", 2, null, "PRODUCE"],
@@ -126,6 +131,8 @@ async function main() {
       servings: recipe.servings,
       prepMinutes: recipe.prepMinutes,
       instructions: recipe.instructions,
+      // Added to whatever tags the recipe has by now; a re-run never takes one away.
+      tags: { connectOrCreate: recipe.tags.map((name) => ({ where: { name }, create: { name } })) },
       ingredients: {
         create: recipe.ingredients.map(([name, quantity, unit, category], position) => ({
           name,

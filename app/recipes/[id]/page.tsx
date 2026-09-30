@@ -19,6 +19,7 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
     where: { id },
     include: {
       ingredients: { orderBy: { position: "asc" } },
+      tags: { select: { name: true }, orderBy: { name: "asc" } },
       // Not the image bytes: the page shows the photo through its address.
       photo: { select: { alt: true, updatedAt: true, fullWidth: true, fullHeight: true } },
       // Only upcoming appearances are worth showing; past ones are history.
@@ -79,6 +80,17 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
           </div>
         </div>
         {recipe.description && <p className="text-sm text-muted">{recipe.description}</p>}
+        {recipe.tags.length > 0 && (
+          <ul aria-label={t(i18n)`Tags`} className="flex flex-wrap gap-2">
+            {recipe.tags.map((tag) => (
+              <li key={tag.name}>
+                <Link href={`/recipes?tag=${encodeURIComponent(tag.name)}`} className="pill hover:bg-border">
+                  {tag.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </header>
 
       {recipe.plannedFor.length > 0 && (

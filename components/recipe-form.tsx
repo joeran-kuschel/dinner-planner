@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { CategorySelect } from "@/components/category-select";
+import { TagInput } from "@/components/tag-input";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { DEFAULT_GROCERY_CATEGORY, type GroceryCategory, parseGroceryCategory } from "@/lib/grocery-category";
@@ -45,7 +46,10 @@ export type RecipeFormProps = {
     /** The recipe's photo, if it has one; `version` is its last change, see `recipePhotoUrl`. */
     photo?: { alt: string; version: number } | null;
     ingredients: { name: string; quantity: number | null; unit: string | null; category: GroceryCategory }[];
+    tags: string[];
   };
+  /** The tags in use, offered while typing one. */
+  tagSuggestions?: string[];
 };
 
 const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: DEFAULT_GROCERY_CATEGORY };
@@ -59,6 +63,7 @@ const NEW_RECIPE: RecipeFormValues = {
   sourceUrl: "",
   instructions: "",
   photoAlt: "",
+  tags: [],
   ingredients: [BLANK_ROW, BLANK_ROW, BLANK_ROW],
 };
 
@@ -72,6 +77,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
     sourceUrl: recipe.sourceUrl ?? "",
     instructions: recipe.instructions ?? "",
     photoAlt: recipe.photo?.alt ?? "",
+    tags: recipe.tags,
     ingredients: recipe.ingredients.length
       ? recipe.ingredients.map((row) => ({
           name: row.name,
@@ -83,7 +89,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
   };
 }
 
-export function RecipeForm({ action, recipe }: RecipeFormProps) {
+export function RecipeForm({ action, recipe, tagSuggestions = [] }: RecipeFormProps) {
   const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
   const { i18n } = useLingui();
 
@@ -119,6 +125,7 @@ export function RecipeForm({ action, recipe }: RecipeFormProps) {
           is not re-keyed: its file field keeps the chosen file. */}
       <RecipeFields key={`fields-${state.attempt}`} values={values} />
       <PhotoFields recipe={recipe} alt={values.photoAlt} />
+      <TagInput key={`tags-${state.attempt}`} initial={values.tags} suggestions={tagSuggestions} />
       <IngredientRows key={`rows-${state.attempt}`} {...ingredients} />
       <MethodField key={`method-${state.attempt}`} instructions={values.instructions} />
 

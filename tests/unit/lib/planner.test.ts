@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSameDinner, suggestsRecipe } from "@/lib/planner";
+import { isSameDinner, matchingTag, suggestsRecipe } from "@/lib/planner";
 
 describe("isSameDinner", () => {
   it.each([
@@ -35,5 +35,30 @@ describe("suggestsRecipe", () => {
 
   it("does not suggest a recipe that does not contain the text", () => {
     expect(suggestsRecipe("Mushroom risotto", "curry")).toBe(false);
+  });
+});
+
+describe("matchingTag", () => {
+  const curry = { name: "Chickpea curry", tags: ["vegan", "quick", "one pan"] };
+
+  it("finds the tag that makes the recipe a suggestion", () => {
+    expect(matchingTag(curry, "veg")).toBe("vegan");
+    expect(matchingTag(curry, "  ONE P")).toBe("one pan");
+  });
+
+  it("names the first of several matching tags", () => {
+    expect(matchingTag({ name: "Soup", tags: ["quick", "quiche"] }, "qui")).toBe("quick");
+  });
+
+  it("names none when the recipe's name matches, so the name is what is shown", () => {
+    expect(matchingTag(curry, "curry")).toBeNull();
+    expect(matchingTag({ name: "Quick soup", tags: ["quick"] }, "quick")).toBeNull();
+  });
+
+  it("names none for nothing typed or for no match", () => {
+    expect(matchingTag(curry, "")).toBeNull();
+    expect(matchingTag(curry, "   ")).toBeNull();
+    expect(matchingTag(curry, "pasta")).toBeNull();
+    expect(matchingTag({ name: "Plain", tags: [] }, "x")).toBeNull();
   });
 });

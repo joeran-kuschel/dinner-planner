@@ -98,6 +98,8 @@ lib/
   grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
+  tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
+  recipe-search.ts      the recipe list's search + tag filter, tagNames() — server only
   recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
   recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
   recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
@@ -205,6 +207,13 @@ not part of a line's key, so it never touches tick state; merged lines take the
 category that comes first in the enum wins. A category from a form goes through
 `parseGroceryCategory()`, never straight to Prisma. Details:
 `documentation/backend/grocery-categories.md`.
+
+**Tags are a `Tag` table, stored normalised and pruned when unused.** Every tag
+goes through `normalizeTag()` / `parseTags()` (`lib/tags.ts`): lowercase, so the
+case-sensitive unique index means one tag. `updateRecipe` and `deleteRecipe` delete
+tags no recipe uses in the same transaction. The recipe list's search is a GET form
+over `lib/recipe-search.ts`, which escapes `%` and `_` for `contains`. Details:
+`documentation/backend/recipe-tags.md`.
 
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all
