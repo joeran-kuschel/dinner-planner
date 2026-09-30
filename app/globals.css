@@ -105,4 +105,8 @@ html {
   .label {
     @apply block text-xs font-medium uppercase tracking-wide text-muted;
   }
+
+  .required-mark {
+    @apply font-bold text-accent-hover;
+  }
 }

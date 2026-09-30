@@ -40,7 +40,7 @@ export async function createRecipe(
   recipe: { name: string; servings?: number; ingredients?: IngredientRow[] },
 ): Promise<string> {
   await page.goto("/recipes/new");
-  await page.getByLabel("Name", { exact: true }).fill(recipe.name);
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill(recipe.name);
   await page.getByLabel("Serves", { exact: true }).fill(String(recipe.servings ?? 2));
   await fillIngredients(page, recipe.ingredients ?? []);
   await page.getByRole("button", { name: "Create recipe" }).click();

@@ -11,7 +11,7 @@ async function photoUpload(name = "soup.jpg") {
 /** Create a recipe through the form with a photo chosen; leaves the page on the recipe. */
 async function createWithPhoto(page: Page, name: string, alt = "A bowl of soup") {
   await page.goto("/recipes/new");
-  await page.getByLabel("Name", { exact: true }).fill(name);
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
   await fillIngredients(page, [{ quantity: "1", name: "Leek" }]);
   await page.getByLabel("Photo file").setInputFiles(await photoUpload());
   await page.getByLabel("Description of the photo").fill(alt);
@@ -62,7 +62,7 @@ test.describe("recipe photos", () => {
   test("a recipe without a photo has no image on its card or page, and no photo to fetch", async ({ page }) => {
     const name = unique("Plain soup");
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await fillIngredients(page, [{ quantity: "1", name: "Leek" }]);
     await page.getByRole("button", { name: "Create recipe" }).click();
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
@@ -80,7 +80,7 @@ test.describe("recipe photos", () => {
     const name = unique("Retried soup");
     await page.goto("/recipes/new");
     // Blank in the server's eyes, yet it passes the browser's own "required" check.
-    await page.getByLabel("Name", { exact: true }).fill("   ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("   ");
     await fillIngredients(page, [{ quantity: "1", name: "Leek" }]);
     await page.getByLabel("Photo file").setInputFiles(await photoUpload("soup.jpg"));
     await page.getByLabel("Description of the photo").fill("Soup after a retry");
@@ -92,7 +92,7 @@ test.describe("recipe photos", () => {
     expect(await page.getByLabel("Photo file").evaluate((input: HTMLInputElement) => input.files?.[0]?.name)).toBe("soup.jpg");
     await expect(page.getByLabel("Description of the photo")).toHaveValue("Soup after a retry");
 
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByRole("button", { name: "Create recipe" }).click();
 
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
@@ -106,13 +106,13 @@ test.describe("recipe photos", () => {
     const id = await createWithPhoto(page, name, "Before");
 
     await page.goto(`/recipes/${id}/edit`);
-    await page.getByLabel("Name", { exact: true }).fill("   ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("   ");
     await page.getByLabel("Replace photo").setInputFiles({ ...(await photoUpload("new.png")), buffer: await testImage("png", 900, 900) });
     await page.getByLabel("Description of the photo").fill("After");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText("Give the recipe a name.");
 
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByRole("button", { name: "Save changes" }).click();
     const photo = page.getByRole("img", { name: "After" });
     await expect(photo).toBeVisible();
@@ -122,7 +122,7 @@ test.describe("recipe photos", () => {
   test("the browser asks for the description before sending a photo, and keeps the photo", async ({ page }) => {
     const name = unique("Undescribed soup");
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Photo file").setInputFiles(await photoUpload());
     await page.getByRole("button", { name: "Create recipe" }).click();
 
@@ -141,7 +141,7 @@ test.describe("recipe photos", () => {
   }) => {
     const name = unique("Server checked soup");
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Photo file").setInputFiles(await photoUpload());
     // As if the browser did not check: a script, or a browser that skips validation.
     await page.getByRole("main").locator("form").evaluate((form: HTMLFormElement) => (form.noValidate = true));
@@ -160,7 +160,7 @@ test.describe("recipe photos", () => {
   test("a file that is no image is refused, and the recipe is not created", async ({ page }) => {
     const name = unique("Fake photo soup");
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Photo file").setInputFiles({ name: "notes.jpg", mimeType: "image/jpeg", buffer: Buffer.from("just text") });
     await page.getByLabel("Description of the photo").fill("Not a photo");
     await page.getByRole("button", { name: "Create recipe" }).click();
@@ -177,7 +177,7 @@ test.describe("recipe photos", () => {
     page.on("request", (request) => request.method() === "POST" && posts.push(request.url()));
 
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(unique("Huge photo soup"));
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(unique("Huge photo soup"));
     await page.getByLabel("Photo file").setInputFiles({ name: "big.png", mimeType: "image/png", buffer: tooBig });
     await page.getByLabel("Description of the photo").fill("Too big");
     await page.getByRole("button", { name: "Create recipe" }).click();

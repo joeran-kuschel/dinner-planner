@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   createRecipe,
+  expectAccessible,
   fillIngredients,
   groceryRow,
   planOnce,
@@ -89,6 +90,13 @@ test.describe("groceries", () => {
     await expect(page.getByRole("heading", { name: /^In the basket/ })).toHaveCount(0);
   });
 
+  test("marks the mandatory item of the add form with an asterisk and explains it", async ({ page }) => {
+    await page.goto("/groceries?week=2027-04-19");
+    await expect(page.getByText("* required")).toBeVisible();
+    await expect(page.locator("label[for=label]").getByTitle("Required")).toBeVisible();
+    await expectAccessible(page);
+  });
+
   test("adds a manual item, keeps it after reload and removes it again", async ({ page }) => {
     const item = unique("Milk");
     await page.goto("/groceries?week=2027-04-19");
@@ -96,13 +104,13 @@ test.describe("groceries", () => {
 
     await page.getByLabel("Amount", { exact: true }).fill("1,5");
     await page.getByLabel("Unit", { exact: true }).fill("l");
-    await page.getByLabel("Item", { exact: true }).fill(item);
+    await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
     await page.getByRole("button", { name: "Add", exact: true }).click();
 
     const row = groceryRow(page, item);
     await expect(row).toContainText("added by hand");
     await expect(row).toContainText("1.5 l");
-    await expect(page.getByLabel("Item", { exact: true })).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Item", exact: true })).toHaveValue("");
 
     await page.reload();
     await expect(groceryRow(page, item)).toContainText("1.5 l");

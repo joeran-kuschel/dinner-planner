@@ -350,6 +350,16 @@ msgstr "Foto entfernen"
 msgid "Replace photo"
 msgstr "Foto ersetzen"
 
+#: app/groceries/page.tsx
+#: components/recipe-form.tsx
+msgid "required"
+msgstr "Pflichtfeld"
+
+#: app/groceries/page.tsx
+#: components/recipe-form.tsx
+msgid "Required"
+msgstr "Pflichtfeld"
+
 #: components/recipe-form.tsx
 msgid "Save changes"
 msgstr "Änderungen speichern"

@@ -54,7 +54,9 @@ function renderForm(action: Action = vi.fn<Action>(async (prev) => prev), recipe
   return { user, ...result };
 }
 
-const field = (label: string) => screen.getByLabelText(label);
+// A required field's label also holds the visible "*", which is hidden from assistive technology.
+const withoutMark = (text: string) => text.replace(/\s*\*$/, "").trim();
+const field = (label: string) => screen.getByLabelText(label, { normalizer: withoutMark });
 const rowCount = () => screen.getAllByRole("textbox", { name: /^Name of ingredient/ }).length;
 const ingredientRow = (n: number) =>
   [`Amount for ingredient ${n}`, `Unit for ingredient ${n}`, `Name of ingredient ${n}`].map(
@@ -684,11 +686,63 @@ describe("RecipeForm", () => {
       expect(screen.getByRole("img", { name: "A plate of risotto" })).toBeInTheDocument();
       expect(screen.getByLabelText("Foto ersetzen")).toBeInTheDocument();
       expect(screen.getByRole("checkbox", { name: "Foto entfernen" })).toBeInTheDocument();
-      expect(screen.getByLabelText("Beschreibung des Fotos")).toBeInTheDocument();
+      expect(field("Beschreibung des Fotos")).toBeInTheDocument();
       expect(screen.getByText("JPEG, PNG oder WebP, bis zu 5 MB.")).toBeInTheDocument();
     });
 
     it("has no accessibility violations with a photo", async () => {
+      const { container } = renderForm(undefined, WITH_PHOTO);
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe("required fields", () => {
+    const WITH_PHOTO: Recipe = { ...RISOTTO, photo: { alt: "A plate of risotto", version: 1 } };
+    const label = (text: string) => screen.getByText(text, { selector: "label", normalizer: withoutMark });
+    const markIn = (element: HTMLElement) => within(element).queryByTitle("Required");
+
+    it("explains the asterisk at the top of the form", () => {
+      renderForm();
+      expect(screen.getByText("required")).toBeInTheDocument();
+      expect(screen.getByText("required")).toHaveTextContent("* required");
+    });
+
+    it("marks the name with a title, and only the name while there is no photo", () => {
+      renderForm();
+      expect(markIn(label("Name"))).toHaveTextContent("*");
+      expect(markIn(label("Description"))).not.toBeInTheDocument();
+      expect(markIn(label("Description of the photo"))).not.toBeInTheDocument();
+    });
+
+    it("hides the asterisk from assistive technology, which hears the required attribute", () => {
+      renderForm();
+      expect(markIn(label("Name"))).toHaveAttribute("aria-hidden", "true");
+      expect(screen.getByRole("textbox", { name: "Name" })).toBeRequired();
+    });
+
+    it("marks the photo description once a file is chosen", async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await user.upload(field("Photo file"), new File(["x"], "soup.jpg", { type: "image/jpeg" }));
+      expect(markIn(label("Description of the photo"))).toBeInTheDocument();
+      expect(field("Description of the photo")).toBeRequired();
+    });
+
+    it("marks the description of a photo that stays, and drops the mark while it is removed", async () => {
+      const user = userEvent.setup();
+      renderForm(undefined, WITH_PHOTO);
+      expect(markIn(label("Description of the photo"))).toBeInTheDocument();
+      await user.click(screen.getByRole("checkbox", { name: "Remove photo" }));
+      expect(markIn(label("Description of the photo"))).not.toBeInTheDocument();
+    });
+
+    it("says so in German", () => {
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+      expect(screen.getByText("Pflichtfeld")).toBeInTheDocument();
+      expect(within(screen.getByText("Name", { selector: "label", normalizer: withoutMark })).getByTitle("Pflichtfeld")).toBeInTheDocument();
+    });
+
+    it("has no axe violations with the marker", async () => {
       const { container } = renderForm(undefined, WITH_PHOTO);
       await expectNoAxeViolations(container);
     });

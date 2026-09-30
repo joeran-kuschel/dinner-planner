@@ -45,7 +45,7 @@ test.describe("language", () => {
     // Survives only if the document is never reloaded.
     await page.evaluate(() => Object.assign(window, { __noReload: true }));
     const noReload = () => page.evaluate(() => (window as { __noReload?: boolean }).__noReload);
-    await page.getByLabel("Name", { exact: true }).fill("Half-typed soup");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Half-typed soup");
     await page.getByLabel("Amount for ingredient 1", { exact: true }).fill("1,5");
 
     await switchTo(page, "Deutsch");
@@ -53,14 +53,14 @@ test.describe("language", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Neues Rezept");
     await expect(page).toHaveTitle("Neues Rezept · Abendessen-Planer");
-    await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Half-typed soup");
+    await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Half-typed soup");
     await expect(page.getByLabel("Menge für Zutat 1", { exact: true })).toHaveValue("1,5");
     expect(await noReload()).toBe(true);
 
     await switchTo(page, "English");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("New recipe");
-    await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Half-typed soup");
+    await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Half-typed soup");
     expect(await noReload()).toBe(true);
   });
 
@@ -96,6 +96,8 @@ test.describe("language", () => {
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Einkaufsliste");
     await expect(page).toHaveTitle("Einkauf · Abendessen-Planer");
+    await expect(page.getByText("* Pflichtfeld")).toBeVisible();
+    await expect(page.locator("label[for=label]").getByTitle("Pflichtfeld")).toBeVisible();
 
     const other = await context.newPage();
     await other.goto("/recipes/new");
@@ -115,7 +117,7 @@ test.describe("language", () => {
 
   test("translates a validation error that is already shown", async ({ page }) => {
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(" ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(" ");
     await page.getByRole("button", { name: "Create recipe" }).click();
     const alert = page.getByRole("main").getByRole("alert");
     await expect(alert).toHaveText("Give the recipe a name.");
@@ -192,7 +194,7 @@ test.describe("language", () => {
     }
 
     await page.goto("/recipes/new");
-    await page.getByLabel("Name", { exact: true }).fill(" ");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(" ");
     await page.getByRole("button", { name: "Rezept anlegen" }).click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText("Gib dem Rezept einen Namen.");
     await page.mouse.move(0, 0);
@@ -259,7 +261,7 @@ test.describe("language", () => {
 async function expectFieldBelowHeader(page: Page, width: number) {
   await page.setViewportSize({ width, height: 640 });
   await page.goto("/recipes/new");
-  const name = page.getByLabel(/^Name$/);
+  const name = page.getByRole("textbox", { name: /^Name$/ });
   await name.evaluate((field) => field.scrollIntoView({ block: "start" }));
   const header = await page.locator("header").first().boundingBox();
   const field = await name.boundingBox();

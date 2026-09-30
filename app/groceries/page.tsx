@@ -2,6 +2,7 @@ import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { addGroceryExtra, resetGroceryTicks } from "@/app/actions/groceries";
 import { GroceryList } from "@/components/grocery-list";
+import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
@@ -96,6 +97,9 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         <h2 className="text-sm font-semibold">{t(i18n)`Add something else`}</h2>
         <form action={addGroceryExtra} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="weekStart" value={weekKey} />
+          <div className="basis-full">
+            <RequiredNote>{t(i18n)`required`}</RequiredNote>
+          </div>
           <div>
             <label className="label" htmlFor="quantity">
               {t(i18n)`Amount`}
@@ -110,7 +114,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
           </div>
           <div className="min-w-48 flex-1">
             <label className="label" htmlFor="label">
-              {t(i18n)`Item`}
+              {t(i18n)`Item`} <RequiredMark title={t(i18n)`Required`} />
             </label>
             <input
               id="label"
