@@ -1,0 +1,66 @@
+# The pre-push / pre-merge check
+
+`npm run check` is the whole check that has to pass before every push and every merge: typecheck, lint, the Vitest
+suite and the Playwright specs. It is what the `test-engineer` agent runs (`.claude/agents/test-engineer.md`), and you can
+run it yourself. On a normal tree it takes about a minute, most of it Playwright's build and run.
+
+```bash
+npm run check
+```
+
+```
+Stage       Result                              Seconds
+i18n        passed                              0.4
+typecheck   passed                              2.4
+lint        passed                              4.1
+vitest      passed                              8.4
+playwright  passed                              47.3
+
+Check passed in 56.1 s
+```
+
+The exit code is 0 only when every stage passed. The code is in `scripts/check.ts` (the command) and
+`scripts/check-lib.ts` (running the stages); `tests/infra/check.test.ts` tests it with small fake stages.
+
+## Order
+
+1. **i18n**: compiles the translation catalogs once. `npm run typecheck` is not used, because it compiles them again
+   (`pretypecheck`), and Vitest's global setup would compile them a third time while the typecheck reads the files.
+   The script sets `CHECK_CATALOGS_COMPILED`, which makes that setup skip its own compile.
+2. **typecheck, lint and vitest**, together.
+3. **playwright**, on its own: its build would compete with the others for the processor. It gets 10 seconds per
+   test (the default is 30) and stops at the first failure, so a locator that no longer matches costs 10 seconds
+   and not minutes.
+
+Before anything starts, the script checks that something answers on the host and port of `DATABASE_URL`. If not, it
+stops at once with "the database does not answer" instead of letting tests hang. Start the database with `npm run db:up`.
+
+## Time limits
+
+| Stage | Limit |
+|---|---|
+| i18n | 1 minute |
+| typecheck | 2 minutes |
+| lint | 2 minutes |
+| vitest | 3 minutes |
+| playwright (build and all specs) | 5 minutes |
+| the whole check | 8 minutes |
+
+A stage that reaches its limit is killed, together with every process it started, and counts as failed. The table
+says whether it was the stage's own limit or the limit of the whole check.
+
+## No retries
+
+- A stage runs once. A failed or timed-out stage is reported as it is, and is never run again to see whether it passes.
+- When a stage has failed, the later phases are skipped (shown as `skipped`): the first failure is the one to fix.
+- The table lists, for each stage that did not pass, the last 20 lines of its output and the path of its full log
+  (in the system's temporary folder).
+
+The `test-engineer` agent follows the same rules: no re-run unless a named infrastructure cause (a port in use, the
+database not started) was the reason, and never with changed flags.
+
+## When to change it
+
+The limits and flags are in `PHASES` in `scripts/check-lib.ts`. `tests/infra/check.test.ts` pins the limits and the two
+Playwright flags, so changing them is a deliberate step. A stage that keeps getting close to its limit should be made
+faster, not given more time.
