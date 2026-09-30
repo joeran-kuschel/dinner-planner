@@ -10,6 +10,20 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Where in the shop an item is found. The declaration order is the order of the
+/// grocery list's groups (a walk through the shop), so keep OTHER last.
+/// The labels live in lib/grocery-category.ts.
+enum GroceryCategory {
+  PRODUCE
+  BAKERY
+  MEAT_FISH
+  DAIRY_EGGS
+  PANTRY
+  FROZEN
+  DRINKS
+  OTHER
+}
+
 /// A reusable dinner recipe.
 model Recipe {
   id           String   @id @default(cuid())
@@ -59,6 +73,7 @@ model Ingredient {
   quantity Float?
   /// Free-form unit such as g, ml, tbsp. Null for countables ("2 onions").
   unit     String?
+  category GroceryCategory @default(OTHER)
   note     String?
   /// Display order within the recipe.
   position Int     @default(0)
@@ -95,6 +110,7 @@ model GroceryEntry {
   label     String
   quantity  Float?
   unit      String?
+  category  GroceryCategory @default(OTHER)
   /// True for lines the user typed in; false for rows that only carry `checked`.
   manual    Boolean  @default(false)
   checked   Boolean  @default(false)

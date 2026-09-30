@@ -51,7 +51,9 @@ Creating and editing use the same form.
   address) are optional.
 - **Serves** is the number of people the ingredient amounts are for. The grocery list scales them to the servings
   planned for each day.
-- **Ingredients** are rows of amount, unit and name. Leave the amount blank for "to taste". **Add ingredient** adds a
+- **Ingredients** are rows of amount, unit and name. Leave the amount blank for "to taste". Every row also has a **category** (the section of the shop, "Other" by
+  default) that decides where the ingredient sits on the [grocery list](groceries.md); screen readers hear it as
+  "Category for ingredient 2". **Add ingredient** adds a
   row, ✕ removes one (the last row stays).
 - **Method** is free text, one step per line.
 

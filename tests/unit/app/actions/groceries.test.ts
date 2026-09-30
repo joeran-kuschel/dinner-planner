@@ -163,6 +163,31 @@ describe("addGroceryExtra", () => {
     expectGroceriesRevalidated();
   });
 
+  it("files an extra under the chosen category, and under Other by default", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "DRINKS" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Bin bags" }));
+
+    const rows = await entries();
+    expect(rows.map((row) => [row.label, row.category])).toEqual([
+      ["Bin bags", "OTHER"],
+      ["Wine", "DRINKS"],
+    ]);
+  });
+
+  it("files an extra under Other when the category is not one of ours", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "LIQUOR" }));
+    expect((await entries())[0].category).toBe("OTHER");
+  });
+
+  it("moves an extra to another category when it is added again", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "PANTRY" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "DRINKS" }));
+
+    const rows = await entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].category).toBe("DRINKS");
+  });
+
   it("stores no unit and no amount when they are left empty", async () => {
     await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Dish soap", quantity: "", unit: "  " }));
 

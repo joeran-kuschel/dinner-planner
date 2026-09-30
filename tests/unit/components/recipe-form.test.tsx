@@ -20,8 +20,8 @@ const RISOTTO: Recipe = {
   sourceUrl: "https://example.com/risotto",
   instructions: "Soften the onion\nToast the rice",
   ingredients: [
-    { name: "Arborio rice", quantity: 300, unit: "g" },
-    { name: "Salt", quantity: null, unit: null },
+    { name: "Arborio rice", quantity: 300, unit: "g", category: "PANTRY" },
+    { name: "Salt", quantity: null, unit: null, category: "OTHER" },
   ],
 };
 
@@ -34,8 +34,8 @@ const REJECTED_VALUES: RecipeFormValues = {
   instructions: "Chop\nSimmer",
   photoAlt: "",
   ingredients: [
-    { name: "Leek", quantity: "2", unit: "" },
-    { name: "Stock", quantity: "1,5", unit: "l" },
+    { name: "Leek", quantity: "2", unit: "", category: "PRODUCE" },
+    { name: "Stock", quantity: "1,5", unit: "l", category: "PANTRY" },
   ],
 };
 
@@ -196,6 +196,61 @@ describe("RecipeForm", () => {
     });
   });
 
+  describe("ingredient categories", () => {
+    const category = (n: number) => screen.getByRole("combobox", { name: `Category for ingredient ${n}` });
+
+    it("files a new ingredient under Other", () => {
+      renderForm();
+      expect(category(1)).toHaveValue("OTHER");
+    });
+
+    it("offers every category, Other last", () => {
+      renderForm();
+      expect(within(category(1)).getAllByRole("option").map((option) => option.textContent)).toEqual([
+        "Fruit and vegetables",
+        "Bakery",
+        "Meat and fish",
+        "Dairy and eggs",
+        "Pantry",
+        "Frozen",
+        "Drinks",
+        "Other",
+      ]);
+    });
+
+    it("shows the saved category of each ingredient", () => {
+      renderForm(undefined, RISOTTO);
+      expect(category(1)).toHaveValue("PANTRY");
+      expect(category(2)).toHaveValue("OTHER");
+    });
+
+    it("posts the chosen category with each row", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action, RISOTTO);
+      await user.selectOptions(category(2), "PRODUCE");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      await waitFor(() => expect(action).toHaveBeenCalled());
+      expect(submittedData(action).getAll("ingredientCategory")).toEqual(["PANTRY", "PRODUCE"]);
+    });
+
+    it("keeps the chosen categories after a rejection", async () => {
+      const { user } = renderForm(rejectingAction(NAME_MISSING, REJECTED_VALUES));
+      await user.type(field("Name"), " ");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+      await screen.findByRole("alert");
+
+      expect(category(1)).toHaveValue("PRODUCE");
+      expect(category(2)).toHaveValue("PANTRY");
+    });
+
+    it("is named in German", () => {
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+      expect(screen.getByRole("combobox", { name: "Kategorie für Zutat 1" })).toHaveValue("OTHER");
+      expect(within(screen.getByRole("combobox", { name: "Kategorie für Zutat 1" })).getByRole("option", { name: "Obst und Gemüse" })).toBeInTheDocument();
+    });
+  });
+
   describe("ingredient rows", () => {
     it("adds a blank row at the end", async () => {
       const { user } = renderForm(undefined, RISOTTO);
@@ -304,6 +359,7 @@ describe("RecipeForm", () => {
             name: String(name),
             quantity: String(data.getAll("ingredientQuantity")[i]),
             unit: String(data.getAll("ingredientUnit")[i]),
+            category: String(data.getAll("ingredientCategory")[i]),
           })),
         },
       }));

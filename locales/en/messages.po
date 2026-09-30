@@ -72,10 +72,22 @@ msgstr "Arborio rice"
 msgid "Back to the plan"
 msgstr "Back to the plan"
 
+#: lib/grocery-category.ts
+msgid "Bakery"
+msgstr "Bakery"
+
 #: components/confirm-action.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Cancel"
+
+#: app/groceries/page.tsx
+msgid "Category"
+msgstr "Category"
+
+#: components/recipe-form.tsx
+msgid "Category for ingredient {number}"
+msgstr "Category for ingredient {number}"
 
 #: components/day-card.tsx
 msgid "Clear day"
@@ -92,6 +104,10 @@ msgstr "Clear week"
 #: components/recipe-form.tsx
 msgid "Create recipe"
 msgstr "Create recipe"
+
+#: lib/grocery-category.ts
+msgid "Dairy and eggs"
+msgstr "Dairy and eggs"
 
 #: components/day-card.tsx
 msgid "Day cleared"
@@ -134,6 +150,10 @@ msgstr "Dinner plan"
 msgid "Dinner Planner"
 msgstr "Dinner Planner"
 
+#: lib/grocery-category.ts
+msgid "Drinks"
+msgstr "Drinks"
+
 #: app/recipes/[id]/page.tsx
 msgid "Edit"
 msgstr "Edit"
@@ -153,6 +173,14 @@ msgstr "Everything ticked off."
 #: app/groceries/page.tsx
 msgid "from {plannedMeals, plural, one {# recipe} other {# recipes}}"
 msgstr "from {plannedMeals, plural, one {# recipe} other {# recipes}}"
+
+#: lib/grocery-category.ts
+msgid "Frozen"
+msgstr "Frozen"
+
+#: lib/grocery-category.ts
+msgid "Fruit and vegetables"
+msgstr "Fruit and vegetables"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
@@ -204,6 +232,10 @@ msgstr "Leave the amount blank for “to taste”."
 #: components/site-nav.tsx
 msgid "Main"
 msgstr "Main"
+
+#: lib/grocery-category.ts
+msgid "Meat and fish"
+msgstr "Meat and fish"
 
 #: app/recipes/[id]/page.tsx
 #: components/recipe-form.tsx
@@ -279,9 +311,17 @@ msgstr "One step per line.\n"
 "Soften the onion…\n"
 "Toast the rice…"
 
+#: lib/grocery-category.ts
+msgid "Other"
+msgstr "Other"
+
 #: app/not-found.tsx
 msgid "Page not found"
 msgstr "Page not found"
+
+#: lib/grocery-category.ts
+msgid "Pantry"
+msgstr "Pantry"
 
 #: components/recipe-form.tsx
 msgid "Photo"

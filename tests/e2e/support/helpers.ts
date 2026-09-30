@@ -16,7 +16,7 @@ export async function expectAccessible(page: Page): Promise<void> {
   expect(results.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
 }
 
-export type IngredientRow = { quantity?: string; unit?: string; name: string };
+export type IngredientRow = { quantity?: string; unit?: string; name: string; category?: string };
 
 /** Fill the recipe form's ingredient rows, adding rows when there are too few. */
 export async function fillIngredients(page: Page, ingredients: IngredientRow[]): Promise<void> {
@@ -31,6 +31,7 @@ export async function fillIngredients(page: Page, ingredients: IngredientRow[]):
     await page.getByLabel(`Amount for ingredient ${n}`, { exact: true }).fill(row.quantity ?? "");
     await page.getByLabel(`Unit for ingredient ${n}`, { exact: true }).fill(row.unit ?? "");
     await page.getByLabel(`Name of ingredient ${n}`, { exact: true }).fill(row.name);
+    if (row.category) await page.getByLabel(`Category for ingredient ${n}`, { exact: true }).selectOption({ label: row.category });
   }
 }
 

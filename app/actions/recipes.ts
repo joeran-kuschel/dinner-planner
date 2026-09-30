@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, parseQuantity, rawText } from "@/lib/form-data";
+import { parseGroceryCategory } from "@/lib/grocery-category";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
 import { MAX_PHOTO_ALT_LENGTH } from "@/lib/recipe-photo-shared";
@@ -25,6 +26,7 @@ function readValues(formData: FormData): RecipeFormValues {
   const names = formData.getAll("ingredientName").map(rawText);
   const quantities = formData.getAll("ingredientQuantity").map(rawText);
   const units = formData.getAll("ingredientUnit").map(rawText);
+  const categories = formData.getAll("ingredientCategory").map(rawText);
 
   return {
     name: rawText(formData.get("name")),
@@ -38,6 +40,7 @@ function readValues(formData: FormData): RecipeFormValues {
       name,
       quantity: quantities[index] ?? "",
       unit: units[index] ?? "",
+      category: parseGroceryCategory(categories[index]),
     })),
   };
 }
@@ -79,7 +82,15 @@ function toIngredientData(values: RecipeFormValues) {
 
     // An unparseable or non-positive amount becomes "to taste" rather than 0.
     const quantity = parseQuantity(row.quantity);
-    return [{ name, quantity, unit: row.unit.trim() || null, position: index }];
+    return [
+      {
+        name,
+        quantity,
+        unit: row.unit.trim() || null,
+        category: parseGroceryCategory(row.category),
+        position: index,
+      },
+    ];
   });
 }
 

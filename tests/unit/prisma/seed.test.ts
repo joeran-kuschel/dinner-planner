@@ -26,6 +26,18 @@ async function plan(): Promise<string[]> {
 }
 
 describe("prisma/seed.ts", () => {
+  it("files the sample ingredients under shop sections", async () => {
+    seed();
+
+    const ingredients = await prisma.ingredient.findMany({ where: { name: { in: ["Parmesan", "Chicken thighs", "Crusty bread", "Spaghetti"] } } });
+    expect(Object.fromEntries(ingredients.map((i) => [i.name, i.category]))).toEqual({
+      Parmesan: "DAIRY_EGGS",
+      "Chicken thighs": "MEAT_FISH",
+      "Crusty bread": "BAKERY",
+      Spaghetti: "PANTRY",
+    });
+  });
+
   it("creates the sample recipes with their ingredients in order", async () => {
     const output = seed();
 

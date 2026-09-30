@@ -5,6 +5,7 @@ import { GroceryList } from "@/components/grocery-list";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
+import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine } from "@/lib/grocery";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
@@ -37,10 +38,11 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       recipe: meal.recipe && {
         name: meal.recipe.name,
         servings: meal.recipe.servings,
-        ingredients: meal.recipe.ingredients.map(({ name, quantity, unit }) => ({
+        ingredients: meal.recipe.ingredients.map(({ name, quantity, unit, category }) => ({
           name,
           quantity,
           unit,
+          category,
         })),
       },
     })),
@@ -59,6 +61,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       label: entry.label,
       quantity: entry.quantity,
       unit: entry.unit,
+      category: entry.category,
       sources: [] as string[],
       manual: true,
       checked: entry.checked,
@@ -123,6 +126,12 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
               required
               placeholder={t(i18n)`Washing-up liquid`}
             />
+          </div>
+          <div>
+            <label className="label" htmlFor="category">
+              {t(i18n)`Category`}
+            </label>
+            <CategorySelect id="category" name="category" className="field mt-1" />
           </div>
           <button type="submit" className="btn-primary">
             {t(i18n)`Add`}

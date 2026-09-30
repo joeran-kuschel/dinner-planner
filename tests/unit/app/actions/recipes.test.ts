@@ -100,6 +100,37 @@ describe("createRecipe", () => {
     expectRecipeViewsRevalidated();
   });
 
+  it("stores each ingredient's category, Other when it is missing or unknown", async () => {
+    await submitCreate(
+      recipeForm({
+        ingredientName: ["Tomatoes", "Onion", "Salt", "Milk"],
+        ingredientQuantity: ["", "", "", ""],
+        ingredientUnit: ["", "", "", ""],
+        ingredientCategory: ["PRODUCE", "", "SPICES", "DAIRY_EGGS"],
+      }),
+    );
+
+    const recipe = await onlyRecipe();
+    expect(recipe.ingredients.map((i) => [i.name, i.category])).toEqual([
+      ["Tomatoes", "PRODUCE"],
+      ["Onion", "OTHER"],
+      ["Salt", "OTHER"],
+      ["Milk", "DAIRY_EGGS"],
+    ]);
+  });
+
+  it("keeps a category with its row when blank rows are skipped", async () => {
+    await submitCreate(
+      recipeForm({
+        ingredientName: ["", "Bread"],
+        ingredientQuantity: ["", ""],
+        ingredientUnit: ["", ""],
+        ingredientCategory: ["FROZEN", "BAKERY"],
+      }),
+    );
+    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.category])).toEqual([["Bread", "BAKERY"]]);
+  });
+
   it("trims every text field and stores blank optional fields as null", async () => {
     await submitCreate(
       recipeForm({
@@ -231,8 +262,8 @@ describe("createRecipe", () => {
           instructions: "Chop\nSimmer",
           photoAlt: "",
           ingredients: [
-            { name: "Tomatoes", quantity: "800", unit: "g" },
-            { name: "Onion", quantity: "1", unit: "" },
+            { name: "Tomatoes", quantity: "800", unit: "g", category: "OTHER" },
+            { name: "Onion", quantity: "1", unit: "", category: "OTHER" },
           ],
         },
       });
@@ -306,6 +337,7 @@ describe("createRecipe", () => {
         ingredientName: ["", "Salt"],
         ingredientQuantity: ["1,5", "lots"],
         ingredientUnit: ["kg", ""],
+        ingredientCategory: ["PRODUCE", "PANTRY"],
       }),
     );
 
@@ -314,8 +346,8 @@ describe("createRecipe", () => {
       servings: " 0 ",
       description: "",
       ingredients: [
-        { name: "", quantity: "1,5", unit: "kg" },
-        { name: "Salt", quantity: "lots", unit: "" },
+        { name: "", quantity: "1,5", unit: "kg", category: "PRODUCE" },
+        { name: "Salt", quantity: "lots", unit: "", category: "PANTRY" },
       ],
     });
   });
@@ -358,6 +390,26 @@ describe("updateRecipe", () => {
     // Old rows are gone, not merely re-ordered.
     expect(await prisma.ingredient.count()).toBe(2);
     expectRecipeViewsRevalidated();
+  });
+
+  it("replaces the categories together with the ingredients", async () => {
+    const recipe = await seedRecipe();
+
+    await expectRedirect(
+      updateRecipe(
+        EMPTY_RECIPE_FORM_STATE,
+        recipeForm({
+          id: recipe.id,
+          ingredientName: ["Tomatoes"],
+          ingredientQuantity: ["1"],
+          ingredientUnit: ["kg"],
+          ingredientCategory: ["PRODUCE"],
+        }),
+      ),
+      `/recipes/${recipe.id}`,
+    );
+
+    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.category])).toEqual([["Tomatoes", "PRODUCE"]]);
   });
 
   it("removes every ingredient when the form sends none", async () => {
@@ -423,7 +475,7 @@ describe("updateRecipe", () => {
     );
 
     expect(shown(state)).toMatchObject({ error: "Give the recipe a name.", attempt: 1 });
-    expect(state.values?.ingredients).toEqual([{ name: "New", quantity: "800", unit: "g" }]);
+    expect(state.values?.ingredients).toEqual([{ name: "New", quantity: "800", unit: "g", category: "OTHER" }]);
     const stored = await onlyRecipe();
     expect(stored.name).toBe("Old name");
     expect(stored.ingredients.map((i) => i.name)).toEqual(["Old A", "Old B"]);

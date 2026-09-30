@@ -11,8 +11,10 @@ import {
   useActionState,
   useState,
 } from "react";
+import { CategorySelect } from "@/components/category-select";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
+import { DEFAULT_GROCERY_CATEGORY, type GroceryCategory, parseGroceryCategory } from "@/lib/grocery-category";
 import { MAX_SERVINGS } from "@/lib/planner";
 import {
   EMPTY_RECIPE_FORM_STATE,
@@ -42,11 +44,11 @@ export type RecipeFormProps = {
     instructions: string | null;
     /** The recipe's photo, if it has one; `version` is its last change, see `recipePhotoUrl`. */
     photo?: { alt: string; version: number } | null;
-    ingredients: { name: string; quantity: number | null; unit: string | null }[];
+    ingredients: { name: string; quantity: number | null; unit: string | null; category: GroceryCategory }[];
   };
 };
 
-const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "" };
+const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: DEFAULT_GROCERY_CATEGORY };
 
 /** A new recipe starts with three empty rows — enough to look fillable. */
 const NEW_RECIPE: RecipeFormValues = {
@@ -75,6 +77,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
           name: row.name,
           quantity: row.quantity === null ? "" : String(row.quantity),
           unit: row.unit ?? "",
+          category: row.category,
         }))
       : NEW_RECIPE.ingredients,
   };
@@ -355,7 +358,7 @@ function IngredientRows({
 function IngredientRow({ row, number, onRemove }: { row: Row; number: number; onRemove: () => void }) {
   const { i18n } = useLingui();
   return (
-    <li className="flex items-start gap-2">
+    <li className="flex flex-wrap items-start gap-2">
       <input
         name="ingredientQuantity"
         className="field w-20"
@@ -377,6 +380,12 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
         aria-label={t(i18n)`Name of ingredient ${number}`}
         defaultValue={row.value.name}
         placeholder={t(i18n)`Arborio rice`}
+      />
+      <CategorySelect
+        name="ingredientCategory"
+        className="field w-44"
+        aria-label={t(i18n)`Category for ingredient ${number}`}
+        defaultValue={parseGroceryCategory(row.value.category)}
       />
       <button
         type="button"

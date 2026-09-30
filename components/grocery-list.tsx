@@ -5,7 +5,8 @@ import { useLingui } from "@lingui/react";
 import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
-import { formatGroceryQuantity, type GroceryLine } from "@/lib/grocery";
+import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
+import { categoryLabel } from "@/lib/grocery-category";
 
 export type GroceryListProps = {
   weekStart: string;
@@ -29,26 +30,37 @@ export function GroceryList({ weekStart, lines }: GroceryListProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="card divide-y divide-border">
-        {outstanding.length === 0 ? (
-          <p className="p-4 text-sm text-muted">{t(i18n)`Everything ticked off.`} 🎉</p>
-        ) : (
-          outstanding.map((line) => (
-            <GroceryRow key={line.key} weekStart={weekStart} line={line} />
-          ))
-        )}
-      </section>
+      {outstanding.length === 0 ? (
+        <p className="card p-4 text-sm text-muted">{t(i18n)`Everything ticked off.`} 🎉</p>
+      ) : (
+        groupByCategory(outstanding).map(({ category, lines: group }) => {
+          const name = categoryLabel(category, i18n);
+          const headingId = `category-${category}`;
+          return (
+            <section key={category} aria-labelledby={headingId} className="flex flex-col gap-2">
+              <h2 id={headingId} className="text-xs font-medium uppercase tracking-wide text-muted">
+                {name} ({group.length})
+              </h2>
+              <div className="card divide-y divide-border">
+                {group.map((line) => (
+                  <GroceryRow key={line.key} weekStart={weekStart} line={line} />
+                ))}
+              </div>
+            </section>
+          );
+        })
+      )}
 
       {done.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
+        <section aria-labelledby="in-the-basket" className="flex flex-col gap-2">
+          <h2 id="in-the-basket" className="text-xs font-medium uppercase tracking-wide text-muted">
             {t(i18n)`In the basket (${doneCount})`}
           </h2>
           {/* Ticked lines are marked by strikethrough and muted text, not by
               fading the card: opacity would push the text below AA contrast. */}
           <div className="card divide-y divide-border">
             {done.map((line) => (
-              <GroceryRow key={line.key} weekStart={weekStart} line={line} />
+              <GroceryRow key={line.key} weekStart={weekStart} line={line} showCategory />
             ))}
           </div>
         </section>
@@ -60,9 +72,12 @@ export function GroceryList({ weekStart, lines }: GroceryListProps) {
 function GroceryRow({
   weekStart,
   line,
+  showCategory = false,
 }: {
   weekStart: string;
   line: GroceryLine & { entryId: string | null };
+  /** Ticked lines sit apart from their section, so they name it. */
+  showCategory?: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const { i18n } = useLingui();
@@ -90,6 +105,9 @@ function GroceryRow({
           <span className={`text-sm ${line.checked ? "text-muted line-through" : ""}`}>{line.label}</span>
           {line.sources.length > 0 && (
             <span className="ml-2 text-xs text-muted">{line.sources.join(", ")}</span>
+          )}
+          {showCategory && (
+            <span className="ml-2 text-xs text-muted">{categoryLabel(line.category, i18n)}</span>
           )}
           {line.manual && line.sources.length === 0 && (
             <span className="ml-2 text-xs text-muted">{t(i18n)`added by hand`}</span>

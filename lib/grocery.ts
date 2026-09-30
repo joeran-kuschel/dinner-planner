@@ -9,11 +9,13 @@
 
 import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
+import { GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
 
 export type IngredientInput = {
   name: string;
   quantity: number | null;
   unit: string | null;
+  category: GroceryCategory;
 };
 
 export type MealInput = {
@@ -32,6 +34,7 @@ export type GroceryLine = {
   /** Null when at least one source ingredient had no quantity ("to taste"). */
   quantity: number | null;
   unit: string | null;
+  category: GroceryCategory;
   /** Recipe names this line came from, for the "used in" hint. */
   sources: string[];
   manual: boolean;
@@ -71,6 +74,7 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
           label: name,
           quantity: scaled,
           unit: ingredient.unit,
+          category: ingredient.category,
           sources: [meal.recipe.name],
         });
         continue;
@@ -80,6 +84,11 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
       // a partial total would understate what to buy.
       existing.quantity =
         existing.quantity === null || scaled === null ? null : existing.quantity + scaled;
+      // Recipes may file the same ingredient differently. The category that comes first in the
+      // shop wins, whatever the order of the meals, so the line never moves when the plan changes.
+      if (GROCERY_CATEGORIES.indexOf(ingredient.category) < GROCERY_CATEGORIES.indexOf(existing.category)) {
+        existing.category = ingredient.category;
+      }
       if (!existing.sources.includes(meal.recipe.name)) {
         existing.sources.push(meal.recipe.name);
       }
@@ -87,6 +96,19 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
   }
 
   return [...lines.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * Split lines into shop sections, in shopping order. Sections without a line
+ * are left out; the lines keep the order they came in.
+ */
+export function groupByCategory<T extends Pick<GroceryLine, "category">>(
+  lines: T[],
+): { category: GroceryCategory; lines: T[] }[] {
+  return GROCERY_CATEGORIES.map((category) => ({
+    category,
+    lines: lines.filter((line) => line.category === category),
+  })).filter((group) => group.lines.length > 0);
 }
 
 /**

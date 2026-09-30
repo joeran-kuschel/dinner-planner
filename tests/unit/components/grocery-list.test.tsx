@@ -18,6 +18,7 @@ function line(overrides: Partial<Line> & Pick<Line, "label">): Line {
     key: `${overrides.label.toLowerCase()}|${overrides.unit ?? ""}`,
     quantity: null,
     unit: null,
+    category: "OTHER",
     sources: [],
     manual: false,
     checked: false,
@@ -88,13 +89,52 @@ describe("GroceryList", () => {
 
     it("has no basket heading while nothing is ticked", () => {
       renderList([RICE, ONION]);
-      expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /In the basket/ })).not.toBeInTheDocument();
     });
 
     it("celebrates when everything is ticked off", () => {
       renderList([SALT, WINE]);
       expect(screen.getByText("Everything ticked off. 🎉")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "In the basket (2)" })).toBeInTheDocument();
+    });
+  });
+
+  describe("categories", () => {
+    const MILK = line({ label: "Milk", category: "DAIRY_EGGS" });
+    const APPLE = line({ label: "Apple", category: "PRODUCE" });
+    const BASIL = line({ label: "Basil", category: "PRODUCE" });
+    const headings = () => screen.getAllByRole("heading").map((heading) => heading.textContent);
+
+    it("groups open lines under a heading per category, in shopping order", () => {
+      renderList([RICE, MILK, APPLE, BASIL]);
+      expect(headings()).toEqual(["Fruit and vegetables (2)", "Dairy and eggs (1)", "Other (1)"]);
+
+      const produce = screen.getByRole("region", { name: "Fruit and vegetables (2)" });
+      expect(within(produce).getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"))).toEqual([
+        "Tick off Apple",
+        "Tick off Basil",
+      ]);
+    });
+
+    it("leaves out categories without an open line", () => {
+      renderList([MILK]);
+      expect(headings()).toEqual(["Dairy and eggs (1)"]);
+    });
+
+    it("names the category of a ticked line in the basket", () => {
+      renderList([{ ...MILK, checked: true }]);
+      expect(headings()).toEqual(["In the basket (1)"]);
+      expect(within(row("Milk")).getByText("Dairy and eggs")).toBeInTheDocument();
+    });
+
+    it("uses the German names", () => {
+      renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[APPLE, MILK]} />, { locale: "de" });
+      expect(headings()).toEqual(["Obst und Gemüse (1)", "Milchprodukte und Eier (1)"]);
+    });
+
+    it("has no axe violations", async () => {
+      const { container } = renderList([RICE, MILK, APPLE, { ...SALT, category: "PANTRY" }]);
+      await expectNoAxeViolations(container);
     });
   });
 
