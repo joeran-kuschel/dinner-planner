@@ -21,3 +21,4 @@ Feature documentation, split into the user interface and the backend.
 
 - [Database backups](backend/database-backups.md): hourly dumps of the cluster database, restore, and the launchd job
 - [The pre-push / pre-merge check](backend/testing-check.md): `npm run check`, its stages, time limits and the no-retry rule
+- [Changelog](backend/changelog.md): `CHANGELOG.md`, how an entry is written, cutting a release

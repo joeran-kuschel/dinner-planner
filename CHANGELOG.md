@@ -1,0 +1,70 @@
+# Changelog
+
+What changed in the dinner planner, newest first. Format: [Keep a Changelog](https://keepachangelog.com).
+Sections are headed by the release day; the image a deploy puts on the cluster is tagged with a UTC timestamp that
+starts with that day. How to write an entry and cut a release: [documentation/backend/changelog.md](documentation/backend/changelog.md).
+
+## [Unreleased]
+
+### Added
+
+- A changelog (this file), checked by a test ([#32](https://github.com/boyonthedocks/dinner-planner/issues/32)).
+
+## 2026-10-01
+
+### Added
+
+- Pantry staples: names you always have at home (salt, oil) can be listed on the grocery page, and matching lines are hidden from the list ([#2](https://github.com/boyonthedocks/dinner-planner/issues/2), [c8036b4](https://github.com/boyonthedocks/dinner-planner/commit/c8036b4)).
+
+### Changed
+
+- The grocery list is easier to read and tick off: bigger rows you can tick anywhere, ticked items stay in place, a count of what is left ([#13](https://github.com/boyonthedocks/dinner-planner/issues/13), [942bdaf](https://github.com/boyonthedocks/dinner-planner/commit/942bdaf)).
+- Buttons that delete or clear are red, and every button is at least 44 px on a touch screen ([#17](https://github.com/boyonthedocks/dinner-planner/issues/17), [9bc93fe](https://github.com/boyonthedocks/dinner-planner/commit/9bc93fe)).
+- Tooling: every end-to-end test starts with an empty database ([#26](https://github.com/boyonthedocks/dinner-planner/issues/26), [9d09493](https://github.com/boyonthedocks/dinner-planner/commit/9d09493)).
+
+### Removed
+
+- The "Untick everything" button on the grocery list ([#17](https://github.com/boyonthedocks/dinner-planner/issues/17)).
+
+## 2026-09-30
+
+### Added
+
+- Recipe tags, a recipe search and recipe suggestions from the third letter ([#1](https://github.com/boyonthedocks/dinner-planner/issues/1), [8161bf2](https://github.com/boyonthedocks/dinner-planner/commit/8161bf2)).
+- The grocery list is grouped by shop section, and every ingredient has one ([#3](https://github.com/boyonthedocks/dinner-planner/issues/3), [77e70a4](https://github.com/boyonthedocks/dinner-planner/commit/77e70a4)).
+
+### Changed
+
+- Mandatory fields are marked with an asterisk and a note ([#27](https://github.com/boyonthedocks/dinner-planner/issues/27), [e5b56cc](https://github.com/boyonthedocks/dinner-planner/commit/e5b56cc)).
+- Tooling: `npm run check`, a time-limited check without retries ([#28](https://github.com/boyonthedocks/dinner-planner/issues/28), [64fea1d](https://github.com/boyonthedocks/dinner-planner/commit/64fea1d)); a launch config for the dev preview; the review comes before the check.
+
+## 2026-09-29
+
+### Added
+
+- A photo for every recipe ([#8](https://github.com/boyonthedocks/dinner-planner/issues/8), [5ff3980](https://github.com/boyonthedocks/dinner-planner/commit/5ff3980)).
+- The plan is available in German and English, switchable without a reload ([d1d9713](https://github.com/boyonthedocks/dinner-planner/commit/d1d9713)).
+- A planned day links to its recipe ([#11](https://github.com/boyonthedocks/dinner-planner/issues/11), [011ffa4](https://github.com/boyonthedocks/dinner-planner/commit/011ffa4)).
+- "Saved" confirms a finished auto-save ([#10](https://github.com/boyonthedocks/dinner-planner/issues/10), [ba75f69](https://github.com/boyonthedocks/dinner-planner/commit/ba75f69)).
+- Previous week and "This week" on the grocery list ([#12](https://github.com/boyonthedocks/dinner-planner/issues/12), [ad4cbdd](https://github.com/boyonthedocks/dinner-planner/commit/ad4cbdd)).
+- Undo for "Clear day" ([#9](https://github.com/boyonthedocks/dinner-planner/issues/9), [4d4db66](https://github.com/boyonthedocks/dinner-planner/commit/4d4db66)).
+
+### Changed
+
+- Deleting a recipe or clearing a week asks first ([#9](https://github.com/boyonthedocks/dinner-planner/issues/9), [4d4db66](https://github.com/boyonthedocks/dinner-planner/commit/4d4db66)).
+- The project is called dinner-planner ([654a761](https://github.com/boyonthedocks/dinner-planner/commit/654a761)).
+
+## 2026-09-28
+
+### Added
+
+- The first version: recipes with ingredients, one dinner per day, a grocery list for the week, kept in Postgres and deployable to Kubernetes ([1b76451](https://github.com/boyonthedocks/dinner-planner/commit/1b76451)).
+- Recipe suggestions while planning a dinner, and dinners that are no recipe ([da86baf](https://github.com/boyonthedocks/dinner-planner/commit/da86baf)).
+
+### Changed
+
+- Tooling: tests moved into `tests/`, end-to-end tests run against the same server as the image.
+
+### Fixed
+
+- "1 ingredients" now reads "1 ingredient" ([a7256ba](https://github.com/boyonthedocks/dinner-planner/commit/a7256ba)).
