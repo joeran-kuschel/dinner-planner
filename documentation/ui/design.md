@@ -48,6 +48,12 @@ dark pill. Below it, the same element is a **tab bar fixed to the bottom edge** 
 thumb reaches; the active tab is tomato. The language switch stays in the header, before the links in the keyboard order; the current language has a visible outline as well as darker text. The page leaves room under its content
 (`pb-28`) and `scroll-padding-bottom` for the bar.
 
+## Icon
+
+The browser tab, bookmarks and the phone's home screen show the logo from the header: a tomato disc with a plate. `app/icon.svg`
+is the source (Next.js links it by itself); `app/apple-icon.png` (180 px) and `app/favicon.ico` are rendered from it for
+browsers that do not use SVG. Change the SVG, then render the other two again.
+
 ## Pages
 
 - **Week plan** ([Week plan](week-plan.md)): one card with seven rows instead of seven cards. Each row has the day and date
