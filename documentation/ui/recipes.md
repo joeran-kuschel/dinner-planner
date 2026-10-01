@@ -66,14 +66,21 @@ returns to the current week. Its tags are links to the list filtered by that tag
 
 Creating and editing use the same form.
 
-- **Name** is required (see "Mandatory fields" below). Description, prep time (**Minutes**) and **Source** (a web
+- **Name** is required (see "Mandatory fields" below). Description, prep time and **Source** (a web
   address) are optional.
 - **Serves** is the number of people the ingredient amounts are for. The grocery list scales them to the servings
   planned for each day.
-- **Ingredients** are rows of amount, unit and name. Leave the amount blank for "to taste". Every row also has a **category** (the section of the shop, "Other" by
-  default) that decides where the ingredient sits on the [grocery list](groceries.md); screen readers hear it as
-  "Category for ingredient 2". **Add ingredient** adds a
-  row, ✕ removes one (the last row stays).
+- **Prep time (min)** is how many minutes the recipe takes.
+- **Ingredients** are rows of amount, unit, name and category, with the column names above them (on a phone each
+  field has its own small name above it). Leave the amount blank for "to taste"; the note under the heading says so, and
+  screen readers read it with every amount field.
+  - **Unit** suggests the common ones (g, kg, ml, l, tbsp, tsp, cup, piece, pinch, clove) and every other unit your recipes
+    already use (the common ones in the page's language: "EL" and "TL" in German), so "g" and "grams" do not end up as two lines on the grocery list. You can still type any unit.
+  - The **category** (the section of the shop, "Other" by default) decides where the ingredient sits on the
+    [grocery list](groceries.md); screen readers hear it as "Category for ingredient 2".
+  - **Enter** in an amount, unit or name field jumps to the first field of the next row, and after the last row it adds
+    one. Enter in a row with nothing in it saves the recipe, so the keyboard never gets stuck in the list.
+  - **Add ingredient** adds a row, ✕ removes one (the last row stays).
 - **Tags** label the recipe ("vegetarian", "quick") so it can be found again. Type a tag and press **Enter** or type
   a **comma**: it becomes a chip under the field. A chip's ✕ ("Remove tag vegetarian") takes it away again; the focus moves on to the next chip's ✕, or to the field
   when none is left. A recipe

@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- The recipe form's ingredient rows have visible column names instead of example text, suggest units, and Enter jumps to the next row's first field (adding a row after the last) ([#14](https://github.com/boyonthedocks/dinner-planner/issues/14)).
 - A changelog (this file), checked by a test ([#32](https://github.com/boyonthedocks/dinner-planner/issues/32)).
 
 ### Changed
@@ -16,6 +17,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 - On a phone the menu is a tab bar at the bottom of the screen.
 - The browser tab and the home-screen icon show the app's logo, the tomato disc with the plate.
 - The week plan is one list of days instead of seven cards; recipes without a photo get a coloured tile; the grocery list shows a progress bar and two columns on wide screens.
+- The prep time field of the recipe form is labelled "Prep time (min)" ([#14](https://github.com/boyonthedocks/dinner-planner/issues/14)).
 
 ## 2026-10-01
 
