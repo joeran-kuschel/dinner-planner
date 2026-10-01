@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createRecipe } from "@/app/actions/recipes";
 import { RecipeForm } from "@/components/recipe-form";
 import { tagNames } from "@/lib/recipe-search";
+import { unitSuggestions } from "@/lib/units";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export async function generateMetadata() {
@@ -20,7 +21,7 @@ export default async function NewRecipePage() {
         </Link>
         <h1 className="page-title mt-2">{t(i18n)`New recipe`}</h1>
       </header>
-      <RecipeForm action={createRecipe} tagSuggestions={await tagNames()} />
+      <RecipeForm action={createRecipe} tagSuggestions={await tagNames()} unitSuggestions={await unitSuggestions(i18n)} />
     </div>
   );
 }

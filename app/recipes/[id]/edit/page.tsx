@@ -5,6 +5,7 @@ import { updateRecipe } from "@/app/actions/recipes";
 import { RecipeForm } from "@/components/recipe-form";
 import { prisma } from "@/lib/db";
 import { tagNames } from "@/lib/recipe-search";
+import { unitSuggestions } from "@/lib/units";
 import { getServerI18n } from "@/lib/i18n/server";
 
 export default async function EditRecipePage({ params }: PageProps<"/recipes/[id]/edit">) {
@@ -34,6 +35,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
       <RecipeForm
         action={updateRecipe}
         tagSuggestions={await tagNames()}
+        unitSuggestions={await unitSuggestions(i18n)}
         recipe={{
           id: recipe.id,
           name: recipe.name,

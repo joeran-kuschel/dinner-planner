@@ -50,9 +50,13 @@ function rejectingAction(error: MessageDescriptor, values: RecipeFormValues = RE
   return vi.fn<Action>(async (prev) => ({ error, values, attempt: prev.attempt + 1 }));
 }
 
-function renderForm(action: Action = vi.fn<Action>(async (prev) => prev), recipe?: Recipe) {
+function renderForm(
+  action: Action = vi.fn<Action>(async (prev) => prev),
+  recipe?: Recipe,
+  unitSuggestions?: string[],
+) {
   const user = userEvent.setup();
-  const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} />);
+  const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} unitSuggestions={unitSuggestions} />);
   return { user, ...result };
 }
 
@@ -62,7 +66,7 @@ const field = (label: string) => screen.getByLabelText(label, { normalizer: with
 const rowCount = () => screen.getAllByRole("textbox", { name: /^Name of ingredient/ }).length;
 const ingredientRow = (n: number) =>
   [`Amount for ingredient ${n}`, `Unit for ingredient ${n}`, `Name of ingredient ${n}`].map(
-    (label) => (screen.getByRole("textbox", { name: label }) as HTMLInputElement).value,
+    (label) => (screen.getByLabelText(label) as HTMLInputElement).value,
   );
 const submittedData = (action: ReturnType<typeof vi.fn<Action>>) => action.mock.calls.at(-1)![1];
 
@@ -74,7 +78,7 @@ describe("RecipeForm", () => {
       expect(field("Name")).toBeRequired();
       expect(field("Description")).toHaveValue("");
       expect(field("Serves")).toHaveValue(2);
-      expect(field("Minutes")).toHaveValue(null);
+      expect(field("Prep time (min)")).toHaveValue(null);
       expect(field("Source")).toHaveValue("");
       expect(field("Method")).toHaveValue("");
       expect(rowCount()).toBe(3);
@@ -92,8 +96,8 @@ describe("RecipeForm", () => {
       expect(field("Serves")).toHaveAttribute("type", "number");
       expect(field("Serves")).toHaveAttribute("min", "1");
       expect(field("Serves")).toHaveAttribute("max", "99");
-      expect(field("Minutes")).toHaveAttribute("min", "1");
-      expect(field("Minutes")).toHaveAttribute("max", "1440");
+      expect(field("Prep time (min)")).toHaveAttribute("min", "1");
+      expect(field("Prep time (min)")).toHaveAttribute("max", "1440");
       expect(field("Source")).toHaveAttribute("type", "url");
       expect(screen.getByRole("textbox", { name: "Amount for ingredient 1" })).toHaveAttribute("inputmode", "decimal");
     });
@@ -106,13 +110,13 @@ describe("RecipeForm", () => {
       await user.type(field("Description"), "Quick");
       await user.clear(field("Serves"));
       await user.type(field("Serves"), "3");
-      await user.type(field("Minutes"), "25");
+      await user.type(field("Prep time (min)"), "25");
       await user.type(field("Source"), "https://example.com/soup");
       await user.type(field("Method"), "Chop{Enter}Simmer");
       await user.type(screen.getByRole("textbox", { name: "Amount for ingredient 1" }), "2");
       await user.type(screen.getByRole("textbox", { name: "Name of ingredient 1" }), "Leek");
       await user.type(screen.getByRole("textbox", { name: "Amount for ingredient 2" }), "1,5");
-      await user.type(screen.getByRole("textbox", { name: "Unit for ingredient 2" }), "l");
+      await user.type(screen.getByRole("combobox", { name: "Unit for ingredient 2" }), "l");
       await user.type(screen.getByRole("textbox", { name: "Name of ingredient 2" }), "Stock");
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
 
@@ -147,7 +151,7 @@ describe("RecipeForm", () => {
       expect(field("Name")).toHaveValue("Mushroom risotto");
       expect(field("Description")).toHaveValue("Creamy and slow");
       expect(field("Serves")).toHaveValue(4);
-      expect(field("Minutes")).toHaveValue(40);
+      expect(field("Prep time (min)")).toHaveValue(40);
       expect(field("Source")).toHaveValue("https://example.com/risotto");
       expect(field("Method")).toHaveValue("Soften the onion\nToast the rice");
       expect(rowCount()).toBe(2);
@@ -164,7 +168,7 @@ describe("RecipeForm", () => {
         instructions: null,
       });
       expect(field("Description")).toHaveValue("");
-      expect(field("Minutes")).toHaveValue(null);
+      expect(field("Prep time (min)")).toHaveValue(null);
       expect(field("Source")).toHaveValue("");
       expect(field("Method")).toHaveValue("");
     });
@@ -378,6 +382,93 @@ describe("RecipeForm", () => {
     });
   });
 
+  describe("ingredient entry", () => {
+    const amount = (n: number) => screen.getByRole("textbox", { name: `Amount for ingredient ${n}` });
+    const name = (n: number) => screen.getByRole("textbox", { name: `Name of ingredient ${n}` });
+
+    it("labels the prep time and shows no placeholder that looks like data", () => {
+      renderForm();
+      expect(field("Prep time (min)")).toBeInTheDocument();
+      for (const label of ["Amount for ingredient 1", "Unit for ingredient 1", "Name of ingredient 1"]) {
+        expect(screen.getByLabelText(label)).not.toHaveAttribute("placeholder");
+      }
+    });
+
+    it("names the columns above the rows and on a phone beside each field", () => {
+      renderForm();
+      // One heading from sm up and one name per field below it, hidden from assistive technology.
+      expect(screen.getAllByText("Category", { selector: "span" })).toHaveLength(4);
+      expect(screen.getAllByText("Amount", { selector: "span" })).toHaveLength(4);
+    });
+
+    it("explains a blank amount to screen readers through the amount fields", () => {
+      renderForm();
+      const hint = screen.getByText("Leave the amount blank for “to taste”.");
+      expect(hint).toHaveAttribute("id", "ingredients-hint");
+      for (const n of [1, 2, 3]) expect(amount(n)).toHaveAccessibleDescription(hint.textContent!);
+    });
+
+    it("suggests the given units in the unit fields", () => {
+      renderForm(undefined, undefined, ["g", "bunch"]);
+      const unit = screen.getByRole("combobox", { name: "Unit for ingredient 1" });
+      const list = document.getElementById(unit.getAttribute("list")!)!;
+      expect([...list.querySelectorAll("option")].map((option) => option.value)).toEqual(["g", "bunch"]);
+    });
+
+    it("moves from a filled row to the first field of the next, without submitting", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action);
+      await user.type(name(1), "Leek{Enter}");
+
+      expect(amount(2)).toHaveFocus();
+      expect(rowCount()).toBe(3);
+      expect(action).not.toHaveBeenCalled();
+    });
+
+    it("moves on from the amount and the unit as well", async () => {
+      const { user } = renderForm();
+      await user.type(amount(1), "2{Enter}");
+      expect(amount(2)).toHaveFocus();
+      await user.type(screen.getByRole("combobox", { name: "Unit for ingredient 2" }), "kg{Enter}");
+      expect(amount(3)).toHaveFocus();
+    });
+
+    it("adds a row after the last one and focuses its first field", async () => {
+      const { user } = renderForm(undefined, RISOTTO);
+      await user.type(name(2), "{Enter}");
+      // The last row holds Salt, so it is not blank.
+      expect(rowCount()).toBe(3);
+      expect(amount(3)).toHaveFocus();
+      await user.type(name(3), "Parmesan{Enter}");
+      expect(rowCount()).toBe(4);
+      expect(amount(4)).toHaveFocus();
+    });
+
+    it("submits when Enter is pressed in a row with nothing in it", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action);
+      await user.type(field("Name"), "Soup");
+      await user.type(name(2), "{Enter}");
+
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      expect(rowCount()).toBe(3);
+    });
+
+    it("does not take Enter from the other fields of the form", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      const { user } = renderForm(action);
+      await user.type(field("Name"), "Soup{Enter}");
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    });
+
+    it("is named in German", () => {
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+      expect(screen.getByLabelText("Zubereitungszeit (Min.)")).toBeInTheDocument();
+      expect(screen.getAllByText("Zutat", { selector: "span" })).toHaveLength(4);
+      expect(screen.getAllByText("Kategorie", { selector: "span" })).toHaveLength(4);
+    });
+  });
+
   describe("validation error", () => {
     it("announces the error in an alert", async () => {
       const action = rejectingAction(NAME_MISSING);
@@ -400,7 +491,7 @@ describe("RecipeForm", () => {
       expect(field("Name")).toHaveValue("");
       expect(field("Description")).toHaveValue("Still typing");
       expect(field("Serves")).toHaveValue(3);
-      expect(field("Minutes")).toHaveValue(25);
+      expect(field("Prep time (min)")).toHaveValue(25);
       expect(field("Source")).toHaveValue("https://example.com/soup");
       expect(field("Method")).toHaveValue("Chop\nSimmer");
       expect(rowCount()).toBe(2);
@@ -877,7 +968,7 @@ describe("RecipeForm", () => {
       const list = screen.getByRole("list");
       const second = within(list).getAllByRole("listitem")[1];
       expect(within(second).getByRole("textbox", { name: "Amount for ingredient 2" })).toBeInTheDocument();
-      expect(within(second).getByRole("textbox", { name: "Unit for ingredient 2" })).toBeInTheDocument();
+      expect(within(second).getByRole("combobox", { name: "Unit for ingredient 2" })).toBeInTheDocument();
       expect(within(second).getByRole("textbox", { name: "Name of ingredient 2" })).toBeInTheDocument();
       expect(within(second).getByRole("button", { name: "Remove ingredient 2" })).toBeInTheDocument();
     });
@@ -913,12 +1004,12 @@ describe("RecipeForm", () => {
       expect(field("Name")).toHaveAttribute("placeholder", "Pilzrisotto");
       expect(field("Beschreibung")).toBeInTheDocument();
       expect(field("Personen")).toHaveValue(2);
-      expect(field("Minuten")).toBeInTheDocument();
+      expect(field("Zubereitungszeit (Min.)")).toBeInTheDocument();
       expect(field("Quelle")).toBeInTheDocument();
       expect(field("Zubereitung")).toBeInTheDocument();
       expect(field("Menge für Zutat 1")).toBeInTheDocument();
       expect(field("Einheit für Zutat 1")).toBeInTheDocument();
-      expect(field("Name von Zutat 1")).toHaveAttribute("placeholder", "Risottoreis");
+      expect(field("Name von Zutat 1")).not.toHaveAttribute("placeholder");
       expect(screen.getByRole("button", { name: "Zutat 1 entfernen" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Zutat hinzufügen" })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Abbrechen" })).toBeInTheDocument();

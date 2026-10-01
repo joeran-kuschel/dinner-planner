@@ -142,7 +142,10 @@ test.describe("accessibility", () => {
 
     await tabTo(page, page.getByLabel("Name of ingredient 2", { exact: true }));
     await page.keyboard.type("Leek");
-    // Enter in a text field submits the form.
+    // Enter in an ingredient row moves to the next row's first field ...
+    await page.keyboard.press("Enter");
+    await expect(page.getByLabel("Amount for ingredient 3", { exact: true })).toBeFocused();
+    // ... and in a row with nothing in it submits the form.
     await page.keyboard.press("Enter");
 
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();

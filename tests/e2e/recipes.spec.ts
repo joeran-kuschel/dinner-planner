@@ -18,7 +18,7 @@ test.describe("recipes", () => {
     await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Description", { exact: true }).fill("Creamy and slow");
     await page.getByLabel("Serves", { exact: true }).fill("4");
-    await page.getByLabel("Minutes", { exact: true }).fill("35");
+    await page.getByLabel("Prep time (min)", { exact: true }).fill("35");
     await fillIngredients(page, [
       { quantity: "300", unit: "g", name: "Arborio rice" },
       { quantity: "1,5", unit: "l", name: "Stock" }, // decimal comma

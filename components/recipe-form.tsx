@@ -8,7 +8,10 @@ import {
   type FormEvent,
   type InputHTMLAttributes,
   startTransition,
+  type KeyboardEvent,
   useActionState,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 import { CategorySelect } from "@/components/category-select";
@@ -50,6 +53,8 @@ export type RecipeFormProps = {
   };
   /** The tags in use, offered while typing one. */
   tagSuggestions?: string[];
+  /** The units to offer in the ingredient rows. */
+  unitSuggestions?: string[];
 };
 
 const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: DEFAULT_GROCERY_CATEGORY };
@@ -89,7 +94,7 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
   };
 }
 
-export function RecipeForm({ action, recipe, tagSuggestions = [] }: RecipeFormProps) {
+export function RecipeForm({ action, recipe, tagSuggestions = [], unitSuggestions = [] }: RecipeFormProps) {
   const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
   const { i18n } = useLingui();
 
@@ -126,7 +131,7 @@ export function RecipeForm({ action, recipe, tagSuggestions = [] }: RecipeFormPr
       <RecipeFields key={`fields-${state.attempt}`} values={values} />
       <PhotoFields recipe={recipe} alt={values.photoAlt} />
       <TagInput key={`tags-${state.attempt}`} initial={values.tags} suggestions={tagSuggestions} />
-      <IngredientRows key={`rows-${state.attempt}`} {...ingredients} />
+      <IngredientRows key={`rows-${state.attempt}`} {...ingredients} units={unitSuggestions} />
       <MethodField key={`method-${state.attempt}`} instructions={values.instructions} />
 
       <div className="flex items-center gap-3">
@@ -211,7 +216,7 @@ function RecipeNumbers({ values }: { values: RecipeFormValues }) {
         hint={t(i18n)`Quantities below are for this many people.`}
       />
       <Field
-        label={t(i18n)`Minutes`}
+        label={t(i18n)`Prep time (min)`}
         name="prepMinutes"
         type="number"
         min={1}
@@ -336,24 +341,74 @@ function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: 
   );
 }
 
+/** The ingredient fields, in row order; Enter in one of them moves on to the next row's first instead of submitting. */
+const ROW_FIELDS = ["ingredientQuantity", "ingredientUnit", "ingredientName"];
+
 function IngredientRows({
   rows,
   addRow,
   removeRow,
-}: ReturnType<typeof useIngredientRows>) {
+  units,
+}: ReturnType<typeof useIngredientRows> & { units: string[] }) {
   const { i18n } = useLingui();
+  const list = useRef<HTMLUListElement>(null);
+  const focusAfterAdd = useRef<string | null>(null);
+
+  // A row added by Enter takes the focus once it is on the page.
+  useEffect(() => {
+    const field = focusAfterAdd.current;
+    focusAfterAdd.current = null;
+    if (field) list.current?.querySelector<HTMLInputElement>(`li:last-child [name="${field}"]`)?.focus();
+  }, [rows.length]);
+
+  // Enter in a field goes to the first field of the next row, adding one after the last. A row with
+  // nothing in it lets Enter submit, so the keyboard is never stuck in the list.
+  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    const field = event.target;
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    if (!(field instanceof HTMLInputElement) || !ROW_FIELDS.includes(field.name)) return;
+    const row = field.closest("li");
+    if (!row) return;
+    const blank = ROW_FIELDS.every((name) => !row.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value.trim());
+    if (blank) return;
+    event.preventDefault();
+    const [first] = ROW_FIELDS;
+    const next = row.nextElementSibling?.querySelector<HTMLInputElement>(`[name="${first}"]`);
+    if (next) next.focus();
+    else {
+      focusAfterAdd.current = first;
+      addRow();
+    }
+  };
+
   return (
     <section className="card flex flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="section-title">{t(i18n)`Ingredients`}</h2>
-        <p className="text-xs text-muted">{t(i18n)`Leave the amount blank for “to taste”.`}</p>
+        <p id="ingredients-hint" className="mt-1 text-sm text-muted">
+          {t(i18n)`Leave the amount blank for “to taste”.`}
+        </p>
       </div>
 
-      <ul className="flex flex-col gap-2">
+      {/* The column names, from sm; on a phone each field names itself. The inputs carry their own labels. */}
+      <div aria-hidden className="hidden gap-2 text-xs font-semibold text-muted sm:flex">
+        <span className="w-20">{t(i18n)`Amount`}</span>
+        <span className="w-20">{t(i18n)`Unit`}</span>
+        <span className="flex-1">{t(i18n)`Ingredient`}</span>
+        <span className="w-44">{t(i18n)`Category`}</span>
+        <span className="min-w-9 pointer-coarse:min-w-11" />
+      </div>
+
+      <ul ref={list} onKeyDown={onKeyDown} className="flex flex-col gap-3 sm:gap-2">
         {rows.map((row, index) => (
           <IngredientRow key={row.id} row={row} number={index + 1} onRemove={() => removeRow(row.id)} />
         ))}
       </ul>
+      <datalist id="unit-suggestions">
+        {units.map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
 
       <button type="button" onClick={addRow} className="btn-secondary self-start">
         {t(i18n)`Add ingredient`}
@@ -362,38 +417,59 @@ function IngredientRows({
   );
 }
 
+/** A phone's visible name for a field; from sm the column heading above the rows does it. */
+function FieldName({ children }: { children: string }) {
+  return (
+    <span aria-hidden className="text-xs font-semibold text-muted sm:hidden">
+      {children}
+    </span>
+  );
+}
+
 function IngredientRow({ row, number, onRemove }: { row: Row; number: number; onRemove: () => void }) {
   const { i18n } = useLingui();
   return (
-    <li className="flex flex-wrap items-start gap-2">
-      <input
-        name="ingredientQuantity"
-        className="field w-20"
-        inputMode="decimal"
-        aria-label={t(i18n)`Amount for ingredient ${number}`}
-        defaultValue={row.value.quantity}
-        placeholder="200"
-      />
-      <input
-        name="ingredientUnit"
-        className="field w-20"
-        aria-label={t(i18n)`Unit for ingredient ${number}`}
-        defaultValue={row.value.unit}
-        placeholder={t(i18n)`g`}
-      />
-      <input
-        name="ingredientName"
-        className="field flex-1"
-        aria-label={t(i18n)`Name of ingredient ${number}`}
-        defaultValue={row.value.name}
-        placeholder={t(i18n)`Arborio rice`}
-      />
-      <CategorySelect
-        name="ingredientCategory"
-        className="field w-44"
-        aria-label={t(i18n)`Category for ingredient ${number}`}
-        defaultValue={parseGroceryCategory(row.value.category)}
-      />
+    <li className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+      <div className="flex w-20 flex-col gap-1">
+        <FieldName>{t(i18n)`Amount`}</FieldName>
+        <input
+          name="ingredientQuantity"
+          className="field"
+          inputMode="decimal"
+          aria-label={t(i18n)`Amount for ingredient ${number}`}
+          aria-describedby="ingredients-hint"
+          defaultValue={row.value.quantity}
+        />
+      </div>
+      <div className="flex w-20 flex-col gap-1">
+        <FieldName>{t(i18n)`Unit`}</FieldName>
+        <input
+          name="ingredientUnit"
+          className="field"
+          list="unit-suggestions"
+          autoComplete="off"
+          aria-label={t(i18n)`Unit for ingredient ${number}`}
+          defaultValue={row.value.unit}
+        />
+      </div>
+      <div className="flex min-w-40 flex-1 flex-col gap-1 sm:min-w-0">
+        <FieldName>{t(i18n)`Ingredient`}</FieldName>
+        <input
+          name="ingredientName"
+          className="field"
+          aria-label={t(i18n)`Name of ingredient ${number}`}
+          defaultValue={row.value.name}
+        />
+      </div>
+      <div className="flex w-44 flex-col gap-1">
+        <FieldName>{t(i18n)`Category`}</FieldName>
+        <CategorySelect
+          name="ingredientCategory"
+          className="field"
+          aria-label={t(i18n)`Category for ingredient ${number}`}
+          defaultValue={parseGroceryCategory(row.value.category)}
+        />
+      </div>
       <button
         type="button"
         onClick={onRemove}

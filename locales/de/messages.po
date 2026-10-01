@@ -91,16 +91,13 @@ msgid "Added tag {added}"
 msgstr "Tag {added} hinzugefügt"
 
 #: app/groceries/page.tsx
+#: components/recipe-form.tsx
 msgid "Amount"
 msgstr "Menge"
 
 #: components/recipe-form.tsx
 msgid "Amount for ingredient {number}"
 msgstr "Menge für Zutat {number}"
-
-#: components/recipe-form.tsx
-msgid "Arborio rice"
-msgstr "Risottoreis"
 
 #: app/not-found.tsx
 #: app/recipes/[id]/page.tsx
@@ -117,6 +114,7 @@ msgid "Cancel"
 msgstr "Abbrechen"
 
 #: app/groceries/page.tsx
+#: components/recipe-form.tsx
 msgid "Category"
 msgstr "Kategorie"
 
@@ -140,6 +138,10 @@ msgstr "Ganze Woche leeren"
 msgid "Clear week"
 msgstr "Woche leeren"
 
+#: lib/units.ts
+msgid "clove"
+msgstr "Zehe"
+
 #: components/grocery-list.tsx
 msgid "Could not save the tick. Try again."
 msgstr "Das Abhaken konnte nicht gespeichert werden. Versuche es noch einmal."
@@ -147,6 +149,10 @@ msgstr "Das Abhaken konnte nicht gespeichert werden. Versuche es noch einmal."
 #: components/recipe-form.tsx
 msgid "Create recipe"
 msgstr "Rezept anlegen"
+
+#: lib/units.ts
+msgid "cup"
+msgstr "Tasse"
 
 #: lib/grocery-category.ts
 msgid "Dairy and eggs"
@@ -230,7 +236,7 @@ msgid "Fruit and vegetables"
 msgstr "Obst und Gemüse"
 
 #: app/groceries/page.tsx
-#: components/recipe-form.tsx
+#: lib/units.ts
 msgid "g"
 msgstr "g"
 
@@ -263,6 +269,10 @@ msgstr "im Vorrat"
 msgid "ingredient"
 msgstr "Zutat"
 
+#: components/recipe-form.tsx
+msgid "Ingredient"
+msgstr "Zutat"
+
 #: app/recipes/[id]/page.tsx
 #: components/recipe-form.tsx
 msgid "Ingredients"
@@ -275,6 +285,14 @@ msgstr "Artikel"
 #: components/recipe-form.tsx
 msgid "JPEG, PNG or WebP, up to {MAX_PHOTO_MEGABYTES} MB."
 msgstr "JPEG, PNG oder WebP, bis zu {MAX_PHOTO_MEGABYTES} MB."
+
+#: lib/units.ts
+msgid "kg"
+msgstr "kg"
+
+#: lib/units.ts
+msgid "l"
+msgstr "l"
 
 #: components/language-switcher.tsx
 msgid "Language"
@@ -297,13 +315,13 @@ msgstr "Fleisch und Fisch"
 msgid "Method"
 msgstr "Zubereitung"
 
-#: components/recipe-form.tsx
-msgid "Minutes"
-msgstr "Minuten"
-
 #: app/actions/recipes.ts
 msgid "Missing recipe id."
 msgstr "Die Rezept-ID fehlt."
+
+#: lib/units.ts
+msgid "ml"
+msgstr "ml"
 
 #: components/recipe-form.tsx
 msgid "Mushroom risotto"
@@ -410,6 +428,14 @@ msgstr "Fotodatei"
 msgid "Pick a recipe or type a dinner…"
 msgstr "Rezept wählen oder Gericht eingeben…"
 
+#: lib/units.ts
+msgid "piece"
+msgstr "Stück"
+
+#: lib/units.ts
+msgid "pinch"
+msgstr "Prise"
+
 #: components/day-card.tsx
 msgid "Plan “{name}” for this day only"
 msgstr "„{name}“ nur für diesen Tag planen"
@@ -425,6 +451,10 @@ msgstr "{plannedFor}× geplant"
 #: app/recipes/[id]/page.tsx
 msgid "Planned for {plannedDays}."
 msgstr "Geplant: {plannedDays}"
+
+#: components/recipe-form.tsx
+msgid "Prep time (min)"
+msgstr "Zubereitungszeit (Min.)"
 
 #: app/actions/recipes.ts
 msgid "Prep time can be at most {MAX_PREP_MINUTES} minutes."
@@ -560,6 +590,10 @@ msgstr "Tags"
 msgid "Tags of this recipe"
 msgstr "Tags dieses Rezepts"
 
+#: lib/units.ts
+msgid "tbsp"
+msgstr "EL"
+
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
 msgstr "Die Beschreibung des Fotos darf höchstens {MAX_PHOTO_ALT_LENGTH} Zeichen lang sein."
@@ -622,6 +656,10 @@ msgstr "nach Geschmack"
 msgid "today"
 msgstr "heute"
 
+#: lib/units.ts
+msgid "tsp"
+msgstr "TL"
+
 #: components/day-card.tsx
 msgid "Undo"
 msgstr "Rückgängig"
@@ -631,6 +669,7 @@ msgid "Undo clearing {weekday}"
 msgstr "Rückgängig: {weekday} wurde geleert"
 
 #: app/groceries/page.tsx
+#: components/recipe-form.tsx
 msgid "Unit"
 msgstr "Einheit"
 

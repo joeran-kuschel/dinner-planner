@@ -106,6 +106,7 @@ lib/
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
   tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
   recipe-search.ts      the recipe list's search + tag filter, tagNames() — server only
+  units.ts              the recipe form's unit suggestions: the common units plus those in use — server only
   recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
   recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
   recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
