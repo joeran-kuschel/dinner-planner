@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test } from "@/tests/e2e/support/test";
 import { confirmAction, createRecipe, expectAccessible, fillIngredients, unique } from "@/tests/e2e/support/helpers";
 
 function ingredientItems(page: Page) {

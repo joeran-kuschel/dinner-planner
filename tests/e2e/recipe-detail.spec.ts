@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@/tests/e2e/support/test";
 import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The recipe detail and edit pages beyond creating and editing (recipes.spec.ts):

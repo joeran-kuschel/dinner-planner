@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@/tests/e2e/support/test";
 
 // The Kubernetes readiness probe, against the real production build.
 test("the readiness probe answers 200 while the database is reachable, uncached", async ({ request }) => {

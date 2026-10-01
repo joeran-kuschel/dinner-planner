@@ -55,6 +55,29 @@ export async function createMigratedSchema(baseUrl: string, schema: string): Pro
   }
 }
 
+/**
+ * Delete every row of every table in `schema`, keeping the tables. Prisma's own bookkeeping table is
+ * left alone. Every table is named with its schema, never through the search path, so this can only
+ * ever reach `schema`.
+ *
+ * The end-to-end tests call this before each test, so that none of them sees what another left
+ * behind. It takes the tables from the database rather than from a list, so a new model is emptied
+ * without anyone remembering to add it.
+ */
+export async function emptySchema(client: Client, schema: string): Promise<void> {
+  if (schema === "public") {
+    throw new Error("Refusing to empty the `public` schema — that is the development data.");
+  }
+
+  const { rows } = await client.query<{ tablename: string }>(
+    "SELECT tablename FROM pg_tables WHERE schemaname = $1 AND tablename <> '_prisma_migrations'",
+    [schema],
+  );
+  if (rows.length === 0) return;
+  const tables = rows.map((row) => `${quoteIdent(schema)}.${quoteIdent(row.tablename)}`);
+  await client.query(`TRUNCATE ${tables.join(", ")} CASCADE`);
+}
+
 /** Remove a schema created by `createMigratedSchema`. */
 export async function dropSchema(baseUrl: string, schema: string): Promise<void> {
   if (schema === "public") return;
