@@ -43,6 +43,20 @@ const row = (label: string) => screen.getByRole("checkbox", { name: `Tick off ${
 const lastFormData = (fn: typeof actions.toggleGroceryLine) => fn.mock.calls.at(-1)![0];
 
 describe("GroceryList", () => {
+  describe("progress bar", () => {
+    it("is hidden from assistive technology and fills with the share of ticked lines", () => {
+      const { container } = renderList([RICE, ONION, SALT, NAPKINS]);
+      const track = container.querySelector('[aria-hidden="true"] > .bg-herb, [aria-hidden] > .bg-herb') as HTMLElement;
+      expect(track.parentElement).toHaveAttribute("aria-hidden", "true");
+      expect(track.style.width).toBe("25%");
+    });
+
+    it("is full when everything is ticked", () => {
+      const { container } = renderList([SALT]);
+      expect((container.querySelector(".bg-herb") as HTMLElement).style.width).toBe("100%");
+    });
+  });
+
   describe("empty", () => {
     it("explains where the list comes from", () => {
       renderList([]);

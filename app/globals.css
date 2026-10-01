@@ -3,44 +3,62 @@
 /*
  * Colour tokens are defined once here and consumed through Tailwind utilities
  * (bg-surface, text-muted, …). Add a token rather than hard-coding a hex value
- * in a component, so dark mode stays a one-line change.
+ * in a component, so dark mode stays a one-line change. The palette is warm paper
+ * with a tomato accent; documentation/ui/design.md has the reasoning and the contrast ratios.
  */
 :root {
-  --background: oklch(0.985 0.008 85);
-  --surface: oklch(1 0 0);
-  --surface-muted: oklch(0.968 0.01 85);
-  --border: oklch(0.9 0.012 85);
-  --foreground: oklch(0.22 0.02 60);
-  --muted: oklch(0.52 0.02 60);
-  --accent: oklch(0.55 0.16 32);
-  --accent-foreground: oklch(0.99 0.01 32);
+  --background: #f6f1e7;
+  --surface: #fffdf8;
+  --surface-muted: #efe8da;
+  /* Dividers and card edges: decorative, so they are quiet (WCAG 1.4.11 does not ask for more). */
+  --border: #d9cfb9;
+  /* The edge of an input, a select or a checkbox: part of the control, so 3:1 against every
+   * background it sits on (WCAG 1.4.11). */
+  --field-border: #8c7e69;
+  --foreground: #2a2118;
+  --muted: #66594a;
+  --accent: #b8431f;
+  --accent-foreground: #ffffff;
   /* Darker on hover, so the button text keeps at least 4.5:1 (WCAG 1.4.3). */
-  --accent-hover: oklch(0.5 0.16 32);
-  --accent-soft: oklch(0.94 0.04 40);
+  --accent-hover: #9e3716;
+  --accent-soft: #f8e1d4;
+  /* Accent-coloured text on --accent-soft: --accent itself is 4.3:1 there, a little short of AA. */
+  --accent-text: #a23716;
+  /* "Done": a planned day, a ticked line, the progress bar. Tomato means "do this"; herb means "done". */
+  --herb: #3f6b3a;
+  --herb-soft: #dce8d0;
+  --ochre: #6e5200;
+  --ochre-soft: #f3e3b8;
   /* Destructive actions. A deeper, bluer red than the accent, and used as an outline or text
    * for the question and as a fill only on the confirming button. Text on --danger-soft and on
    * the surface keeps 4.5:1 (axe checks it in both colour schemes). */
-  --danger: oklch(0.48 0.19 22);
-  --danger-foreground: oklch(0.99 0 0);
-  --danger-soft: oklch(0.95 0.03 22);
+  --danger: #a32a1b;
+  --danger-foreground: #ffffff;
+  --danger-soft: #f8ddd8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.18 0.012 60);
-    --surface: oklch(0.22 0.014 60);
-    --surface-muted: oklch(0.26 0.016 60);
-    --border: oklch(0.32 0.016 60);
-    --foreground: oklch(0.95 0.008 85);
-    --muted: oklch(0.72 0.016 75);
-    --accent: oklch(0.7 0.15 45);
-    --accent-foreground: oklch(0.2 0.03 45);
+    --background: #1b1612;
+    --surface: #241e18;
+    --surface-muted: #2d261e;
+    --border: #3e352a;
+    --field-border: #8f826d;
+    --foreground: #f3ebdd;
+    --muted: #b5a892;
+    --accent: #e8825a;
+    --accent-foreground: #1b1612;
     /* Lighter on hover, against the dark button text. */
-    --accent-hover: oklch(0.76 0.14 45);
-    --accent-soft: oklch(0.3 0.04 45);
-    --danger: oklch(0.76 0.14 22);
-    --danger-foreground: oklch(0.2 0.03 22);
-    --danger-soft: oklch(0.3 0.06 22);
+    --accent-hover: #ee9570;
+    --accent-soft: #3b2a20;
+    --accent-text: #e8825a;
+    --herb: #9bc48f;
+    --herb-soft: #26331f;
+    --ochre: #e3c16f;
+    --ochre-soft: #3a3016;
+    --danger: #f0958a;
+    --danger-foreground: #1b1612;
+    --danger-soft: #3d2420;
   }
 }
 
@@ -49,17 +67,23 @@
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-border: var(--border);
+  --color-field: var(--field-border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-herb: var(--herb);
+  --color-herb-soft: var(--herb-soft);
+  --color-ochre: var(--ochre);
+  --color-ochre-soft: var(--ochre-soft);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
 body {
@@ -67,16 +91,26 @@ body {
   color: var(--foreground);
 }
 
+/* One focus indicator for everything that can take the keyboard: a 3 px ring in the text colour,
+ * which is at least 3:1 against every background (WCAG 2.4.7, 1.4.11, 2.4.13). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--foreground);
+  outline-offset: 2px;
+}
+
 /* Room for the sticky header, so a field the browser scrolls to on focus is
  * never hidden under it (WCAG 2.4.11). Below `sm` the header takes two rows,
- * three for the German one at 320 px (123 px); from `sm` it is one row. */
+ * three for the German one at 320 px (123 px) and the tab bar sits at the bottom;
+ * from `sm` it is one row and there is no tab bar. */
 html {
   scroll-padding-top: 8rem;
+  scroll-padding-bottom: 6rem;
 }
 
 @media (min-width: 40rem) {
   html {
-    scroll-padding-top: 4.5rem;
+    scroll-padding-top: 5.5rem;
+    scroll-padding-bottom: 0;
   }
 }
 
@@ -85,8 +119,8 @@ html {
  * button base is written as a selector list rather than composed from `.btn`. */
 @layer components {
   .field {
-    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground
-      placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+    @apply min-h-11 w-full rounded-xl border-[1.5px] border-field bg-surface px-3.5 py-2 text-base text-foreground
+      placeholder:text-muted focus:border-accent;
   }
 
   .btn,
@@ -95,13 +129,12 @@ html {
   .btn-ghost,
   .btn-danger,
   .btn-danger-quiet {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
-      transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
-      disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold
+      transition-colors disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply bg-accent text-accent-foreground hover:bg-accent-hover;
+    @apply border border-accent bg-accent text-accent-foreground hover:bg-accent-hover;
   }
 
   .btn-secondary {
@@ -122,28 +155,34 @@ html {
     @apply text-danger hover:bg-danger-soft;
   }
 
-  /* The ring of the shared base is the accent at 40%, too faint to count as a focus indicator
-   * (WCAG 1.4.11, 3:1). The danger buttons ring in full danger red, and the soft hover colour
-   * is no part of it. */
-  .btn-danger,
-  .btn-danger-quiet {
-    @apply focus-visible:ring-danger;
+  /* A button that is only a symbol (✕): 36 px round, 44 px on a touch screen (see below). */
+  .btn-icon {
+    @apply inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors
+      hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60;
   }
 
-  /* A button that is only a symbol (✕): 32 px square, 44 px on a touch screen (see below). */
-  .btn-icon {
-    @apply inline-flex size-8 items-center justify-center rounded-lg text-muted transition-colors
-      hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2
-      focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60;
+  /* A language button: 36 px with a mouse; the touch rule below raises it to 44 px. Not a utility class,
+   * which would beat that rule. */
+  .lang-btn {
+    min-height: 2.25rem;
   }
 
   .card {
-    @apply rounded-xl border border-border bg-surface;
+    @apply rounded-2xl border border-border bg-surface;
+  }
+
+  /* The big serif titles: the page's h1, and the heading of a section on a page. */
+  .page-title {
+    @apply font-display text-4xl font-semibold leading-tight tracking-tight sm:text-5xl;
+  }
+
+  .section-title {
+    @apply font-display text-xl font-semibold tracking-tight;
   }
 
   /* A tag. The remove button of a chip in the recipe form is at least 24 px square (WCAG 2.5.8). */
   .pill {
-    @apply inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-xs text-foreground;
+    @apply inline-flex items-center gap-1 rounded-full bg-surface-muted px-3 py-0.5 text-xs font-medium text-foreground;
   }
 
   .pill-remove {
@@ -160,6 +199,7 @@ html {
     .btn-danger,
     .btn-danger-quiet,
     .btn-icon,
+    .lang-btn,
     .pill-remove {
       min-width: 2.75rem;
       min-height: 2.75rem;
@@ -167,10 +207,10 @@ html {
   }
 
   .label {
-    @apply block text-xs font-medium uppercase tracking-wide text-muted;
+    @apply block text-xs font-bold uppercase tracking-wider text-muted;
   }
 
   .required-mark {
-    @apply font-bold text-accent-hover;
+    @apply font-bold text-accent-text;
   }
 }

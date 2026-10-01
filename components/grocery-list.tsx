@@ -37,19 +37,26 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
   return (
     <div className="flex flex-col gap-6">
       {/* A polite status, so ticking a line is answered in words too. */}
-      <p role="status" className="text-sm text-muted">
-        {ticked === total ? t(i18n)`Everything ticked off.` : t(i18n)`${ticked} of ${total} ticked off`}
-        {/* Not read out: a screen reader would say "party popper" every time. */}
-        {ticked === total && <span aria-hidden="true"> 🎉</span>}
-      </p>
+      <div className="flex flex-col gap-3">
+        <p role="status" className="font-display text-2xl font-semibold">
+          {ticked === total ? t(i18n)`Everything ticked off.` : t(i18n)`${ticked} of ${total} ticked off`}
+          {/* Not read out: a screen reader would say "party popper" every time. */}
+          {ticked === total && <span aria-hidden="true"> 🎉</span>}
+        </p>
+        {/* The words above say it; the bar is for a glance. */}
+        <div aria-hidden className="h-3 overflow-hidden rounded-full bg-border">
+          <div className="h-full bg-herb transition-[width]" style={{ width: `${(ticked / total) * 100}%` }} />
+        </div>
+      </div>
 
       {/* A ticked line stays where it is, struck through, so the list does not move under the thumb. */}
+      <div className="md:columns-2 md:gap-6 [&>*]:mb-6 [&>*]:break-inside-avoid">
       {groupByCategory(lines).map(({ category, lines: group }) => {
         const name = categoryLabel(category, i18n);
         const headingId = `category-${category}`;
         return (
           <section key={category} aria-labelledby={headingId} className="flex flex-col gap-2">
-            <h2 id={headingId} className="text-xs font-medium uppercase tracking-wide text-muted">
+            <h2 id={headingId} className="section-title">
               {name} ({group.length})
             </h2>
             <div className="card divide-y divide-border">
@@ -60,6 +67,7 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
           </section>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -109,7 +117,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
             type="checkbox"
             checked={checked}
             onChange={() => formRef.current?.requestSubmit()}
-            className="size-6 shrink-0 accent-[var(--accent)]"
+            className="size-6 shrink-0 accent-[var(--herb)]"
             aria-label={t(i18n)`Tick off ${label}`}
           />
 

@@ -11,7 +11,7 @@ export default async function NotFound() {
 
   return (
     <div className="flex flex-col items-start gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Page not found`}</h1>
+      <h1 className="page-title">{t(i18n)`Page not found`}</h1>
       <p className="text-sm text-muted">{t(i18n)`This page does not exist, or the recipe was deleted.`}</p>
       <Link href="/" className="btn-secondary">
         {t(i18n)`Back to the plan`}

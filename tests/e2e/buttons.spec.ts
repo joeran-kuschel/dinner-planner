@@ -90,9 +90,13 @@ test.describe("keyboard focus", () => {
     page,
   }) => {
     const { id } = await setUp(page);
-    const ring = (locator: Locator) => locator.evaluate((element) => getComputedStyle(element).boxShadow);
-    // The alpha of the ring colour: Chrome writes a translucent colour as `/ 0.4` or `, 0.4)`.
-    const translucent = (shadow: string) => /(\/|,)\s*0?\.\d+\s*\)/.test(shadow);
+    // One ring for everything: a solid 3 px outline in the text colour (no translucent shadow).
+    const ring = (locator: Locator) =>
+      locator.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { style: style.outlineStyle, width: style.outlineWidth, color: style.outlineColor };
+      });
+    const foreground = await textColor(page.locator("body"));
 
     // Keyboard focus: after a click, a script's `focus()` does not count as one (no :focus-visible).
     const tabTo = async (locator: Locator) => {
@@ -104,15 +108,13 @@ test.describe("keyboard focus", () => {
 
     const remove = page.getByRole("button", { name: /^Remove / });
     await tabTo(remove);
-    expect(await ring(remove)).not.toBe("none");
-    expect(translucent(await ring(remove))).toBe(false);
+    await expect.poll(() => ring(remove)).toEqual({ style: "solid", width: "3px", color: foreground });
 
     await page.goto(`/recipes/${id}`);
     await page.locator("summary", { hasText: /^Delete$/ }).click();
     const confirm = page.getByRole("button", { name: "Delete recipe", exact: true });
     await tabTo(confirm);
-    expect(await ring(confirm)).not.toBe("none");
-    expect(translucent(await ring(confirm))).toBe(false);
+    await expect.poll(() => ring(confirm)).toEqual({ style: "solid", width: "3px", color: foreground });
   });
 });
 
@@ -120,13 +122,17 @@ test.describe("on a mouse", () => {
   test("every small button is at least 24 px, the WCAG minimum", async ({ page }) => {
     const { id } = await setUp(page);
     const remove = await box(page.getByRole("button", { name: /^Remove / }));
-    expect(Math.min(remove.width, remove.height)).toBeGreaterThanOrEqual(32);
+    expect(Math.min(remove.width, remove.height)).toBeGreaterThanOrEqual(36);
 
     await page.goto(`/recipes/${id}/edit`);
     const ingredient = await box(page.getByRole("button", { name: "Remove ingredient 1" }));
     const tag = await box(page.getByRole("button", { name: "Remove tag quick" }));
-    expect(Math.min(ingredient.width, ingredient.height)).toBeGreaterThanOrEqual(32);
+    expect(Math.min(ingredient.width, ingredient.height)).toBeGreaterThanOrEqual(36);
     expect(Math.min(tag.width, tag.height)).toBeGreaterThanOrEqual(24);
+    for (const name of ["Deutsch", "English"]) {
+      const lang = await box(page.getByRole("button", { name }));
+      expect(lang.height, name).toBeGreaterThanOrEqual(36);
+    }
 
     await page.goto(`/?week=${WEEK}`);
     for (const name of ["Previous week", "Next week"]) {
@@ -138,6 +144,14 @@ test.describe("on a mouse", () => {
 
 test.describe("on a touch screen", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("the language buttons are at least 44 px wide and high", async ({ page }) => {
+    await setUp(page);
+    for (const name of ["Deutsch", "English"]) {
+      const size = await box(page.getByRole("button", { name }));
+      expect(Math.min(size.width, size.height), name).toBeGreaterThanOrEqual(44);
+    }
+  });
 
   test("every button is at least 44 px wide and high", async ({ page }) => {
     const { id } = await setUp(page);

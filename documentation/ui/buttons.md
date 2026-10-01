@@ -7,7 +7,7 @@ them can be hit with a fingertip.
 
 | Kind | Looks like | Used for |
 | ---- | ---------- | -------- |
-| Primary (`.btn-primary`) | Solid terracotta | The one main action of a page or form: **Save changes**, **Create recipe**, **Add**, **Grocery list for this week** |
+| Primary (`.btn-primary`) | Solid tomato pill | The one main action of a page or form: **Save changes**, **Create recipe**, **Add**, **Grocery list for this week** |
 | Secondary (`.btn-secondary`) | Outlined | Other actions: **Edit**, **Cancel**, the week arrows, **This week** |
 | Ghost (`.btn-ghost`) | Plain muted text | Harmless extras such as **Clear** (the search) |
 | Icon (`.btn-icon`) | A ✕ without a frame | Taking one thing out of a list: an ingredient row, a grocery extra, a tag chip |
@@ -23,7 +23,7 @@ first, with a small question that has the solid danger button ([Recipes](recipes
 
 ## Touch targets
 
-- With a **mouse**, a ✕ is a 32 px square and every other button at least its text plus padding. Nothing is smaller than the
+- With a **mouse**, a ✕ is a 36 px circle and every other button at least 44 px high. Nothing is smaller than the
   24 px that WCAG 2.2 asks for (success criterion 2.5.8).
 - On a **touch screen** (the browser reports a coarse pointer) every button is at least **44 px wide and high**, the size of
   a fingertip (the stricter criterion 2.5.5): the week arrows, the ✕ buttons, the tag chips' remove buttons, **Delete**,
@@ -33,9 +33,8 @@ The week arrows ← and → have no visible words, as people know them; a screen
 
 ## Keyboard focus
 
-The danger buttons and the ✕ buttons show a solid ring (red, or the accent colour) when reached with the keyboard. The ring
-that the other buttons and the form fields still use is the accent colour at 40%, which is fainter than the 3:1 that a focus
-indicator needs (WCAG 1.4.11); bringing those up to the same ring is a separate change.
+Every button, link and field shows the same solid ring when reached with the keyboard: 3 px in the text colour, 2 px away,
+at least 3:1 against every background ([Look and layout](design.md)).
 
 ## Not covered here
 

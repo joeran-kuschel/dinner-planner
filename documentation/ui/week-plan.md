@@ -1,13 +1,13 @@
 # Week plan
 
-The home page (`/`) shows one week, Monday to Sunday, as a card per day. Each card holds the day's dinner, how many
+The home page (`/`) shows one week, Monday to Sunday, as one list with a row per day, called a day card here. Each card holds the day's dinner, how many
 people it is for, an optional note, and a button to clear the day. Everything saves by itself; there is no save button.
 
 The labels below are the English ones; see [Language](language.md) for the German interface.
 
 ## Moving between weeks
 
-**←** and **→** above the cards open the week before and after, and **This week** returns to the current one; screen
+**←** and **→** above the list open the week before and after, and **This week** returns to the current one; screen
 readers hear "Previous week" and "Next week". The week is in the address (`/?week=2027-01-04`): any day of a week opens
 that week from its Monday, and a missing or malformed value shows the current week. The
 [grocery list](groceries.md) has the same buttons.

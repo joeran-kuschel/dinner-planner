@@ -7,6 +7,7 @@ Feature documentation, split into the user interface and the backend.
 - [Week plan](ui/week-plan.md): the day cards, the dinner field with its suggestions, and keyboard use
 - [Recipes](ui/recipes.md): the recipe list and pages, the form with its photo, and deleting a recipe
 - [Grocery list](ui/groceries.md): the weekly shopping list, moving between weeks, ticking off and extras
+- [Look and layout](ui/design.md): the palette, the two typefaces, the focus ring, the tab bar and the page layouts
 - [Buttons and touch targets](ui/buttons.md): the kinds of button, the red of destructive actions, the 44 px touch size
 - [Language](ui/language.md): switching between English and German, which language you get, dates and numbers
 

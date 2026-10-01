@@ -119,7 +119,7 @@ export function PantrySection({ staples, hiddenCount, showHidden, toggleHref, su
         )}
 
         {hiddenCount > 0 && (
-          <Link href={toggleHref} scroll={false} className="self-start text-sm font-medium text-accent underline">
+          <Link href={toggleHref} scroll={false} className="self-start text-sm font-medium text-accent-text underline">
             {showHidden
               ? t(i18n)`Hide the pantry items again`
               : t(i18n)`${plural(hiddenCount, { one: "Show the # hidden item", other: "Show the # hidden items" })}`}

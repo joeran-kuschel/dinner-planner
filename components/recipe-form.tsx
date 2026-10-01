@@ -290,7 +290,7 @@ function PhotoFields({ recipe, alt }: { recipe: RecipeFormProps["recipe"]; alt: 
 
   return (
     <section className="card flex flex-col gap-4 p-4">
-      <h2 className="text-sm font-semibold">{t(i18n)`Photo`}</h2>
+      <h2 className="section-title">{t(i18n)`Photo`}</h2>
       {recipe && photo && (
         <div className="flex flex-wrap items-center gap-4">
           <RecipePhoto
@@ -345,7 +345,7 @@ function IngredientRows({
   return (
     <section className="card flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{t(i18n)`Ingredients`}</h2>
+        <h2 className="section-title">{t(i18n)`Ingredients`}</h2>
         <p className="text-xs text-muted">{t(i18n)`Leave the amount blank for “to taste”.`}</p>
       </div>
 

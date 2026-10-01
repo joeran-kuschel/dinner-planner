@@ -15,6 +15,9 @@ export function unique(label: string): string {
 export async function expectAccessible(page: Page): Promise<void> {
   // After a client-side navigation Next.js applies the page title a moment after the content.
   await expect(page).toHaveTitle(/.+/);
+  // Colours animate (`transition-colors`, e.g. a nav link after a click); axe would measure a
+  // half-way colour. Let every running transition end first.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))));
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();

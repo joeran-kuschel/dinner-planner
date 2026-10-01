@@ -258,6 +258,33 @@ test.describe("language", () => {
   }
 });
 
+test.describe("scroll padding", () => {
+  for (const { width, top, bottom } of [
+    { width: 639, top: "128px", bottom: "96px" },
+    { width: 640, top: "88px", bottom: "0px" },
+  ]) {
+    test(`reserves ${top} above and ${bottom} below at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 640 });
+      await page.goto("/");
+      const padding = await page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return [style.scrollPaddingTop, style.scrollPaddingBottom];
+      });
+      expect(padding).toEqual([top, bottom]);
+    });
+  }
+
+  test("a field scrolled to the bottom stays above the phone's tab bar", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 640 });
+    await page.goto("/recipes/new");
+    const field = page.getByRole("textbox", { name: /^Name$/ });
+    await field.evaluate((element) => element.scrollIntoView({ block: "end" }));
+    const nav = await page.getByRole("navigation", { name: "Main" }).boundingBox();
+    const box = await field.boundingBox();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(nav!.y);
+  });
+});
+
 /** Scroll the recipe form's name field to the top edge and check the header leaves it visible. */
 async function expectFieldBelowHeader(page: Page, width: number) {
   await page.setViewportSize({ width, height: 640 });

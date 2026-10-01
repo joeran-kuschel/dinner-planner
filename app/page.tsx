@@ -45,7 +45,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 id="week-plan-title" tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+          <h1 id="week-plan-title" tabIndex={-1} className="page-title">
             {t(i18n)`Dinner plan`}
           </h1>
           <p className="mt-1 text-sm text-muted">
@@ -61,7 +61,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
         <p className="card p-4 text-sm text-muted">
           <Trans>
             No recipes yet.{" "}
-            <Link href="/recipes/new" className="font-medium text-accent underline">
+            <Link href="/recipes/new" className="font-medium text-accent-text underline">
               Add your first one
             </Link>{" "}
             and it will be suggested for every day.
@@ -69,7 +69,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="card divide-y divide-border [&>form:first-child]:rounded-t-2xl [&>form:last-child]:rounded-b-2xl">
         {days.map((day) => {
           const key = dayKey(day);
           const meal = mealsByDay.get(key) ?? null;
