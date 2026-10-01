@@ -103,7 +103,7 @@ whenever its input is `required`.
 
 ## Deleting a recipe
 
-**Delete** on the recipe's page does not delete at once. It opens a small question below the button (as a sheet at the bottom of the screen when the screen is narrower than 640
+**Delete** on the recipe's page (red, see [Buttons](buttons.md)) does not delete at once. It opens a small question below the button (as a sheet at the bottom of the screen when the screen is narrower than 640
 px): "Delete “Name”?
 Days that only plan it are cleared too." with **Delete recipe** and **Cancel**.
 

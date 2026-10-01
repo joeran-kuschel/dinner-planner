@@ -17,6 +17,12 @@
   /* Darker on hover, so the button text keeps at least 4.5:1 (WCAG 1.4.3). */
   --accent-hover: oklch(0.5 0.16 32);
   --accent-soft: oklch(0.94 0.04 40);
+  /* Destructive actions. A deeper, bluer red than the accent, and used as an outline or text
+   * for the question and as a fill only on the confirming button. Text on --danger-soft and on
+   * the surface keeps 4.5:1 (axe checks it in both colour schemes). */
+  --danger: oklch(0.48 0.19 22);
+  --danger-foreground: oklch(0.99 0 0);
+  --danger-soft: oklch(0.95 0.03 22);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +38,9 @@
     /* Lighter on hover, against the dark button text. */
     --accent-hover: oklch(0.76 0.14 45);
     --accent-soft: oklch(0.3 0.04 45);
+    --danger: oklch(0.76 0.14 22);
+    --danger-foreground: oklch(0.2 0.03 22);
+    --danger-soft: oklch(0.3 0.06 22);
   }
 }
 
@@ -46,6 +55,9 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -80,7 +92,9 @@ html {
   .btn,
   .btn-primary,
   .btn-secondary,
-  .btn-ghost {
+  .btn-ghost,
+  .btn-danger,
+  .btn-danger-quiet {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
       transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
       disabled:cursor-not-allowed disabled:opacity-60;
@@ -98,6 +112,31 @@ html {
     @apply text-muted hover:bg-surface-muted hover:text-foreground;
   }
 
+  /* A destructive action: the quiet one asks or acts (Delete, Clear day), the solid one is the
+   * button that confirms. Never the same look as the primary button. */
+  .btn-danger {
+    @apply bg-danger text-danger-foreground hover:bg-danger/90;
+  }
+
+  .btn-danger-quiet {
+    @apply text-danger hover:bg-danger-soft;
+  }
+
+  /* The ring of the shared base is the accent at 40%, too faint to count as a focus indicator
+   * (WCAG 1.4.11, 3:1). The danger buttons ring in full danger red, and the soft hover colour
+   * is no part of it. */
+  .btn-danger,
+  .btn-danger-quiet {
+    @apply focus-visible:ring-danger;
+  }
+
+  /* A button that is only a symbol (✕): 32 px square, 44 px on a touch screen (see below). */
+  .btn-icon {
+    @apply inline-flex size-8 items-center justify-center rounded-lg text-muted transition-colors
+      hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2
+      focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
   .card {
     @apply rounded-xl border border-border bg-surface;
   }
@@ -109,6 +148,22 @@ html {
 
   .pill-remove {
     @apply -mr-1.5 inline-flex size-6 items-center justify-center rounded-full text-muted hover:bg-border hover:text-foreground;
+  }
+
+  /* Touch screens: every button is at least 44 px wide and high, the size of a fingertip, where a
+   * mouse gets the compact one. (WCAG 2.5.8 asks for 24 px; 2.5.5 for 44.) */
+  @media (pointer: coarse) {
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost,
+    .btn-danger,
+    .btn-danger-quiet,
+    .btn-icon,
+    .pill-remove {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
   }
 
   .label {

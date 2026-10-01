@@ -99,6 +99,11 @@ describe("DayCard", () => {
       expect(screen.getByRole("button", { name: "Clear day" })).toBeInTheDocument();
     });
 
+    it("styles Clear day as a destructive action", () => {
+      renderCard({ meal: PLANNED });
+      expect(screen.getByRole("button", { name: "Clear day" })).toHaveClass("btn-danger-quiet");
+    });
+
     it("shows a one-off dinner by its title", () => {
       renderCard({ meal: ONE_OFF });
       expect(dinnerField()).toHaveValue("Pizza night");

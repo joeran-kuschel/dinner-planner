@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
-import { addGroceryExtra, resetGroceryTicks } from "@/app/actions/groceries";
+import { addGroceryExtra } from "@/app/actions/groceries";
 import { GroceryList } from "@/components/grocery-list";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
@@ -138,15 +138,6 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
           </button>
         </form>
       </section>
-
-      {lines.some((line) => line.checked) && (
-        <form action={resetGroceryTicks} className="border-t border-border pt-4">
-          <input type="hidden" name="weekStart" value={weekKey} />
-          <button type="submit" className="btn-ghost">
-            {t(i18n)`Untick everything`}
-          </button>
-        </form>
-      )}
     </div>
   );
 }

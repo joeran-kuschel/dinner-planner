@@ -85,9 +85,12 @@ test.describe("groceries", () => {
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "Tick off Lemon", exact: true })).not.toBeChecked();
 
-    await page.getByRole("button", { name: "Untick everything" }).click();
+    // Clicking a ticked line again puts it back on the list.
+    await page.getByRole("checkbox", { name: "Tick off Carrots", exact: true }).click();
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
     await expect(page.getByRole("heading", { name: /^In the basket/ })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
   });
 
   test("groups the list by shop section under headings, and a ticked item moves to the basket", async ({ page }) => {

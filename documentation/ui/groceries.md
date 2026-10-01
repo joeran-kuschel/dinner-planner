@@ -44,7 +44,6 @@ field of the form below.
   text, because the line has left its section. Untick it to move it back. The ticks are saved, so they are still there
   after a reload, and changing an ingredient's section never unticks it.
 - When everything is ticked off, the open list says so.
-- **Untick everything** appears once something is ticked and starts the week's shopping over.
 
 ## Adding something else
 
@@ -59,7 +58,7 @@ the fields explains the mark (see "Mandatory fields" in [recipes](recipes.md)).
 
 - Each section is a landmark region named by its heading, so screen reader users can jump from section to section by
   heading or region. **In the basket** is one too.
-- Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes.
+- Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes. The ✕ is a 32 px button, 44 px on a touch screen ([Buttons](buttons.md)). A ticked line is put back on the list by clicking it again; there is no button that unticks everything.
 - Ticked lines are struck through and muted rather than faded, which keeps their text at AA contrast.
 - The week buttons are ordinary links, so they work with the keyboard and without JavaScript.
 

@@ -137,7 +137,7 @@ function RemoveButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="btn-ghost px-2 py-1 text-xs"
+      className="btn-icon text-xs"
       aria-label={t(i18n)`Remove ${label}`}
     >
       ✕

@@ -397,7 +397,7 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
       <button
         type="button"
         onClick={onRemove}
-        className="btn-ghost px-2"
+        className="btn-icon"
         aria-label={t(i18n)`Remove ingredient ${number}`}
       >
         ✕

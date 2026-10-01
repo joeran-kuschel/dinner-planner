@@ -43,6 +43,17 @@ describe("ConfirmAction", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
+  it("styles the asking button as a danger action and the confirming one as the solid danger button", async () => {
+    const { user } = renderConfirm();
+    expect(summary()).toHaveClass("btn-danger-quiet");
+    expect(summary()).not.toHaveClass("btn-ghost", "btn-primary");
+
+    await user.click(summary());
+    expect(screen.getByRole("button", { name: "Delete recipe" })).toHaveClass("btn-danger");
+    expect(screen.getByRole("button", { name: "Delete recipe" })).not.toHaveClass("btn-primary");
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveClass("btn-secondary");
+  });
+
   it("does nothing until the confirm button is used", async () => {
     const { user, action } = renderConfirm();
     await user.click(summary());
