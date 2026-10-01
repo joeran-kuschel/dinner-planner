@@ -37,6 +37,6 @@ test.describe("every test starts with an empty database", () => {
     await page.goto(`/groceries?week=${WEEK}`);
     await expect(page.getByRole("checkbox", { name: /^Tick off / })).toHaveCount(1);
     await page.getByRole("checkbox", { name: "Tick off Fresh rice" }).click();
-    await expect(page.getByRole("heading", { name: "In the basket (1)" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();
   });
 });

@@ -40,6 +40,10 @@ msgstr "{recipeCount, plural, one {# recipe} other {# recipes}} to plan from"
 msgid "{recipeCount} of {totalCount, plural, one {# recipe} other {# recipes}}"
 msgstr "{recipeCount} of {totalCount, plural, one {# recipe} other {# recipes}}"
 
+#: components/grocery-list.tsx
+msgid "{ticked} of {total} ticked off"
+msgstr "{ticked} of {total} ticked off"
+
 #: components/recipe-form.tsx
 msgid "A bowl of red lentil dal with coriander"
 msgstr "A bowl of red lentil dal with coriander"
@@ -135,6 +139,10 @@ msgstr "Clear the whole week"
 #: app/page.tsx
 msgid "Clear week"
 msgstr "Clear week"
+
+#: components/grocery-list.tsx
+msgid "Could not save the tick. Try again."
+msgstr "Could not save the tick. Try again."
 
 #: components/recipe-form.tsx
 msgid "Create recipe"
@@ -246,10 +254,6 @@ msgstr "Grocery list for this week"
 #: components/pantry-section.tsx
 msgid "Hide the pantry items again"
 msgstr "Hide the pantry items again"
-
-#: components/grocery-list.tsx
-msgid "In the basket ({doneCount})"
-msgstr "In the basket ({doneCount})"
 
 #: components/grocery-list.tsx
 msgid "in the pantry"

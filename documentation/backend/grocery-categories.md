@@ -26,7 +26,7 @@ imports only the generated enum constants):
 | Recipe form | One `ingredientCategory` field per row, parallel to `ingredientName`, `ingredientQuantity` and `ingredientUnit`. `createRecipe` and `updateRecipe` parse it into `Ingredient.category`; `updateRecipe` replaces the whole ingredient set as before. A rejected form echoes the parsed category back, so the choice survives the form reset. |
 | Extras | `addGroceryExtra` reads `category` and stores it on the `GroceryEntry`. Adding the same extra again moves it to the new category. |
 | Aggregation | `aggregateIngredients()` copies the category onto each line. When lines merge (same name and unit) the category that comes first in list order wins, so `OTHER` never beats a real category and the line does not move when the meals are planned in another order. Amounts are unaffected. |
-| Grouping | `groupByCategory()` splits the lines into `GROCERY_CATEGORIES` order and drops empty groups. Only open lines are grouped; ticked ones stay in "In the basket". |
+| Grouping | `groupByCategory()` splits the lines into `GROCERY_CATEGORIES` order and drops empty groups. All lines are grouped, ticked ones too: a ticked line stays in its section. |
 
 A line's key is still `name|unit`, without the category. Tick state (`GroceryEntry` rows) is therefore untouched when an
 ingredient changes section. The category of a derived line is never read from its `GroceryEntry`; it always comes from the
