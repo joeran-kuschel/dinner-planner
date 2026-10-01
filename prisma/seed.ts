@@ -118,8 +118,15 @@ const RECIPES: SeedRecipe[] = [
 
 const prisma = new PrismaClient({ adapter: createPgAdapter() });
 
+/** What a household typically has at home; kept off the grocery list. Added, never taken away, on a re-run. */
+const STAPLES = ["olive oil", "ground cumin", "dried oregano"];
+
 async function main() {
   const byName = new Map<string, string>();
+
+  for (const name of STAPLES) {
+    await prisma.pantryStaple.upsert({ where: { name }, update: {}, create: { name } });
+  }
 
   for (const recipe of RECIPES) {
     const existing = await prisma.recipe.findFirst({ where: { name: recipe.name } });

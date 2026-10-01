@@ -221,6 +221,12 @@ tags no recipe uses in the same transaction. The recipe list's search is a GET f
 over `lib/recipe-search.ts`, which escapes `%` and `_` for `contains`. Details:
 `documentation/backend/recipe-tags.md`.
 
+**Pantry staples hide derived grocery lines at render time and store nothing on
+the lines.** `PantryStaple` is a global table of normalised names (the same
+`normalize` as tags); `splitStaples()` (`lib/pantry.ts`) runs after the aggregation,
+matches the ingredient name only (not the unit, not a part of the name) and never
+hides a hand-added extra. Details: `documentation/backend/pantry-staples.md`.
+
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all
 the affected routes.

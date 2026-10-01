@@ -41,6 +41,16 @@ describe("prisma/seed.ts", () => {
     expect(await prisma.tag.count({ where: { name: "vegetarian" } })).toBe(1);
   });
 
+  it("adds a few pantry staples, and keeps one added since when it runs again", async () => {
+    seed();
+    const names = async () => (await prisma.pantryStaple.findMany({ orderBy: { name: "asc" } })).map((s) => s.name);
+    expect(await names()).toEqual(["dried oregano", "ground cumin", "olive oil"]);
+
+    await prisma.pantryStaple.create({ data: { name: "salt" } });
+    seed();
+    expect(await names()).toEqual(["dried oregano", "ground cumin", "olive oil", "salt"]);
+  });
+
   it("files the sample ingredients under shop sections", async () => {
     seed();
 

@@ -110,6 +110,14 @@ model PlannedMeal {
   @@index([recipeId])
 }
 
+/// An ingredient the household always has (salt, oil). Grocery lines from the plan that carry
+/// one of these names are left off the list. Global, not per week. Names are stored normalised
+/// (see normalizeStaple in lib/pantry.ts), so the unique index treats "Salt" and "salt " as one.
+model PantryStaple {
+  id   String @id @default(cuid())
+  name String @unique
+}
+
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
   id        String   @id @default(cuid())
