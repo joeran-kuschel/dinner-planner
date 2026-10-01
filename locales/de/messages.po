@@ -12,6 +12,14 @@ msgstr ""
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
 msgstr "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
 
+#: components/pantry-section.tsx
+msgid "{hiddenCount, plural, one {# item hidden} other {# items hidden}}"
+msgstr "{hiddenCount, plural, one {# Artikel ausgeblendet} other {# Artikel ausgeblendet}}"
+
+#: components/pantry-section.tsx
+msgid "{hiddenCount, plural, one {Show the # hidden item} other {Show the # hidden items}}"
+msgstr "{hiddenCount, plural, one {Den # ausgeblendeten Artikel anzeigen} other {Die # ausgeblendeten Artikel anzeigen}}"
+
 #: lib/recipe-facts.ts
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# Zutat} other {# Zutaten}}"
@@ -50,12 +58,17 @@ msgid "A tag can be at most {MAX_TAG_LENGTH} characters."
 msgstr "Ein Tag darf höchstens {MAX_TAG_LENGTH} Zeichen lang sein."
 
 #: app/groceries/page.tsx
+#: components/pantry-section.tsx
 msgid "Add"
 msgstr "Hinzufügen"
 
 #: components/day-card.tsx
 msgid "Add “{name}” as a new recipe"
 msgstr "„{name}“ als neues Rezept anlegen"
+
+#: components/pantry-section.tsx
+msgid "Add a staple"
+msgstr "Vorratsartikel hinzufügen"
 
 #: components/recipe-form.tsx
 msgid "Add ingredient"
@@ -189,6 +202,10 @@ msgid "Edit the plan"
 msgstr "Plan bearbeiten"
 
 #: components/grocery-list.tsx
+msgid "Everything this week's dinners need is in your pantry."
+msgstr "Alles, was die Abendessen dieser Woche brauchen, ist im Vorrat."
+
+#: components/grocery-list.tsx
 msgid "Everything ticked off."
 msgstr "Alles abgehakt."
 
@@ -226,9 +243,17 @@ msgstr "Einkaufsliste"
 msgid "Grocery list for this week"
 msgstr "Einkaufsliste für diese Woche"
 
+#: components/pantry-section.tsx
+msgid "Hide the pantry items again"
+msgstr "Vorratsartikel wieder ausblenden"
+
 #: components/grocery-list.tsx
 msgid "In the basket ({doneCount})"
 msgstr "Im Korb ({doneCount})"
+
+#: components/grocery-list.tsx
+msgid "in the pantry"
+msgstr "im Vorrat"
 
 #: components/recipe-search-box.tsx
 msgid "ingredient"
@@ -309,6 +334,10 @@ msgstr "Kein Rezept passt. Versuche weniger Tags oder ein anderes Wort."
 msgid "No recipes yet. <0>Add your first one</0> and it will be suggested for every day."
 msgstr "Noch keine Rezepte. <0>Leg dein erstes an</0>, dann wird es für jeden Tag vorgeschlagen."
 
+#: components/pantry-section.tsx
+msgid "No staples yet."
+msgstr "Noch keine Vorratsartikel."
+
 #: app/recipes/[id]/page.tsx
 msgid "No steps written down yet."
 msgstr "Noch keine Schritte aufgeschrieben."
@@ -360,6 +389,10 @@ msgstr "Seite nicht gefunden"
 #: lib/grocery-category.ts
 msgid "Pantry"
 msgstr "Vorräte"
+
+#: components/pantry-section.tsx
+msgid "Pantry staples"
+msgstr "Vorratsartikel"
 
 #: components/recipe-form.tsx
 msgid "Photo"
@@ -420,6 +453,10 @@ msgstr "Rezepte"
 msgid "Remove {label}"
 msgstr "{label} entfernen"
 
+#: components/pantry-section.tsx
+msgid "Remove {name} from the pantry staples"
+msgstr "{name} aus den Vorratsartikeln entfernen"
+
 #: app/page.tsx
 msgid "Remove {plannedCount, plural, one {# planned dinner} other {# planned dinners}} from this week?"
 msgstr "{plannedCount, plural, one {# geplantes Abendessen} other {# geplante Abendessen}} aus dieser Woche entfernen?"
@@ -453,6 +490,10 @@ msgstr "Pflichtfeld"
 #: components/recipe-form.tsx
 msgid "Required"
 msgstr "Pflichtfeld"
+
+#: components/pantry-section.tsx
+msgid "Salt"
+msgstr "Salz"
 
 #: components/recipe-form.tsx
 msgid "Save changes"
@@ -519,6 +560,10 @@ msgstr "Tags dieses Rezepts"
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
 msgstr "Die Beschreibung des Fotos darf höchstens {MAX_PHOTO_ALT_LENGTH} Zeichen lang sein."
 
+#: components/pantry-section.tsx
+msgid "The list is full: {MAX_STAPLES} staples. Remove one to add another."
+msgstr "Die Liste ist voll: {MAX_STAPLES} Vorratsartikel. Entferne einen, um einen neuen hinzuzufügen."
+
 #: lib/recipe-photo.ts
 msgid "The photo could not be read. Choose another image."
 msgstr "Das Foto konnte nicht gelesen werden. Wähle ein anderes Bild."
@@ -539,6 +584,10 @@ msgstr "Das Foto ist zu groß: höchstens {MAX_PHOTO_MEGABYTES} MB."
 #: app/actions/recipes.ts
 msgid "The source has to be a web address starting with http:// or https://."
 msgstr "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// beginnt."
+
+#: components/pantry-section.tsx
+msgid "Things you always have at home. They are left off the grocery list."
+msgstr "Dinge, die du immer zu Hause hast. Sie stehen nicht auf der Einkaufsliste."
 
 #: components/day-card.tsx
 msgid "This day could not be saved. It shows what is saved now; please try again."

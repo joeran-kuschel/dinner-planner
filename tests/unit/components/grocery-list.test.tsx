@@ -99,6 +99,33 @@ describe("GroceryList", () => {
     });
   });
 
+  describe("pantry staples", () => {
+    it("says when everything the dinners need is in the pantry", () => {
+      renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[]} allInPantry />);
+      expect(screen.getByText("Everything this week's dinners need is in your pantry.")).toBeInTheDocument();
+      expect(screen.queryByText(/Nothing to buy yet/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the usual empty text when no staple is why the list is empty", () => {
+      renderList([]);
+      expect(screen.getByText(/Nothing to buy yet/)).toBeInTheDocument();
+    });
+
+    it("marks a line a staple would hide, and still lets it be ticked", async () => {
+      const { user } = renderList([{ ...RICE, pantry: true }, ONION]);
+      expect(within(row("Arborio rice")).getByText("in the pantry")).toBeInTheDocument();
+      expect(within(row("Onion")).queryByText("in the pantry")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("checkbox", { name: "Tick off Arborio rice" }));
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
+    });
+
+    it("says it in German", () => {
+      renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, pantry: true }]} />, { locale: "de" });
+      expect(screen.getByText("im Vorrat")).toBeInTheDocument();
+    });
+  });
+
   describe("categories", () => {
     const MILK = line({ label: "Milk", category: "DAIRY_EGGS" });
     const APPLE = line({ label: "Apple", category: "PRODUCE" });

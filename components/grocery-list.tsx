@@ -8,18 +8,25 @@ import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
 import { categoryLabel } from "@/lib/grocery-category";
 
+/** A line of the list; `pantry` marks one that a pantry staple would hide, shown because the user asked. */
+export type GroceryListLine = GroceryLine & { entryId: string | null; pantry?: boolean };
+
 export type GroceryListProps = {
   weekStart: string;
-  lines: (GroceryLine & { entryId: string | null })[];
+  lines: GroceryListLine[];
+  /** True when there is nothing to list only because pantry staples hide it all. */
+  allInPantry?: boolean;
 };
 
-export function GroceryList({ weekStart, lines }: GroceryListProps) {
+export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryListProps) {
   const { i18n } = useLingui();
 
   if (lines.length === 0) {
     return (
       <p className="card p-6 text-sm text-muted">
-        {t(i18n)`Nothing to buy yet. Plan some dinners and their ingredients land here.`}
+        {allInPantry
+          ? t(i18n)`Everything this week's dinners need is in your pantry.`
+          : t(i18n)`Nothing to buy yet. Plan some dinners and their ingredients land here.`}
       </p>
     );
   }
@@ -75,7 +82,7 @@ function GroceryRow({
   showCategory = false,
 }: {
   weekStart: string;
-  line: GroceryLine & { entryId: string | null };
+  line: GroceryListLine;
   /** Ticked lines sit apart from their section, so they name it. */
   showCategory?: boolean;
 }) {
@@ -109,6 +116,7 @@ function GroceryRow({
           {showCategory && (
             <span className="ml-2 text-xs text-muted">{categoryLabel(line.category, i18n)}</span>
           )}
+          {line.pantry && <span className="ml-2 text-xs text-muted">{t(i18n)`in the pantry`}</span>}
           {line.manual && line.sources.length === 0 && (
             <span className="ml-2 text-xs text-muted">{t(i18n)`added by hand`}</span>
           )}

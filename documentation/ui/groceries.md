@@ -45,6 +45,31 @@ field of the form below.
   after a reload, and changing an ingredient's section never unticks it.
 - When everything is ticked off, the open list says so.
 
+## Pantry staples
+
+Things you always have at home (salt, oil) can be kept off the list. The **Pantry staples** fold-out at the bottom of the
+page is closed until wanted; its summary says how many lines it hides this week ("3 items hidden").
+
+- **Add a staple** takes a name; the ingredients that already appear in your recipes are offered while you type, and a
+  name is added once however it is written ("Salt", "salt " and "SALT" are one staple). Up to 200 staples of up to 60
+  characters.
+- Each staple is a chip with a ✕ that removes it ("Remove salt from the pantry staples").
+- A line is hidden when its **name** is a staple: the unit does not matter ("1 tsp salt" and "salt to taste" are both
+  salt), but a part of a name does not count: the staple "oil" does not hide "olive oil". The staples are the same for every
+  week.
+- Lines you added by hand are never hidden, also when one has the same name and unit as a line from the plan (the page
+  shows those as one line).
+- At 200 staples the field and **Add** are switched off, with the note "The list is full: 200 staples. Remove one to add
+  another." After a ✕ removes a staple, the focus moves to the next chip, or to the add field when none is left.
+- **Show the 2 hidden items** (a link in the fold-out) puts the hidden lines back into their sections, marked "in the
+  pantry", so they can still be ticked. The fold-out stays open while they are shown, with **Hide the pantry items again**.
+  The address of that view is `/groceries?week=2027-01-04&pantry=show`.
+- When the pantry covers everything the week's dinners need, the page says "Everything this week's dinners need is in your
+  pantry." instead of "Nothing to buy yet."
+
+Like the rest of the list, this is worked out every time the page opens: removing a staple brings its line back at once, and
+a line's tick is kept while it is hidden.
+
 ## Adding something else
 
 **Add something else** puts a line on the list that no recipe asks for, such as washing-up liquid. Fill in the item

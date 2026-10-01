@@ -1,13 +1,15 @@
 import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { addGroceryExtra } from "@/app/actions/groceries";
-import { GroceryList } from "@/components/grocery-list";
+import { GroceryList, type GroceryListLine } from "@/components/grocery-list";
+import { PantrySection } from "@/components/pantry-section";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine } from "@/lib/grocery";
+import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
 export async function generateMetadata() {
@@ -16,17 +18,21 @@ export async function generateMetadata() {
 }
 
 export default async function GroceriesPage({ searchParams }: PageProps<"/groceries">) {
-  const { week } = await searchParams;
+  const { week, pantry } = await searchParams;
+  const showPantry = pantry === "show";
   const { i18n, locale } = await getServerI18n();
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, entries] = await Promise.all([
+  const [meals, entries, staples, ingredientNames] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
       include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
     }),
     prisma.groceryEntry.findMany({ where: { weekStart } }),
+    prisma.pantryStaple.findMany({ orderBy: { name: "asc" } }),
+    // What a staple can be, offered while typing one.
+    prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
   ]);
 
   const entriesByKey = new Map(entries.map((entry) => [entry.key, entry]));
@@ -48,7 +54,14 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     })),
   ).map((line) => {
     const entry = entriesByKey.get(line.key);
-    return { ...line, manual: false, checked: entry?.checked ?? false, entryId: entry?.id ?? null };
+    return {
+      ...line,
+      manual: false,
+      // A line added by hand with this name and unit is shown as this one line; a staple must not hide it.
+      handAdded: entry?.manual ?? false,
+      checked: entry?.checked ?? false,
+      entryId: entry?.id ?? null,
+    };
   });
 
   const derivedKeys = new Set(derived.map((line) => line.key));
@@ -68,7 +81,15 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       entryId: entry.id,
     }));
 
-  const lines = [...derived, ...extras].sort((a, b) => a.label.localeCompare(b.label));
+  const allLines = [...derived, ...extras].sort((a, b) => a.label.localeCompare(b.label));
+  // A pantry staple only decides which derived lines are shown; nothing about a line is stored for it.
+  const pantryView = applyStaples(
+    allLines,
+    staples.map((staple) => staple.name),
+    showPantry,
+  );
+  const lines: GroceryListLine[] = pantryView.lines;
+  const suggestions = [...new Set(ingredientNames.map(({ name }) => normalizeStaple(name)).filter(Boolean))];
   const plannedMeals = meals.filter((meal) => meal.recipe !== null).length;
 
   return (
@@ -94,7 +115,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         </div>
       </header>
 
-      <GroceryList weekStart={weekKey} lines={lines} />
+      <GroceryList weekStart={weekKey} lines={lines} allInPantry={pantryView.allInPantry} />
 
       <section className="card flex flex-col gap-3 p-4">
         <h2 className="text-sm font-semibold">{t(i18n)`Add something else`}</h2>
@@ -138,6 +159,14 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
           </button>
         </form>
       </section>
+
+      <PantrySection
+        staples={staples}
+        hiddenCount={pantryView.hiddenCount}
+        showHidden={showPantry}
+        toggleHref={`/groceries?week=${weekKey}${showPantry ? "" : "&pantry=show"}`}
+        suggestions={suggestions}
+      />
     </div>
   );
 }
