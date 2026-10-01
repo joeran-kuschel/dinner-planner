@@ -36,6 +36,24 @@ The exit code is 0 only when every stage passed. The code is in `scripts/check.t
 Before anything starts, the script checks that something answers on the host and port of `DATABASE_URL`. If not, it
 stops at once with "the database does not answer" instead of letting tests hang. Start the database with `npm run db:up`.
 
+## Independent end-to-end tests
+
+The Playwright specs run on one schema (`e2e`), recreated from the migrations at the start of the run. Within the run,
+`tests/e2e/support/test.ts` empties it before every test: an automatic fixture calls `emptySchema()`
+(`tests/support/migrate.ts`), which truncates every table of that schema in one statement. The tables come from
+`pg_tables`, so a new model is covered without a change here. It qualifies each table with the schema name, refuses
+`public`, and leaves other schemas alone.
+
+So a test never sees what another one left, and it does not matter which weeks or names tests use or in which order they
+run. That is what makes `npx playwright test --repeat-each=3` pass, and it is the reason to import `test` from
+`tests/e2e/support/test.ts` rather than from `@playwright/test` (`tests/infra/e2e-isolation.test.ts` fails a spec that does
+not). `tests/e2e/isolation.spec.ts` shows the effect: run as a whole file, its second test fails when the reset is switched off. The
+fixture also throws when `workers` is above 1, because the reset would then empty another worker's data.
+
+The reset assumes one worker (`playwright.config.ts` sets `workers: 1`, and the fixture throws otherwise). With several
+workers sharing the schema a reset would pull the data from under a test that is running; running in parallel would need one
+schema per worker.
+
 ## Time limits
 
 | Stage | Limit |

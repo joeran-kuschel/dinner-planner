@@ -66,9 +66,15 @@ npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test d
   `public/` and `.next/static` copied in; not `next start`, which Next.js does
   not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
   touches the development data in `public`. The browser asks for `en-GB`, so specs
-  run in English; German lives in `tests/e2e/language.spec.ts`. Tests share that database: create your own data with
-  `unique()` and check pages with `expectAccessible()` (axe incl. contrast) from
-  `tests/e2e/support/helpers.ts`.
+  run in English; German lives in `tests/e2e/language.spec.ts`. **Every test starts with an empty database**: specs import `test` and
+  `expect` from `tests/e2e/support/test.ts`, whose automatic fixture truncates every
+  table of the `e2e` schema before each test (`emptySchema()` in
+  `tests/support/migrate.ts`), so tests are independent, can use any week and can be
+  repeated (`--repeat-each`). Never import `test` from `@playwright/test` in a spec
+  (`tests/infra/e2e-isolation.test.ts` checks). This relies on one worker: with
+  several, each would need a schema of its own. Check pages with `expectAccessible()`
+  (axe incl. contrast) from `tests/e2e/support/helpers.ts`; `unique()` is still handy
+  for names within one test.
 - A test that documents a known bug is marked `it.fails` / `test.fail` with a
   `// BUG:` comment until the bug is fixed.
 

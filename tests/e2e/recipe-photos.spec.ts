@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test } from "@/tests/e2e/support/test";
 import { expectAccessible, fillIngredients, unique } from "@/tests/e2e/support/helpers";
 import { MAX_PHOTO_BYTES } from "@/lib/recipe-photo-shared";
 import { testImage } from "@/tests/support/images";

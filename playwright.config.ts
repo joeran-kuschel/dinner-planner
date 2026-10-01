@@ -7,8 +7,9 @@ const PORT = 3100;
 
 // The end-to-end server gets its own schema in the development database,
 // created fresh from the migrations on every run (tests/e2e/support/prepare-db.ts), so tests
-// never see or change the `public` data. Tests share that schema and run one
-// after another; each test creates the data it needs under a unique name.
+// never see or change the `public` data. Tests run one after another on that schema, and it is
+// emptied before every test (tests/e2e/support/test.ts), so they cannot affect each other. That is
+// why `workers` stays 1: with several, one worker's reset would empty another's data.
 export const E2E_SCHEMA = "e2e";
 
 /** The development database, pointed at the end-to-end schema. */

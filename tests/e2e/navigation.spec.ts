@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@/tests/e2e/support/test";
 import { expectAccessible } from "@/tests/e2e/support/helpers";
 
 test.describe("navigation", () => {
