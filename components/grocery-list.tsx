@@ -2,7 +2,7 @@
 
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
-import { useRef } from "react";
+import { useOptimistic, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
@@ -31,105 +31,107 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
     );
   }
 
-  const outstanding = lines.filter((line) => !line.checked);
-  const done = lines.filter((line) => line.checked);
-  const doneCount = done.length;
+  const total = lines.length;
+  const ticked = lines.filter((line) => line.checked).length;
 
   return (
     <div className="flex flex-col gap-6">
-      {outstanding.length === 0 ? (
-        <p className="card p-4 text-sm text-muted">{t(i18n)`Everything ticked off.`} 🎉</p>
-      ) : (
-        groupByCategory(outstanding).map(({ category, lines: group }) => {
-          const name = categoryLabel(category, i18n);
-          const headingId = `category-${category}`;
-          return (
-            <section key={category} aria-labelledby={headingId} className="flex flex-col gap-2">
-              <h2 id={headingId} className="text-xs font-medium uppercase tracking-wide text-muted">
-                {name} ({group.length})
-              </h2>
-              <div className="card divide-y divide-border">
-                {group.map((line) => (
-                  <GroceryRow key={line.key} weekStart={weekStart} line={line} />
-                ))}
-              </div>
-            </section>
-          );
-        })
-      )}
+      {/* A polite status, so ticking a line is answered in words too. */}
+      <p role="status" className="text-sm text-muted">
+        {ticked === total ? t(i18n)`Everything ticked off.` : t(i18n)`${ticked} of ${total} ticked off`}
+        {/* Not read out: a screen reader would say "party popper" every time. */}
+        {ticked === total && <span aria-hidden="true"> 🎉</span>}
+      </p>
 
-      {done.length > 0 && (
-        <section aria-labelledby="in-the-basket" className="flex flex-col gap-2">
-          <h2 id="in-the-basket" className="text-xs font-medium uppercase tracking-wide text-muted">
-            {t(i18n)`In the basket (${doneCount})`}
-          </h2>
-          {/* Ticked lines are marked by strikethrough and muted text, not by
-              fading the card: opacity would push the text below AA contrast. */}
-          <div className="card divide-y divide-border">
-            {done.map((line) => (
-              <GroceryRow key={line.key} weekStart={weekStart} line={line} showCategory />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* A ticked line stays where it is, struck through, so the list does not move under the thumb. */}
+      {groupByCategory(lines).map(({ category, lines: group }) => {
+        const name = categoryLabel(category, i18n);
+        const headingId = `category-${category}`;
+        return (
+          <section key={category} aria-labelledby={headingId} className="flex flex-col gap-2">
+            <h2 id={headingId} className="text-xs font-medium uppercase tracking-wide text-muted">
+              {name} ({group.length})
+            </h2>
+            <div className="card divide-y divide-border">
+              {group.map((line) => (
+                <GroceryRow key={line.key} weekStart={weekStart} line={line} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
 
-function GroceryRow({
-  weekStart,
-  line,
-  showCategory = false,
-}: {
-  weekStart: string;
-  line: GroceryListLine;
-  /** Ticked lines sit apart from their section, so they name it. */
-  showCategory?: boolean;
-}) {
+/**
+ * One line: a tick box that the whole row works as (a big target for a thumb), the name, a second
+ * line saying where it comes from, and the amount. The box flips at once while the server saves;
+ * if the save fails, it flips back.
+ */
+function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListLine }) {
   const formRef = useRef<HTMLFormElement>(null);
   const { i18n } = useLingui();
   const { label } = line;
+  const [checked, setChecked] = useOptimistic(line.checked);
+  const [failed, setFailed] = useState(false);
+
+  // The box flips for the time of the save and shows what is stored again once it ends, so a save
+  // that fails leaves the box as it was; the message says so.
+  const toggle = async (formData: FormData) => {
+    setFailed(false);
+    setChecked(formData.get("checked") === "true");
+    try {
+      await toggleGroceryLine(formData);
+    } catch {
+      setFailed(true);
+    }
+  };
+
+  const notes = [
+    line.sources.length > 0 ? line.sources.join(", ") : null,
+    line.pantry ? t(i18n)`in the pantry` : null,
+    line.manual && line.sources.length === 0 ? t(i18n)`added by hand` : null,
+  ].filter((note) => note !== null);
 
   return (
-    <div className="flex items-center gap-3 p-3">
-      <form ref={formRef} action={toggleGroceryLine} className="flex flex-1 items-center gap-3">
+    <div className="flex items-center">
+      <form ref={formRef} action={toggle} className="flex-1">
         <input type="hidden" name="weekStart" value={weekStart} />
         <input type="hidden" name="key" value={line.key} />
         <input type="hidden" name="label" value={line.label} />
-        {/* The checkbox is uncontrolled; the hidden field carries the value the
-            action should persist, which is the opposite of the current state. */}
-        <input type="hidden" name="checked" value={String(!line.checked)} />
+        {/* The hidden field carries the value the action should persist, which is the opposite of the
+            state shown now. */}
+        <input type="hidden" name="checked" value={String(!checked)} />
 
-        <input
-          type="checkbox"
-          checked={line.checked}
-          onChange={() => formRef.current?.requestSubmit()}
-          className="size-4 accent-[var(--accent)]"
-          aria-label={t(i18n)`Tick off ${label}`}
-        />
+        <label className="flex min-h-14 cursor-pointer items-center gap-3 p-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-accent">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => formRef.current?.requestSubmit()}
+            className="size-6 shrink-0 accent-[var(--accent)]"
+            aria-label={t(i18n)`Tick off ${label}`}
+          />
 
-        <span className="flex-1">
-          <span className={`text-sm ${line.checked ? "text-muted line-through" : ""}`}>{line.label}</span>
-          {line.sources.length > 0 && (
-            <span className="ml-2 text-xs text-muted">{line.sources.join(", ")}</span>
-          )}
-          {showCategory && (
-            <span className="ml-2 text-xs text-muted">{categoryLabel(line.category, i18n)}</span>
-          )}
-          {line.pantry && <span className="ml-2 text-xs text-muted">{t(i18n)`in the pantry`}</span>}
-          {line.manual && line.sources.length === 0 && (
-            <span className="ml-2 text-xs text-muted">{t(i18n)`added by hand`}</span>
-          )}
-        </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            {/* Ticked lines are struck through and muted rather than faded: opacity would push the text
+                below AA contrast. */}
+            <span className={`text-base ${checked ? "text-muted line-through" : ""}`}>{line.label}</span>
+            {notes.length > 0 && <span className="text-sm text-muted">{notes.join(" · ")}</span>}
+          </span>
 
-        <span className="shrink-0 text-sm text-muted">
-          {formatGroceryQuantity(line, i18n)}
-        </span>
+          <span className="shrink-0 text-sm text-muted">{formatGroceryQuantity(line, i18n)}</span>
+        </label>
+        {failed && (
+          <p role="alert" className="px-3 pb-3 text-sm text-danger">
+            {t(i18n)`Could not save the tick. Try again.`}
+          </p>
+        )}
       </form>
 
       {/* Only hand-added lines can be deleted; derived ones come back from the plan. */}
       {line.manual && line.entryId && (
-        <form action={removeGroceryExtra}>
+        <form action={removeGroceryExtra} className="pr-2">
           <input type="hidden" name="id" value={line.entryId} />
           <RemoveButton label={line.label} />
         </form>

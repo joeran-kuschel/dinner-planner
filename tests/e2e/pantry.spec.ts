@@ -86,7 +86,8 @@ test.describe("pantry staples", () => {
     await expect(page).toHaveURL(new RegExp(`/groceries\\?week=${WEEK}&pantry=show$`));
     await expect(tick(page, "Salt")).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /^Tick off / })).toHaveCount(3);
-    await expect(page.getByText("in the pantry", { exact: true })).toHaveCount(2);
+    // The marker ends the second line of the row, after the recipes the line comes from.
+    await expect(page.getByText(/ · in the pantry$/)).toHaveCount(2);
     // The section is open while they are shown, with the way back.
     await expect(page.getByRole("link", { name: "Hide the pantry items again" })).toBeVisible();
 

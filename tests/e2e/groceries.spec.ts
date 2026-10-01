@@ -76,10 +76,10 @@ test.describe("groceries", () => {
     await page.goto("/groceries?week=2027-04-12");
     const carrots = page.getByRole("checkbox", { name: "Tick off Carrots", exact: true });
     await expect(carrots).not.toBeChecked();
-    // A controlled checkbox: it only shows as ticked once the server has saved it.
+    // The box flips at once; the reload below shows what the server saved.
     await carrots.click();
     await expect(carrots).toBeChecked();
-    await expect(page.getByRole("heading", { name: "In the basket (1)" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "1 of 2 ticked off" })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).toBeChecked();
@@ -88,12 +88,12 @@ test.describe("groceries", () => {
     // Clicking a ticked line again puts it back on the list.
     await page.getByRole("checkbox", { name: "Tick off Carrots", exact: true }).click();
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
-    await expect(page.getByRole("heading", { name: /^In the basket/ })).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "0 of 2 ticked off" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
   });
 
-  test("groups the list by shop section under headings, and a ticked item moves to the basket", async ({ page }) => {
+  test("groups the list by shop section under headings, and a ticked item stays in its section", async ({ page }) => {
     const name = unique("Caprese");
     await createRecipe(page, {
       name,
@@ -119,14 +119,42 @@ test.describe("groceries", () => {
     await expect(produce.getByRole("checkbox", { name: "Tick off Tomatoes" })).toBeVisible();
     await expectAccessible(page);
 
-    await page.getByRole("checkbox", { name: "Tick off Mozzarella" }).click();
-    const basket = page.getByRole("region", { name: "In the basket (1)" });
-    await expect(basket).toContainText("Mozzarella");
-    await expect(basket).toContainText("Dairy and eggs");
-    await expect(page.getByRole("heading", { name: /^Dairy and eggs/ })).toHaveCount(0);
+    const dairy = page.getByRole("region", { name: "Dairy and eggs (1)" });
+    await dairy.getByRole("checkbox", { name: "Tick off Mozzarella" }).click();
+    // It stays in its section, still counted there; nothing moves.
+    await expect(dairy.getByRole("checkbox", { name: "Tick off Mozzarella" })).toBeChecked();
+    await expect(page.getByRole("heading", { name: /In the basket/ })).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "1 of 4 ticked off" })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole("region", { name: "In the basket (1)" })).toContainText("Mozzarella");
+    await expect(
+      page.getByRole("region", { name: "Dairy and eggs (1)" }).getByRole("checkbox", { name: "Tick off Mozzarella" }),
+    ).toBeChecked();
+  });
+
+  test("tapping a line's name ticks it, and no line moves", async ({ page }) => {
+    const name = unique("Tray");
+    await createRecipe(page, {
+      name,
+      ingredients: [{ name: "Apples" }, { name: "Bananas" }, { name: "Cherries" }],
+    });
+    await page.goto("/?week=2027-09-27");
+    await planRecipe(page, "Monday", name);
+    await page.goto("/groceries?week=2027-09-27");
+
+    const order = () => page.getByRole("checkbox").evaluateAll((all) => all.map((box) => box.getAttribute("aria-label")));
+    const before = await order();
+    expect(before).toEqual(["Tick off Apples", "Tick off Bananas", "Tick off Cherries"]);
+
+    // The name, not the box, and a line in the middle: the one most likely to move.
+    await page.getByText("Bananas", { exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "Tick off Bananas" })).toBeChecked();
+    expect(await order()).toEqual(before);
+
+    // The second line (the recipe) ticks it as well.
+    await page.getByText(name, { exact: true }).first().click();
+    await expect(page.getByRole("checkbox", { name: "Tick off Apples" })).toBeChecked();
+    expect(await order()).toEqual(before);
   });
 
   test("files a hand-added item under the chosen section", async ({ page }) => {
@@ -223,5 +251,29 @@ test.describe("groceries", () => {
     await page.goto("/groceries?week=2027-05-19");
     await page.getByRole("link", { name: "Edit the plan" }).click();
     await expect(page).toHaveURL("/?week=2027-05-17");
+  });
+});
+
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("every line is at least 44 px high, and a tap on it ticks it", async ({ page }) => {
+    const name = unique("Thumb");
+    await createRecipe(page, { name, ingredients: [{ name: "Beans" }, { name: "Corn", quantity: "2", unit: "cans" }] });
+    await page.goto("/?week=2027-10-04");
+    await planRecipe(page, "Monday", name);
+    await page.goto("/groceries?week=2027-10-04");
+
+    for (const label of ["Beans", "Corn"]) {
+      const row = page.getByRole("checkbox", { name: `Tick off ${label}` }).locator("xpath=ancestor::label");
+      const box = await row.boundingBox();
+      expect(box?.height, label).toBeGreaterThanOrEqual(44);
+    }
+    const checkbox = await page.getByRole("checkbox", { name: "Tick off Beans" }).boundingBox();
+    expect(Math.min(checkbox!.width, checkbox!.height)).toBeGreaterThanOrEqual(24);
+
+    await page.getByText("Corn", { exact: true }).tap();
+    await expect(page.getByRole("checkbox", { name: "Tick off Corn" })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "Tick off Beans" })).not.toBeChecked();
   });
 });

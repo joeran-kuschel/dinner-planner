@@ -21,14 +21,16 @@ missing or malformed value shows the current week.
 
 ## The list
 
-Every line is one ingredient with its amount on the right and, in small text, the recipes that need it. The lines are
-grouped by where they are found in the shop, and inside a group they are in alphabetical order.
+Every line is one ingredient. The first line of a row is its name, in normal-size type, with the amount on the right; the
+second line, in smaller but readable type, says which recipes need it ("Red Lentil Dal, Shakshuka"), and also "in the
+pantry" or "added by hand" where that applies. The lines are grouped by where they are found in the shop, and inside a
+group they are in alphabetical order.
 
 ### Shop sections
 
-Each section has a heading with the number of open lines, for example "Dairy and eggs (2)". The sections come in the
+Each section has a heading with the number of lines in it, for example "Dairy and eggs (2)". The sections come in the
 order of a walk through the shop: **Fruit and vegetables**, **Bakery**, **Meat and fish**, **Dairy and eggs**,
-**Pantry**, **Frozen**, **Drinks** and **Other**. A section with no open line is not shown. The set is fixed; the
+**Pantry**, **Frozen**, **Drinks** and **Other**. A section with no line is not shown. The set is fixed; the
 German names are "Obst und Gemüse", "Backwaren", "Fleisch und Fisch", "Milchprodukte und Eier", "Vorräte",
 "Tiefkühlware", "Getränke" and "Sonstiges".
 
@@ -40,10 +42,13 @@ field of the form below.
 - The same ingredient from several recipes becomes one line with the amounts added up, scaled by the servings planned
   for each day. Ingredients merge only when name and unit match; one ingredient without an amount makes the whole
   line read "to taste".
-- **Tick a line** to move it to **In the basket**, under the sections. The basket shows each line's section in small
-  text, because the line has left its section. Untick it to move it back. The ticks are saved, so they are still there
-  after a reload, and changing an ingredient's section never unticks it.
-- When everything is ticked off, the open list says so.
+- **Tick a line** by tapping anywhere on its row, not only the box: the whole row is the target, at least 56 px high
+  (44 px is the size of a fingertip), with a larger box. The box flips at once while the server saves; if the save fails it
+  goes back and a message under the line says "Could not save the tick. Try again." (shown as an alert). A ticked line **stays where it is**, struck through and muted, so the list does not move under your thumb;
+  tap it again to untick it. The ticks are saved, so they are still there after a reload, and changing an ingredient's
+  section never unticks it.
+- Under the title, a line says how far you are: "7 of 12 ticked off" ("7 von 12 abgehakt"). It is a status region, so a
+  screen reader announces it when it changes. When everything is ticked off it says so.
 
 ## Pantry staples
 
@@ -82,7 +87,7 @@ the fields explains the mark (see "Mandatory fields" in [recipes](recipes.md)).
 ## Accessibility
 
 - Each section is a landmark region named by its heading, so screen reader users can jump from section to section by
-  heading or region. **In the basket** is one too.
+  heading or region.
 - Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes. The ✕ is a 32 px button, 44 px on a touch screen ([Buttons](buttons.md)). A ticked line is put back on the list by clicking it again; there is no button that unticks everything.
 - Ticked lines are struck through and muted rather than faded, which keeps their text at AA contrast.
 - The week buttons are ordinary links, so they work with the keyboard and without JavaScript.

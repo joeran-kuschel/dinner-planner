@@ -74,28 +74,67 @@ describe("GroceryList", () => {
       expect(within(row("Pepper")).getByText("to taste")).toBeInTheDocument();
     });
 
-    it("keeps outstanding lines unticked and moves ticked ones into the basket", () => {
+    it("keeps a ticked line where it is, struck through, instead of moving it", () => {
       renderList([RICE, SALT, ONION]);
+      const boxes = screen.getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"));
+      expect(boxes).toEqual(["Tick off Arborio rice", "Tick off Salt", "Tick off Onion"]);
       expect(screen.getByRole("checkbox", { name: "Tick off Arborio rice" })).not.toBeChecked();
-      expect(screen.getByRole("checkbox", { name: "Tick off Onion" })).not.toBeChecked();
       expect(screen.getByRole("checkbox", { name: "Tick off Salt" })).toBeChecked();
-
-      const basket = screen.getByRole("heading", { name: "In the basket (1)" });
-      const basketSection = basket.closest("section")!;
-      expect(within(basketSection).getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"))).toEqual([
-        "Tick off Salt",
-      ]);
-    });
-
-    it("has no basket heading while nothing is ticked", () => {
-      renderList([RICE, ONION]);
+      expect(within(row("Salt")).getByText("Salt")).toHaveClass("line-through", "text-muted");
+      expect(within(row("Onion")).getByText("Onion")).not.toHaveClass("line-through");
       expect(screen.queryByRole("heading", { name: /In the basket/ })).not.toBeInTheDocument();
     });
 
-    it("celebrates when everything is ticked off", () => {
-      renderList([SALT, WINE]);
-      expect(screen.getByText("Everything ticked off. 🎉")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "In the basket (2)" })).toBeInTheDocument();
+    it("keeps the name large and puts the recipes on a second line in readable type", () => {
+      renderList([ONION]);
+      const onion = row("Onion");
+      const name = within(onion).getByText("Onion");
+      const notes = within(onion).getByText("Mushroom risotto, Chickpea curry");
+      expect(name).not.toBe(notes);
+      expect(name.parentElement).toBe(notes.parentElement);
+      expect(name).toHaveClass("text-base");
+      expect(notes).toHaveClass("text-sm");
+      expect(notes).not.toHaveClass("text-xs");
+    });
+
+    it("names the pantry and by-hand markers on the second line too", () => {
+      renderList([{ ...RICE, pantry: true }, NAPKINS]);
+      expect(within(row("Arborio rice")).getByText("Mushroom risotto · in the pantry")).toBeInTheDocument();
+      expect(within(row("Napkins")).getByText("added by hand")).toBeInTheDocument();
+    });
+
+    it("has no second line for a line without anything to say", () => {
+      renderList([line({ label: "Plain", sources: [] })]);
+      const name = within(row("Plain")).getByText("Plain");
+      expect(name.parentElement?.children).toHaveLength(1);
+    });
+
+    describe("progress", () => {
+      it("says how many lines are ticked, in a status region", () => {
+        renderList([RICE, SALT, ONION]);
+        expect(screen.getByRole("status")).toHaveTextContent("1 of 3 ticked off");
+      });
+
+      it("starts at none", () => {
+        renderList([RICE, ONION]);
+        expect(screen.getByRole("status")).toHaveTextContent("0 of 2 ticked off");
+      });
+
+      it("keeps the party popper out of what a screen reader says", () => {
+      renderList([SALT]);
+      expect(screen.getByText("🎉")).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("celebrates when everything is ticked off, with the lines still listed", () => {
+        renderList([SALT, WINE]);
+        expect(screen.getByRole("status")).toHaveTextContent("Everything ticked off. 🎉");
+        expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+      });
+
+      it("speaks German", () => {
+        renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[RICE, SALT]} />, { locale: "de" });
+        expect(screen.getByRole("status")).toHaveTextContent("1 von 2 abgehakt");
+      });
     });
   });
 
@@ -113,8 +152,8 @@ describe("GroceryList", () => {
 
     it("marks a line a staple would hide, and still lets it be ticked", async () => {
       const { user } = renderList([{ ...RICE, pantry: true }, ONION]);
-      expect(within(row("Arborio rice")).getByText("in the pantry")).toBeInTheDocument();
-      expect(within(row("Onion")).queryByText("in the pantry")).not.toBeInTheDocument();
+      expect(within(row("Arborio rice")).getByText("Mushroom risotto · in the pantry")).toBeInTheDocument();
+      expect(within(row("Onion")).queryByText(/in the pantry/)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("checkbox", { name: "Tick off Arborio rice" }));
       await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
@@ -122,7 +161,7 @@ describe("GroceryList", () => {
 
     it("says it in German", () => {
       renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, pantry: true }]} />, { locale: "de" });
-      expect(screen.getByText("im Vorrat")).toBeInTheDocument();
+      expect(screen.getByText("Mushroom risotto · im Vorrat")).toBeInTheDocument();
     });
   });
 
@@ -143,15 +182,16 @@ describe("GroceryList", () => {
       ]);
     });
 
-    it("leaves out categories without an open line", () => {
+    it("leaves out categories without a line", () => {
       renderList([MILK]);
       expect(headings()).toEqual(["Dairy and eggs (1)"]);
     });
 
-    it("names the category of a ticked line in the basket", () => {
-      renderList([{ ...MILK, checked: true }]);
-      expect(headings()).toEqual(["In the basket (1)"]);
-      expect(within(row("Milk")).getByText("Dairy and eggs")).toBeInTheDocument();
+    it("keeps a ticked line in its category, which still counts it", () => {
+      renderList([{ ...MILK, checked: true }, APPLE]);
+      expect(headings()).toEqual(["Fruit and vegetables (1)", "Dairy and eggs (1)"]);
+      const dairy = screen.getByRole("region", { name: "Dairy and eggs (1)" });
+      expect(within(dairy).getByRole("checkbox", { name: "Tick off Milk" })).toBeChecked();
     });
 
     it("uses the German names", () => {
@@ -178,6 +218,71 @@ describe("GroceryList", () => {
   });
 
   describe("tick-off", () => {
+    it("ticks a line when its name is tapped, not only its box", async () => {
+      const { user } = renderList([RICE]);
+      await user.click(screen.getByText("Arborio rice"));
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.toggleGroceryLine).get("checked")).toBe("true");
+    });
+
+    it("ticks a line when its second line or its amount is tapped", async () => {
+      const { user } = renderList([RICE]);
+      await user.click(screen.getByText("300 g"));
+      await user.click(screen.getByText("Mushroom risotto"));
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalledTimes(2));
+    });
+
+    it("flips the box at once while the server saves, and back if the line did not change", async () => {
+      let finish!: () => void;
+      actions.toggleGroceryLine.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+      const { user } = renderList([RICE]);
+      const box = screen.getByRole("checkbox", { name: "Tick off Arborio rice" });
+
+      await user.click(box);
+      await waitFor(() => expect(box).toBeChecked());
+      expect(within(row("Arborio rice")).getByText("Arborio rice")).toHaveClass("line-through");
+
+      // The save ended without the line changing (it failed): the box shows what is stored.
+      finish();
+      await waitFor(() => expect(box).not.toBeChecked());
+    });
+
+    it("shows the box as stored and says so when the save fails, and the message goes with the next try", async () => {
+      actions.toggleGroceryLine.mockRejectedValueOnce(new Error("database down"));
+      const { user } = renderList([RICE]);
+      const box = screen.getByRole("checkbox", { name: "Tick off Arborio rice" });
+
+      await user.click(box);
+      expect(await screen.findByRole("alert")).toHaveTextContent("Could not save the tick. Try again.");
+      expect(box).not.toBeChecked();
+      expect(within(row("Arborio rice")).getByText("Arborio rice")).not.toHaveClass("line-through");
+
+      await user.click(box);
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+      expect(actions.toggleGroceryLine).toHaveBeenCalledTimes(2);
+    });
+
+    it("says it in German when the save fails", async () => {
+      actions.toggleGroceryLine.mockRejectedValueOnce(new Error("database down"));
+      const user = userEvent.setup();
+      renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[RICE]} />, { locale: "de" });
+      await user.click(screen.getByRole("checkbox", { name: "Arborio rice abhaken" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Das Abhaken konnte nicht gespeichert werden. Versuche es noch einmal.",
+      );
+    });
+
+    it("sends the opposite of what is shown, also for a second tick of the same line", async () => {
+      const { user, rerender } = renderList([RICE]);
+      await user.click(screen.getByRole("checkbox", { name: "Tick off Arborio rice" }));
+      await waitFor(() => expect(lastFormData(actions.toggleGroceryLine).get("checked")).toBe("true"));
+      rerender(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, checked: true }]} />);
+
+      await user.click(screen.getByRole("checkbox", { name: "Tick off Arborio rice" }));
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalledTimes(2));
+      expect(lastFormData(actions.toggleGroceryLine).get("checked")).toBe("false");
+    });
+
     it("ticks a line off with the week, key, label and the new state", async () => {
       const { user } = renderList([RICE]);
       await user.click(screen.getByRole("checkbox", { name: "Tick off Arborio rice" }));
@@ -242,7 +347,7 @@ describe("GroceryList", () => {
       expect(screen.queryByRole("button", { name: "Remove Napkins" })).not.toBeInTheDocument();
     });
 
-    it("lets a ticked hand-added line be removed from the basket", () => {
+    it("lets a ticked hand-added line be removed from the list", () => {
       renderList([WINE]);
       expect(screen.getByRole("button", { name: "Remove Wine" })).toBeInTheDocument();
     });
@@ -294,7 +399,7 @@ describe("GroceryList", () => {
       expect(within(salt).getByText("nach Geschmack")).toBeInTheDocument();
       expect(screen.getByText("von Hand hinzugefügt")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Napkins entfernen" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Im Korb (1)" })).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("1 von 3 abgehakt");
     });
 
     it("says in German that there is nothing to buy", () => {

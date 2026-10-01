@@ -109,7 +109,7 @@ test.describe("accessibility", () => {
     const eggs = page.getByRole("checkbox", { name: "Tick off Eggs", exact: true });
     await eggs.click();
     await expect(eggs).toBeChecked();
-    await expect(page.getByRole("heading", { name: "In the basket (1)" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();
     await page.mouse.move(0, 0);
 
     await expectAccessible(page);
@@ -168,7 +168,7 @@ test.describe("accessibility", () => {
     await tabTo(page, checkbox);
     await page.keyboard.press("Space");
     await expect(checkbox).toBeChecked();
-    await expect(page.getByRole("heading", { name: "In the basket (1)" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();
   });
 
   test("a dinner is planned with the keyboard alone and keeps focus after its auto-save", async ({ page }) => {
