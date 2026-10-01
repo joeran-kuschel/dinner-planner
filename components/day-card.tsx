@@ -567,7 +567,7 @@ function PlannedDetails({
           type="submit"
           formAction={clearPlannedMeal}
           data-intent="clear"
-          className="btn-ghost px-0 text-xs hover:bg-transparent"
+          className="btn-danger-quiet -ml-2 px-2 text-xs"
         >
           {t(i18n)`Clear day`}
         </button>

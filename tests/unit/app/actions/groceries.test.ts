@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { groceryKey } from "@/lib/grocery";
 import { addDays, dayKey, parseDayKey, startOfWeek } from "@/lib/week";
 import { formData } from "@/tests/support/db";
-import { addGroceryExtra, removeGroceryExtra, resetGroceryTicks, toggleGroceryLine } from "@/app/actions/groceries";
+import { addGroceryExtra, removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 
 // Fixed Mondays, so the tests never depend on the real clock.
 const WEEK = parseDayKey("2026-09-28")!;
@@ -312,53 +312,6 @@ describe("removeGroceryExtra", () => {
         "removeGroceryExtra: missing `id`",
       );
 
-      expect(revalidatePath).not.toHaveBeenCalled();
-    },
-  );
-});
-
-describe("resetGroceryTicks", () => {
-  it("unticks every line of the week but keeps extras and other weeks", async () => {
-    await prisma.groceryEntry.createMany({
-      data: [
-        { weekStart: WEEK, key: "tomatoes|g", label: "Tomatoes", checked: true },
-        { weekStart: WEEK, key: "wine|", label: "Wine", manual: true, quantity: 2, checked: true },
-        { weekStart: WEEK, key: "soap|", label: "Soap", manual: true, checked: false },
-        { weekStart: NEXT_WEEK, key: "tomatoes|g", label: "Tomatoes", checked: true },
-      ],
-    });
-
-    await resetGroceryTicks(formData({ weekStart: dayKey(WEEK) }));
-
-    const thisWeek = await entries(WEEK);
-    expect(thisWeek.map((row) => [row.key, row.checked, row.manual])).toEqual([
-      ["soap|", false, true],
-      ["tomatoes|g", false, false],
-      ["wine|", false, true],
-    ]);
-    expect(thisWeek.find((row) => row.key === "wine|")?.quantity).toBe(2);
-    expect((await entries(NEXT_WEEK))[0].checked).toBe(true);
-    expectGroceriesRevalidated();
-  });
-
-  it("succeeds on a week without any rows", async () => {
-    await resetGroceryTicks(formData({ weekStart: dayKey(WEEK) }));
-
-    expectGroceriesRevalidated();
-  });
-
-  it.each([["missing", undefined], ["empty", ""], ["malformed", "next week"]])(
-    "throws for a %s weekStart without changing anything",
-    async (_label, weekStart) => {
-      await prisma.groceryEntry.create({
-        data: { weekStart: WEEK, key: "salt|", label: "Salt", checked: true },
-      });
-
-      await expect(resetGroceryTicks(formData(weekStart === undefined ? {} : { weekStart }))).rejects.toThrow(
-        /`weekStart`/,
-      );
-
-      expect((await entries())[0].checked).toBe(true);
       expect(revalidatePath).not.toHaveBeenCalled();
     },
   );

@@ -138,6 +138,18 @@ describe("GroceryList", () => {
     });
   });
 
+  describe("remove buttons", () => {
+    it("are icon buttons, the size that grows on a touch screen", () => {
+      renderList([NAPKINS]);
+      expect(screen.getByRole("button", { name: "Remove Napkins" })).toHaveClass("btn-icon");
+    });
+
+    it("has no button that unticks everything", () => {
+      renderList([SALT, RICE]);
+      expect(screen.queryByRole("button", { name: /untick/i })).not.toBeInTheDocument();
+    });
+  });
+
   describe("tick-off", () => {
     it("ticks a line off with the week, key, label and the new state", async () => {
       const { user } = renderList([RICE]);

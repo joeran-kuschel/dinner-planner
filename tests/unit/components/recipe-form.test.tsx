@@ -309,6 +309,14 @@ describe("RecipeForm", () => {
     });
   });
 
+  describe("remove buttons", () => {
+    it("are icon buttons, the size that grows on a touch screen", () => {
+      renderForm(undefined, RISOTTO);
+      expect(screen.getByRole("button", { name: "Remove ingredient 1" })).toHaveClass("btn-icon");
+      expect(screen.getByRole("button", { name: "Remove tag vegetarian" })).toHaveClass("pill-remove");
+    });
+  });
+
   describe("ingredient rows", () => {
     it("adds a blank row at the end", async () => {
       const { user } = renderForm(undefined, RISOTTO);

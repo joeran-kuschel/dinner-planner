@@ -83,7 +83,7 @@ message below.
 
 ## Clearing
 
-**Clear day** empties one day at once, without asking, because it can be undone. Afterwards the card says "Day cleared"
+**Clear day** (red, like the other destructive actions, see [Buttons](buttons.md)) empties one day at once, without asking, because it can be undone. Afterwards the card says "Day cleared"
 with an **Undo** button, and the focus moves to it, since the **Clear day** button that had it is gone.
 
 - **Undo** puts the day back as it was: the dinner (a recipe or a one-off title), the servings and the note. Afterwards

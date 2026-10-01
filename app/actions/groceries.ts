@@ -61,18 +61,6 @@ export async function removeGroceryExtra(formData: FormData) {
   revalidatePath("/groceries");
 }
 
-/** Clear every tick for the week, keeping manual extras in place. */
-export async function resetGroceryTicks(formData: FormData) {
-  const weekStart = requireWeekStart(formData);
-
-  await prisma.groceryEntry.updateMany({
-    where: { weekStart, checked: true },
-    data: { checked: false },
-  });
-
-  revalidatePath("/groceries");
-}
-
 /** The grocery page reads rows by their Monday, so any other weekday is moved to it. */
 function requireWeekStart(formData: FormData): Date {
   const day = parseDayKey(readText(formData, "weekStart"));

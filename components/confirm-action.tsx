@@ -68,7 +68,7 @@ export function ConfirmAction({
         }
       }}
     >
-      <summary ref={summary} className="btn-ghost cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+      <summary ref={summary} className="btn-danger-quiet cursor-pointer list-none [&::-webkit-details-marker]:hidden">
         {label}
       </summary>
       <div
@@ -102,7 +102,7 @@ export function ConfirmAction({
 function ConfirmButton({ children }: { children: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn-primary" disabled={pending}>
+    <button type="submit" className="btn-danger" disabled={pending}>
       {children}
     </button>
   );
