@@ -58,6 +58,8 @@ commit or deploy; you report findings.
      test setup yet, say so once instead of flagging every change.
    - **Documentation:** every feature is documented in `documentation/ui/` or `documentation/backend/`. Flag missing
      docs and docs that the change makes wrong.
+   - **Changelog:** every feature, fix or removal has an entry under `Unreleased` in `CHANGELOG.md`, written for the
+     app's user (`documentation/backend/changelog.md`). Flag a missing entry.
    - **Translations:** the app is available in German and English through a gettext-style tool, and switching the
      language must not reload the page. Flag hard-coded visible texts, including error messages returned from server
      actions, and new texts without a German translation.

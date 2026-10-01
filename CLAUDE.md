@@ -110,6 +110,7 @@ lib/
   recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
   recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
   i18n/                 languages, locale detection, catalogs — see "Translations" below
+CHANGELOG.md           what changed, per release day — see "Rules" and documentation/backend/changelog.md
 locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
 tests/
   unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
@@ -333,5 +334,6 @@ joins that list. Details: `documentation/ui/buttons.md`.
 - Before every push and every merge, run the `test-engineer` agent (`.claude/agents/test-engineer.md`) in its pre-push/pre-merge check: it runs `npm run check` (the entire test suite, typecheck and lint, with time limits and no retries; `documentation/backend/testing-check.md`) and makes sure everything the push or merge brings in is tested. Push or merge only when it reports "ready"
 - Before every merge, also run the `code-reviewer` agent (`.claude/agents/code-reviewer.md`) on the new and changed code, i.e. everything the merge brings in. Fix its findings or discuss them before merging
 - Order before a merge: first the `code-reviewer`, then fix its findings, then run `npm run i18n:extract` (commit the catalogs) and the `test-engineer`, so the one gate run sees the tree that is merged. Do not run them in parallel, since a review that changes code makes a check run beside it worthless. Exception: a change with no code in it (docs or translations only) may run both at once
+- Every feature, fix or removal adds an entry to `Unreleased` in `CHANGELOG.md` in the same branch, written for the app's user; the `code-reviewer` checks it (`documentation/backend/changelog.md`)
 - Before a feature is merged, show it to the user in the browser and merge only after they approve it
 - Once an implemented GitHub issue is pushed to main, close it on GitHub with a comment linking the commit that implemented it, e.g. `gh issue close <number> --comment "Implemented in https://github.com/boyonthedocks/dinner-planner/commit/<sha>"`
