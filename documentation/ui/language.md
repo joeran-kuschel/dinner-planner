@@ -42,10 +42,10 @@ Weeks start on Monday in both languages. Amounts have no thousands separator in 
   with the switch.
 - The two buttons form a group labelled "Language" / "Sprache". The current one is marked `aria-pressed="true"`, and
   each button carries its own `lang`, so "Deutsch" is read in German on an English page and vice versa.
-- The switcher sits in the header next to the app name, outside the main navigation: it changes the language and goes
-  nowhere. On narrow screens the navigation links move to a row of their own, so nothing needs sideways scrolling at
-  320 px, even with the longer German labels. The keyboard follows the same order on every screen size: app name,
-  switcher, then the links.
+- The switcher sits in the header, outside the main navigation: it changes the language and goes nowhere. On a phone the
+  navigation is a tab bar at the bottom of the screen, so nothing needs sideways scrolling at 320 px, even with the
+  longer German labels. The keyboard follows the same order on every screen size: app name, switcher, then the links.
+  The current language has an outline as well as darker text.
 - The header stays at the top while scrolling. The page keeps room for it, so a field that gets the keyboard focus is
   never hidden underneath (WCAG 2.4.11).
 - The German pages are checked with axe (WCAG 2.2 AA, including contrast) like the English ones.

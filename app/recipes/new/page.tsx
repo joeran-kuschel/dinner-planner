@@ -18,7 +18,7 @@ export default async function NewRecipePage() {
         <Link href="/recipes" className="text-sm text-muted hover:text-foreground">
           ← {t(i18n)`Recipes`}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{t(i18n)`New recipe`}</h1>
+        <h1 className="page-title mt-2">{t(i18n)`New recipe`}</h1>
       </header>
       <RecipeForm action={createRecipe} tagSuggestions={await tagNames()} />
     </div>

@@ -10,6 +10,12 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 - A changelog (this file), checked by a test ([#32](https://github.com/boyonthedocks/dinner-planner/issues/32)).
 
+### Changed
+
+- A new look for the whole app: warm paper colours with a tomato accent, serif headings, rounded buttons, and a clearer focus ring on everything you tab to ([#33](https://github.com/boyonthedocks/dinner-planner/issues/33)).
+- On a phone the menu is a tab bar at the bottom of the screen.
+- The week plan is one list of days instead of seven cards; recipes without a photo get a coloured tile; the grocery list shows a progress bar and two columns on wide screens.
+
 ## 2026-10-01
 
 ### Added

@@ -83,7 +83,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
       ref={formRef}
       action={setPlannedMeal}
       onSubmit={submit}
-      className={`card flex flex-col gap-3 p-4 ${isToday ? "ring-2 ring-accent/40" : ""}`}
+      className={`grid gap-x-6 gap-y-2 p-4 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:p-6 ${isToday ? "bg-accent-soft" : ""}`}
     >
       {/* Enter in a text field submits the form through its first submit
           button. Without this one, that would be "Clear day". */}
@@ -92,51 +92,53 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
       <input type="hidden" name="recipeId" value={choice.recipeId} />
       {choice.newRecipe && <input type="hidden" name="newRecipe" value="1" />}
       <DayHeading weekdayLabel={weekdayLabel} dateLabel={dateLabel} isToday={isToday} />
-      {failed && (
-        <p role="alert" className="text-xs text-accent">
-          {t(i18n)`This day could not be saved. It shows what is saved now; please try again.`}
+      <div className="flex min-w-0 flex-col gap-3">
+        {failed && (
+          <p role="alert" className="text-sm font-medium text-accent-text">
+            {t(i18n)`This day could not be saved. It shows what is saved now; please try again.`}
+          </p>
+        )}
+
+        {/* Always on the page, so a screen reader is already listening when the
+            first save of an empty day finishes. The visible copy is in the
+            details below and hidden from assistive technology. */}
+        <p id={`save-status-${dayKey}`} aria-live="polite" aria-atomic className="sr-only">
+          {saveStatus}
         </p>
-      )}
 
-      {/* Always on the page, so a screen reader is already listening when the
-          first save of an empty day finishes. The visible copy is in the
-          details below and hidden from assistive technology. */}
-      <p id={`save-status-${dayKey}`} aria-live="polite" aria-atomic className="sr-only">
-        {saveStatus}
-      </p>
-
-      <DinnerCombobox
-        day={day}
-        recipes={recipes}
-        choice={choice}
-        onChoose={(next) => {
-          setChoice(next);
-          setSaveRequest((count) => count + 1);
-        }}
-      />
-
-      {undo && (
-        <ClearedNotice
-          weekday={weekdayLabel}
-          onUndo={() => {
-            undo();
-            // The undo button goes away with the notice; the dinner field is where the day comes back.
-            document.getElementById(`dinner-${dayKey}`)?.focus();
+        <DinnerCombobox
+          day={day}
+          recipes={recipes}
+          choice={choice}
+          onChoose={(next) => {
+            setChoice(next);
+            setSaveRequest((count) => count + 1);
           }}
         />
-      )}
 
-      {choice.dinner !== "" && (
-        <PlannedDetails
-          day={day}
-          meal={meal}
-          recipeId={choice.recipeId}
-          // "Day cleared" is shown by the notice that comes with the undo, not beside "Serves".
-          status={undo ? "" : saveStatus}
-          confirmed={saved && !pending}
-          onSave={save}
-        />
-      )}
+        {undo && (
+          <ClearedNotice
+            weekday={weekdayLabel}
+            onUndo={() => {
+              undo();
+              // The undo button goes away with the notice; the dinner field is where the day comes back.
+              document.getElementById(`dinner-${dayKey}`)?.focus();
+            }}
+          />
+        )}
+
+        {choice.dinner !== "" && (
+          <PlannedDetails
+            day={day}
+            meal={meal}
+            recipeId={choice.recipeId}
+            // "Day cleared" is shown by the notice that comes with the undo, not beside "Serves".
+            status={undo ? "" : saveStatus}
+            confirmed={saved && !pending}
+            onSave={save}
+          />
+        )}
+      </div>
     </form>
   );
 }
@@ -257,18 +259,18 @@ function DayHeading({
 }: Pick<DayCardProps, "weekdayLabel" | "dateLabel" | "isToday">) {
   const { i18n } = useLingui();
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <h3 className="text-sm font-semibold">
+    <div className="flex items-baseline justify-between gap-2 sm:flex-col sm:items-start sm:justify-start sm:gap-0">
+      <h3 className="text-xs font-bold uppercase tracking-wider">
         {weekdayLabel}
         {/* A real space, so screen readers don't read "Mondaytoday". */}
         {isToday && (
           <>
             {" "}
-            <span className="ml-1 text-xs font-normal text-accent">{t(i18n)`today`}</span>
+            <span className="ml-1 text-xs font-bold text-accent-text">{t(i18n)`today`}</span>
           </>
         )}
       </h3>
-      <span className="text-xs text-muted">{dateLabel}</span>
+      <span className="font-display text-xl font-semibold sm:text-2xl">{dateLabel}</span>
     </div>
   );
 }
@@ -454,7 +456,7 @@ function SuggestionList({
       // which would settle the half-typed text. (Options do this themselves.)
       {...getMenuProps({ onMouseDown: (event) => event.preventDefault() })}
       hidden={!isOpen}
-      className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-border bg-surface py-1 text-sm shadow-lg"
+      className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-border bg-surface py-1 text-sm shadow-lg"
     >
       {isOpen &&
         suggestions.map((suggestion, index) => (
@@ -531,12 +533,12 @@ function PlannedDetails({
   return (
     <>
       <div className="flex items-center gap-2">
-        <label className="text-xs text-muted" htmlFor={`servings-${day.key}`}>
+        <label className="text-sm font-semibold" htmlFor={`servings-${day.key}`}>
           {t(i18n)`Serves`}
         </label>
         <input
           id={`servings-${day.key}`}
-          className="field w-16 px-2 py-1"
+          className="field w-20"
           type="number"
           name="servings"
           min={1}
@@ -555,7 +557,7 @@ function PlannedDetails({
       </label>
       <input
         id={`notes-${day.key}`}
-        className="field text-xs"
+        className="field text-sm"
         name="notes"
         placeholder={t(i18n)`Note (optional)`}
         defaultValue={meal?.notes ?? ""}
@@ -567,14 +569,14 @@ function PlannedDetails({
           type="submit"
           formAction={clearPlannedMeal}
           data-intent="clear"
-          className="btn-danger-quiet -ml-2 px-2 text-xs"
+          className="btn-danger-quiet -ml-3 px-3 text-xs"
         >
           {t(i18n)`Clear day`}
         </button>
         {recipeId && (
           <Link
             href={`/recipes/${recipeId}`}
-            className="text-xs font-medium text-accent underline"
+            className="text-sm font-semibold text-accent-text underline"
             aria-label={t(i18n)`View recipe for ${weekday}`}
           >
             {t(i18n)`View recipe`}

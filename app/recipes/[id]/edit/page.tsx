@@ -29,7 +29,7 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
         <Link href={`/recipes/${recipe.id}`} className="text-sm text-muted hover:text-foreground">
           ← {recipe.name}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{t(i18n)`Edit recipe`}</h1>
+        <h1 className="page-title mt-2">{t(i18n)`Edit recipe`}</h1>
       </header>
       <RecipeForm
         action={updateRecipe}

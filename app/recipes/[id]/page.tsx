@@ -47,8 +47,8 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
-            <p className="mt-1 text-sm text-muted">
+            <h1 className="page-title">{recipe.name}</h1>
+            <p className="mt-2 text-base text-muted">
               {recipeFacts(i18n, { servings: recipe.servings, prepMinutes: recipe.prepMinutes }).join(" · ")}
               {/* Only http(s): an older row could still hold another scheme. */}
               {recipe.sourceUrl && isWebUrl(recipe.sourceUrl) && (
@@ -79,7 +79,7 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
             />
           </div>
         </div>
-        {recipe.description && <p className="text-sm text-muted">{recipe.description}</p>}
+        {recipe.description && <p className="max-w-prose text-lg text-muted">{recipe.description}</p>}
         {recipe.tags.length > 0 && (
           <ul aria-label={t(i18n)`Tags`} className="flex flex-wrap gap-2">
             {recipe.tags.map((tag) => (
@@ -107,17 +107,17 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
           size="full"
           width={recipe.photo.fullWidth}
           height={recipe.photo.fullHeight}
-          className="h-auto max-h-[28rem] w-full rounded-xl border border-border object-cover"
+          className="h-auto max-h-[28rem] w-full rounded-3xl object-cover"
         />
       )}
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,18rem)_1fr]">
-        <section className="card p-4">
-          <h2 className="text-sm font-semibold">{t(i18n)`Ingredients`}</h2>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,22rem)_1fr]">
+        <section className="card p-6">
+          <h2 className="section-title">{t(i18n)`Ingredients`}</h2>
           {recipe.ingredients.length === 0 ? (
             <p className="mt-2 text-sm text-muted">{t(i18n)`None listed.`}</p>
           ) : (
-            <ul className="mt-3 flex flex-col gap-1.5 text-sm">
+            <ul className="mt-4 flex flex-col gap-2 text-base">
               {recipe.ingredients.map((ingredient) => (
                 <li key={ingredient.id} className="flex justify-between gap-3">
                   <span>{ingredient.name}</span>
@@ -130,12 +130,12 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
           )}
         </section>
 
-        <section className="card p-4">
-          <h2 className="text-sm font-semibold">{t(i18n)`Method`}</h2>
+        <section className="card p-6">
+          <h2 className="section-title">{t(i18n)`Method`}</h2>
           {steps.length === 0 ? (
             <p className="mt-2 text-sm text-muted">{t(i18n)`No steps written down yet.`}</p>
           ) : (
-            <ol className="mt-3 flex list-inside list-decimal flex-col gap-2 text-sm leading-relaxed">
+            <ol className="mt-4 flex list-outside list-decimal flex-col gap-3 pl-6 text-base leading-relaxed marker:font-display marker:font-semibold marker:text-accent-text">
               {steps.map((step, index) => (
                 <li key={index}>{step}</li>
               ))}

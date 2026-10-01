@@ -45,7 +45,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Recipes`}</h1>
+          <h1 className="page-title">{t(i18n)`Recipes`}</h1>
           <p className="mt-1 text-sm text-muted">
             {searching
               ? t(i18n)`${recipeCount} of ${plural(totalCount, { one: "# recipe", other: "# recipes" })}`
@@ -70,7 +70,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
           {t(i18n)`Nothing here yet. A recipe needs a name and its ingredients — the method is optional.`}
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
             <RecipeCard key={recipe.id} recipe={recipe} i18n={i18n} />
           ))}
@@ -149,15 +149,42 @@ type CardRecipe = {
   _count: { ingredients: number; plannedFor: number };
 };
 
+const TONES = [
+  "bg-accent-soft text-accent-text",
+  "bg-herb-soft text-herb",
+  "bg-ochre-soft text-ochre",
+] as const;
+
+/** A flat colour tile with a fork and knife, for a recipe without a photo. Decorative. */
+function PhotoPlaceholder({ id }: { id: string }) {
+  // From the id, so a recipe keeps its colour when a search changes the list.
+  const tone = [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return (
+    <div aria-hidden className={`grid aspect-[3/2] w-full place-items-center ${TONES[tone % TONES.length]}`}>
+      <svg
+        viewBox="0 0 24 24"
+        className="size-10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M7 3v8a2 2 0 002 2v8M11 3v8M5 3v6M17 3c-2 2-3 5-3 8h3v10" />
+      </svg>
+    </div>
+  );
+}
+
 /** One recipe in the list: the whole card is a link, so its tags are plain text. */
 function RecipeCard({ recipe, i18n }: { recipe: CardRecipe; i18n: I18n }) {
   return (
     <li>
       <Link
         href={`/recipes/${recipe.id}`}
-        className="card flex h-full flex-col overflow-hidden transition-colors hover:bg-surface-muted"
+        className="card flex h-full flex-col overflow-hidden transition-colors hover:border-field"
       >
-        {recipe.photo && (
+        {recipe.photo ? (
           <RecipePhoto
             recipeId={recipe.id}
             version={recipe.photo.updatedAt.getTime()}
@@ -165,12 +192,14 @@ function RecipeCard({ recipe, i18n }: { recipe: CardRecipe; i18n: I18n }) {
             size="thumb"
             width={PHOTO_THUMB_WIDTH}
             height={PHOTO_THUMB_HEIGHT}
-            className="aspect-[3/2] w-full border-b border-border object-cover"
+            className="aspect-[3/2] w-full object-cover"
             lazy
           />
+        ) : (
+          <PhotoPlaceholder id={recipe.id} />
         )}
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <h2 className="font-medium">{recipe.name}</h2>
+          <h2 className="font-display text-xl font-semibold leading-snug">{recipe.name}</h2>
           {recipe.description && (
             <p className="line-clamp-2 text-sm text-muted">{recipe.description}</p>
           )}
@@ -183,7 +212,7 @@ function RecipeCard({ recipe, i18n }: { recipe: CardRecipe; i18n: I18n }) {
               ))}
             </ul>
           )}
-          <p className="mt-auto text-xs text-muted">
+          <p className="mt-auto text-sm text-muted">
             {recipeFacts(i18n, {
               servings: recipe.servings,
               prepMinutes: recipe.prepMinutes,

@@ -96,7 +96,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t(i18n)`Grocery list`}</h1>
+          <h1 className="page-title">{t(i18n)`Grocery list`}</h1>
           <p className="mt-1 text-sm text-muted">
             {formatWeekRange(weekStart, locale)} ·{" "}
             {t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`}
@@ -118,7 +118,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       <GroceryList weekStart={weekKey} lines={lines} allInPantry={pantryView.allInPantry} />
 
       <section className="card flex flex-col gap-3 p-4">
-        <h2 className="text-sm font-semibold">{t(i18n)`Add something else`}</h2>
+        <h2 className="section-title">{t(i18n)`Add something else`}</h2>
         <form action={addGroceryExtra} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="weekStart" value={weekKey} />
           <div className="basis-full">

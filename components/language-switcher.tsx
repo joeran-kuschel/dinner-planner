@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
 
   return (
     <form action={setLocale}>
-      <div role="group" aria-label={t(i18n)`Language`} className="flex rounded-lg border border-border p-0.5">
+      <div role="group" aria-label={t(i18n)`Language`} className="flex rounded-full bg-surface-muted p-1">
         {LOCALES.map((locale) => {
           const current = i18n.locale === locale;
           return (
@@ -27,8 +27,8 @@ export function LanguageSwitcher() {
               aria-pressed={current}
               className={
                 current
-                  ? "rounded-md bg-accent-soft px-2 py-1 text-xs font-medium text-foreground"
-                  : "rounded-md px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                  ? "lang-btn rounded-full bg-surface px-3 text-xs font-bold text-foreground ring-2 ring-field"
+                  : "lang-btn rounded-full px-3 text-xs font-semibold text-muted transition-colors hover:text-foreground"
               }
             >
               {LOCALE_NAMES[locale]}
