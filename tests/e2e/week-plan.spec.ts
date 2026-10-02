@@ -22,6 +22,20 @@ function summary(page: Page) {
 }
 
 test.describe("week plan", () => {
+  test("says what Serves does, and every servings field is described by it", async ({ page }) => {
+    const name = unique("Soup");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Leek" }] });
+    await page.goto("/?week=2027-01-18");
+    await planRecipe(page, "Monday", name);
+
+    const hint = page.getByText("“Serves” is how many people eat; the grocery list scales the amounts to it.");
+    await expect(hint).toBeVisible();
+    await expect(dayCard(page, "Monday").getByLabel("Serves", { exact: true })).toHaveAccessibleDescription(
+      (await hint.textContent()) ?? "",
+    );
+    await expectAccessible(page);
+  });
+
   test("plans a recipe for a day and keeps it after a reload", async ({ page }) => {
     const name = unique("Lasagne");
     await createRecipe(page, { name, ingredients: [{ quantity: "12", name: "Pasta sheets" }] });

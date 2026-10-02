@@ -98,8 +98,13 @@ export default {
       "recipe card ingredients": (i18n, ingredients) =>
         t(i18n)`${plural(ingredients, { one: "# ingredient", other: "# ingredients" })}`,
       "recipe card planned days": (i18n, plannedFor) => t(i18n)`planned ${plannedFor}×`,
-      "grocery list sources": (i18n, plannedMeals) =>
-        t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`,
+      "grocery list sources": (i18n, recipeCount) =>
+        t(i18n)`from ${plural(recipeCount, { one: "# recipe", other: "# recipes" })}`,
+      "grocery list typed dinners": (i18n, typedCount) =>
+        t(i18n)`${plural(typedCount, {
+          one: "# dinner without a recipe adds nothing",
+          other: "# dinners without a recipe add nothing",
+        })}`,
     };
 
     it.each([
@@ -113,6 +118,8 @@ export default {
       ["recipe card planned days", 2, "planned 2×", "2× geplant"],
       ["grocery list sources", 1, "from 1 recipe", "aus 1 Rezept"],
       ["grocery list sources", 2, "from 2 recipes", "aus 2 Rezepten"],
+      ["grocery list typed dinners", 1, "1 dinner without a recipe adds nothing", "1 Abendessen ohne Rezept steuert nichts bei"],
+      ["grocery list typed dinners", 2, "2 dinners without a recipe add nothing", "2 Abendessen ohne Rezept steuern nichts bei"],
     ])("%s for %i reads %j in English and %j in German", (key, count, english, german) => {
       expect(messages[key](testI18n("en"), count)).toBe(english);
       expect(messages[key](testI18n("de"), count)).toBe(german);

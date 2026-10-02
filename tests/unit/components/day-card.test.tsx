@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
+import { SERVINGS_HINT_ID } from "@/lib/planner";
 import { DayCard, type DayCardMeal, type DayCardProps } from "@/components/day-card";
 
 const actions = vi.hoisted(() => ({
@@ -97,6 +98,11 @@ describe("DayCard", () => {
       expect(screen.getByLabelText("Serves")).toHaveValue(3);
       expect(screen.getByPlaceholderText("Note (optional)")).toHaveValue("Use the good stock");
       expect(screen.getByRole("button", { name: "Clear day" })).toBeInTheDocument();
+    });
+
+    it("points the servings field at the line that says what it does", () => {
+      renderCard({ meal: PLANNED });
+      expect(screen.getByLabelText("Serves")).toHaveAttribute("aria-describedby", SERVINGS_HINT_ID);
     });
 
     it("styles Clear day as a destructive action", () => {

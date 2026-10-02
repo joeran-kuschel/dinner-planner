@@ -8,7 +8,7 @@ The labels below are the English ones; see [Language](language.md) for the Germa
 
 ## The week
 
-The header shows the week (for example "28 Sept – 4 Oct 2026") and how many recipes the list is built from.
+The header shows the week (for example "28 Sept – 4 Oct 2026") and how many different recipes the list is built from (one recipe planned on three days counts once). Dinners that are only a typed name add no ingredients, so when there are any the header says so: "from 3 recipes · 2 dinners without a recipe add nothing". Without such dinners that part is left out.
 
 - **←** and **→** open the week before and after, and **This week's list** returns to the current one. They work like
   the same buttons on the [week plan](week-plan.md) and stay on the grocery list. Screen readers hear the arrows as

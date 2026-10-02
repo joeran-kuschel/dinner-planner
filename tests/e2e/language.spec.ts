@@ -163,7 +163,8 @@ test.describe("language", () => {
     await expect(page.getByText(/2 von 7 geplant$/)).toBeVisible();
 
     await page.getByRole("link", { name: "Einkaufsliste für diese Woche" }).click();
-    await expect(page.getByText(/aus 1 Rezept$/)).toBeVisible();
+    // The typed dinner "Reste" adds no ingredients, and the header says so.
+    await expect(page.getByText(/aus 1 Rezept · 1 Abendessen ohne Rezept steuert nichts bei$/)).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "Brühe abhaken" })).toBeVisible();
     await expect(page.getByText("1,5 l", { exact: true })).toBeVisible();
     await expect(page.getByText("nach Geschmack", { exact: true })).toBeVisible();

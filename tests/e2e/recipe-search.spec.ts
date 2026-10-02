@@ -87,6 +87,7 @@ test.describe("recipe search", () => {
     await expect(page.getByText(/^3 of \d+ recipes$/)).toBeVisible();
 
     // Tags narrow the result down; every chosen tag has to match.
+    await page.getByText("Tags", { exact: true }).click();
     await page.getByRole("checkbox", { name: both }).check();
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(cards).toHaveText([soup, stew].sort());
@@ -143,6 +144,41 @@ test.describe("recipe search", () => {
     await expect(page.getByText("No recipe matches.", { exact: false })).toHaveCount(0);
   });
 
+  test("folds the tag list away until a tag filters, and sends the ticked tags from a closed list", async ({ page }) => {
+    const [first, second] = [uniqueWord("f"), uniqueWord("g")];
+    await createRecipe(page, { name: unique("Foldable"), tags: [first, second] });
+
+    // Closed by default; the summary names the list.
+    await page.goto("/recipes");
+    const tags = page.locator("details");
+    const summary = tags.locator("summary");
+    await expect(tags).not.toHaveAttribute("open", "");
+    await expect(summary).toHaveText("Tags");
+    await expect(page.getByRole("checkbox", { name: first })).toBeHidden();
+
+    // It opens with the keyboard, and a ticked tag is sent with the search.
+    await summary.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("checkbox", { name: first })).toBeVisible();
+    await page.getByRole("checkbox", { name: first }).check();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+
+    // A filter keeps it open and counts what is selected.
+    await expect(page).toHaveURL(new RegExp(`tag=${first}`));
+    await expect(tags).toHaveAttribute("open", "");
+    await expect(summary).toHaveText("Tags (1 selected)");
+    await page.getByRole("checkbox", { name: second }).check();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(summary).toHaveText("Tags (2 selected)");
+    await expectAccessible(page);
+
+    // Folded away again, the ticked tags still count when the form is sent.
+    await summary.click();
+    await expect(page.getByRole("checkbox", { name: first })).toBeHidden();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`tag=${first}&tag=${second}`));
+  });
+
   test("keeps a tag from the address that no recipe has as a checkbox to untick", async ({ page }) => {
     const gone = uniqueWord("gone");
     await page.goto(`/recipes?tag=${gone}`);
@@ -175,6 +211,8 @@ test.describe("recipe search", () => {
     await expect(page.getByRole("combobox", { name: "Rezepte suchen" })).toBeVisible();
     await expect(page.getByText("Kein Rezept passt.", { exact: false })).toBeVisible();
     await expect(page.getByRole("link", { name: "Zurücksetzen" })).toBeVisible();
+    await page.goto(`/recipes?tag=${uniqueWord("x")}`);
+    await expect(page.locator("details summary")).toHaveText("Tags (1 ausgewählt)");
     await context.close();
   });
 });

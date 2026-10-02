@@ -57,7 +57,7 @@ Enter in the servings or note field saves the day, like leaving the field does.
 ## Servings and note
 
 Once a dinner is planned, the card shows **Serves** (1–99) and **Note**. Both save when you leave the field or press
-Enter. The servings scale the recipe's ingredients on the grocery list.
+Enter. The servings scale the recipe's ingredients on the grocery list. A line under the week's header says so ("Serves" is how many people eat; the grocery list scales the amounts to it), and every **Serves** field is described by that line, so screen readers read it with the field.
 
 ## Opening the recipe
 

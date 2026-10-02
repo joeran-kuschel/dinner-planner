@@ -40,7 +40,7 @@ recipes yet, the page says what a recipe needs: a name and its ingredients; the 
 ### Searching
 
 Above the cards, the **Search recipes** form finds recipes by **name, tag or ingredient**: type a word and press
-**Search**. The tags in use are shown as checkboxes under it ("Only recipes with all of these tags"); with several
+**Search**. The tags in use are shown as checkboxes in a **Tags** disclosure under it ("Only recipes with all of these tags"), closed so a long list does not push the recipes down. It opens by itself while a tag filters, and then the summary counts them ("Tags (2 selected)"; the count follows the applied filter, so it changes when you press **Search**). It is a native `<details>`, so it works with the keyboard and without JavaScript, and ticked tags are sent with the form also while it is closed. With several
 ticked, a recipe must have every one of them. The word and the tags work together. The header then reads "3 of 12
 recipes", and **Clear** starts over. When nothing matches, the page says so. The search is an ordinary form, so it works
 without JavaScript, and the result has an address of its own (`/recipes?q=lentil&tag=quick&tag=vegan`) that can be

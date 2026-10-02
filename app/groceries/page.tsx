@@ -8,7 +8,7 @@ import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
-import { aggregateIngredients, type GroceryLine } from "@/lib/grocery";
+import { aggregateIngredients, type GroceryLine, mealSources } from "@/lib/grocery";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
@@ -90,7 +90,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   );
   const lines: GroceryListLine[] = pantryView.lines;
   const suggestions = [...new Set(ingredientNames.map(({ name }) => normalizeStaple(name)).filter(Boolean))];
-  const plannedMeals = meals.filter((meal) => meal.recipe !== null).length;
+  const { recipes: recipeCount, typed: typedCount } = mealSources(meals);
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,7 +99,12 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
           <h1 className="page-title">{t(i18n)`Grocery list`}</h1>
           <p className="mt-1 text-sm text-muted">
             {formatWeekRange(weekStart, locale)} ·{" "}
-            {t(i18n)`from ${plural(plannedMeals, { one: "# recipe", other: "# recipes" })}`}
+            {t(i18n)`from ${plural(recipeCount, { one: "# recipe", other: "# recipes" })}`}
+            {typedCount > 0 &&
+              ` · ${t(i18n)`${plural(typedCount, {
+                one: "# dinner without a recipe adds nothing",
+                other: "# dinners without a recipe add nothing",
+              })}`}`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -13,6 +13,17 @@ import {
 // Each test works in a week of its own, so the list holds only its own lines.
 
 test.describe("groceries", () => {
+  test("counts distinct recipes and names no typed dinner when there is none", async ({ page }) => {
+    const name = unique("Daal");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
+    await page.goto("/?week=2027-05-03");
+    await planRecipe(page, "Monday", name);
+    await planRecipe(page, "Tuesday", name);
+
+    await page.goto("/groceries?week=2027-05-03");
+    await expect(page.getByText(/ · from \d+ recipes?/)).toHaveText("3 May – 9 May 2027 · from 1 recipe");
+  });
+
   test("consolidates the week's recipes into one list scaled to the planned servings", async ({
     page,
   }) => {
@@ -46,8 +57,8 @@ test.describe("groceries", () => {
 
     await page.getByRole("link", { name: "Grocery list for this week" }).click();
     await expect(page).toHaveURL("/groceries?week=2027-04-05");
-    await expect(page.getByText(/ · from \d+ recipes?$/)).toHaveText(
-      "5 Apr – 11 Apr 2027 · from 2 recipes",
+    await expect(page.getByText(/ · from \d+ recipes?/)).toHaveText(
+      "5 Apr – 11 Apr 2027 · from 2 recipes · 1 dinner without a recipe adds nothing",
     );
 
     await expect(page.getByRole("checkbox", { name: /^Tick off / })).toHaveCount(4);
