@@ -616,7 +616,8 @@ function PlannedDetails({
         </button>
         {recipeId && (
           <Link
-            href={`/recipes/${recipeId}`}
+            // The week travels along, so the recipe page's "Back to the plan" returns to it.
+            href={`/recipes/${recipeId}?week=${day.key}`}
             className="text-sm font-semibold text-accent-text underline"
             aria-label={t(i18n)`View recipe for ${weekday}`}
           >

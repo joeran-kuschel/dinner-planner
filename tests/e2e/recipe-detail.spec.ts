@@ -1,4 +1,5 @@
 import { expect, test } from "@/tests/e2e/support/test";
+import { dayKey, startOfWeek, today } from "@/lib/week";
 import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The recipe detail and edit pages beyond creating and editing (recipes.spec.ts):
@@ -13,6 +14,22 @@ test.describe("recipe detail", () => {
       await expect(page.getByText("This page does not exist, or the recipe was deleted.")).toBeVisible();
       await expect(page.getByRole("link", { name: "Back to the plan" })).toHaveAttribute("href", "/");
       await expectAccessible(page);
+    }
+  });
+
+  test("\"Back to the plan\" follows the week in the address and falls back to the current week", async ({ page }) => {
+    const id = await createRecipe(page, { name: unique("Anywhere"), ingredients: [{ name: "Rice" }] });
+    const back = page.getByRole("link", { name: "Back to the plan" });
+
+    // Any day of a week leads back to that week's Monday.
+    await page.goto(`/recipes/${id}?week=2027-03-03`);
+    await expect(back).toHaveAttribute("href", "/?week=2027-03-01");
+
+    // Nothing, a malformed value or something else entirely: the current week, never the raw text.
+    const currentWeek = `/?week=${dayKey(startOfWeek(today()))}`;
+    for (const query of ["", "?week=garbage", "?week=2027-13-45", "?week=%00", "?week=a&week=b"]) {
+      await page.goto(`/recipes/${id}${query}`);
+      await expect(back, query).toHaveAttribute("href", currentWeek);
     }
   });
 

@@ -65,7 +65,8 @@ A day planned with a recipe has a **View recipe** link at the bottom of its card
 recipe's page (ingredients and method), so the recipe is one click away while cooking. The link follows the dinner field:
 it changes when another recipe is picked and is not shown for a one-off dinner, which has no recipe. For screen
 readers the link is named after the day ("View recipe for Monday"), so the seven links can be told apart; the spoken
-name starts with the visible text (WCAG 2.5.3).
+name starts with the visible text (WCAG 2.5.3). The link carries the card's week, so **Back to the plan** on the recipe
+page returns to that week (see [Recipes](recipes.md)).
 
 ## Knowing it saved
 

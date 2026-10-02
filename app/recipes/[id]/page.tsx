@@ -9,10 +9,13 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { formatQuantity } from "@/lib/grocery";
 import { recipeFacts } from "@/lib/recipe-facts";
 import { isWebUrl } from "@/lib/recipe-form";
-import { dayKey, formatWeekday, formatDayMonth, startOfWeek, today } from "@/lib/week";
+import { dayKey, formatWeekday, formatDayMonth, resolveWeekStart, startOfWeek, today } from "@/lib/week";
 
-export default async function RecipePage({ params }: PageProps<"/recipes/[id]">) {
+export default async function RecipePage({ params, searchParams }: PageProps<"/recipes/[id]">) {
   const { id } = await params;
+  // The week the visitor came from (a day card's link carries it); anything else means the current week.
+  const { week } = await searchParams;
+  const planWeek = dayKey(resolveWeekStart(typeof week === "string" ? week : null));
   const { i18n, locale } = await getServerI18n();
 
   const recipe = await prisma.recipe.findUnique({
@@ -145,7 +148,7 @@ export default async function RecipePage({ params }: PageProps<"/recipes/[id]">)
       </div>
 
       <footer className="border-t border-border pt-4">
-        <Link href={`/?week=${dayKey(startOfWeek(today()))}`} className="btn-secondary">
+        <Link href={`/?week=${planWeek}`} className="btn-secondary">
           {t(i18n)`Back to the plan`}
         </Link>
       </footer>

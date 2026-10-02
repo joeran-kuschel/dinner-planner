@@ -129,7 +129,8 @@ describe("DayCard", () => {
     it("links a planned recipe to its page, named after the weekday", () => {
       renderCard({ meal: PLANNED });
       const link = screen.getByRole("link", { name: "View recipe for Monday" });
-      expect(link).toHaveAttribute("href", "/recipes/r-risotto");
+      // The week travels along, so the recipe page can lead back to it.
+      expect(link).toHaveAttribute("href", "/recipes/r-risotto?week=2026-09-28");
       expect(link).toHaveTextContent("View recipe");
     });
 
@@ -147,7 +148,10 @@ describe("DayCard", () => {
       await user.click(dinnerField());
       await user.click(screen.getByRole("option", { name: "Chickpea curry" }));
 
-      expect(screen.getByRole("link", { name: "View recipe for Monday" })).toHaveAttribute("href", "/recipes/r-curry");
+      expect(screen.getByRole("link", { name: "View recipe for Monday" })).toHaveAttribute(
+        "href",
+        "/recipes/r-curry?week=2026-09-28",
+      );
     });
 
     it("has no link after picking a one-off dinner", async () => {
