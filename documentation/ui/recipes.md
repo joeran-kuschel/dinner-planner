@@ -60,7 +60,10 @@ A card shows the recipe's tags under its description.
 
 A recipe's page shows its photo (if it has one), its facts (with a link to the source, if it has one), the ingredients with their amounts, the
 method as numbered steps, and the days it is planned for, from the current week on. **Edit** opens the form again; **Back to the plan**
-returns to the current week. Its tags are links to the list filtered by that tag.
+returns to the week the recipe was opened from: the day card's **View recipe** link carries its week
+(`/recipes/<id>?week=2027-01-04`), and a missing or malformed value means the current week, as when the recipe is opened
+from the list. The week is not carried through **Edit** and **Save**: a recipe page reached that way leads back to the
+current week. Its tags are links to the list filtered by that tag.
 
 ## The form
 

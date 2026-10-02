@@ -222,6 +222,14 @@ test.describe("week plan", () => {
     await link.click();
 
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+
+    // "Back to the plan" returns to the week the day belongs to, not to the current one.
+    const back = page.getByRole("link", { name: "Back to the plan" });
+    await expect(back).toHaveAttribute("href", "/?week=2027-03-01");
+    await back.click();
+    await expect(page).toHaveURL("/?week=2027-03-01");
+    await expect(summary(page)).toHaveText("1 Mar – 7 Mar 2027 · 1 of 7 planned");
+    await expect(dinnerField(page, "Friday")).toHaveValue(name);
   });
 
   test("has no recipe link on a one-off dinner", async ({ page }) => {
