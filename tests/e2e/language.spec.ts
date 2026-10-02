@@ -97,6 +97,8 @@ test.describe("language", () => {
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Einkaufsliste");
     await expect(page).toHaveTitle("Einkauf · Abendessen-Planer");
+    // The add form is a closed fold-out; its German name opens it.
+    await page.locator("details summary", { hasText: /^Etwas anderes hinzufügen$/ }).click();
     await expect(page.getByText("* Pflichtfeld")).toBeVisible();
     await expect(page.locator("label[for=label]").getByTitle("Pflichtfeld")).toBeVisible();
 

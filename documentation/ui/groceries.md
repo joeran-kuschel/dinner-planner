@@ -77,7 +77,11 @@ a line's tick is kept while it is hidden.
 
 ## Adding something else
 
-**Add something else** puts a line on the list that no recipe asks for, such as washing-up liquid. Fill in the item
+**Add something else** puts a line on the list that no recipe asks for, such as washing-up liquid. It sits just under
+the page header, above the list, as a disclosure that is **closed** when you arrive, so the list stays the first thing you
+see; it works with the keyboard (Enter or Space on the line opens it) and without JavaScript. With JavaScript it stays open while you add
+the next items, and the item field is empty again after each one (without JavaScript the page reloads after each item and
+the fold-out is closed again); opening the page again, or moving to another week, starts closed. Fill in the item
 and, if you like, an amount, a unit and a **Category** (**Other** unless you choose one). Lines added by hand are marked "added by hand" and are the only ones with a ✕
 to remove them; lines that come from the plan cannot be deleted, since they would return with the plan.
 
