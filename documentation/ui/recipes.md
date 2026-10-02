@@ -34,7 +34,7 @@ the form says so and you choose another.
 ## The list
 
 `/recipes` shows a card per recipe in alphabetical order: its photo (if it has one), name, a short description (two lines at most), and small facts such as the
-servings, the number of ingredients, the prep time and how often it is planned. **New recipe** opens the form. With no
+servings, the number of ingredients, the prep time and the next day it is planned for ("next Tue 6 Oct": the earliest planned day from today on, today included). A recipe with no planned day from today on shows no such fact, and the number of days it has been planned is not shown. (The recipe's own page lists the days it is planned for from the start of the current week, so it can name an earlier day of this week that the card leaves out.) **New recipe** opens the form. With no
 recipes yet, the page says what a recipe needs: a name and its ingredients; the method is optional.
 
 ### Searching

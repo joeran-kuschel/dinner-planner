@@ -10,6 +10,8 @@ import type { I18n } from "@lingui/core";
 import { PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared";
 import { recipeFacts } from "@/lib/recipe-facts";
 import { getServerI18n } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
+import { formatDayMonth, formatWeekday, today } from "@/lib/week";
 
 export async function generateMetadata() {
   const { i18n } = await getServerI18n();
@@ -21,7 +23,7 @@ export async function generateMetadata() {
 export const dynamic = "force-dynamic";
 
 export default async function RecipesPage({ searchParams }: PageProps<"/recipes">) {
-  const { i18n } = await getServerI18n();
+  const { i18n, locale } = await getServerI18n();
   const search = readRecipeSearch(await searchParams);
   const searching = isSearching(search);
   const [recipes, totalCount, allTags, terms] = await Promise.all([
@@ -29,7 +31,9 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
       where: recipeSearchWhere(search),
       orderBy: { name: "asc" },
       include: {
-        _count: { select: { ingredients: true, plannedFor: true } },
+        _count: { select: { ingredients: true } },
+        // The next day it is planned for, today included.
+        plannedFor: { where: { date: { gte: today() } }, orderBy: { date: "asc" }, take: 1, select: { date: true } },
         tags: { select: { name: true }, orderBy: { name: "asc" } },
         // Not the image bytes: the card shows the thumbnail through its address.
         photo: { select: { alt: true, updatedAt: true } },
@@ -72,7 +76,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} i18n={i18n} />
+            <RecipeCard key={recipe.id} recipe={recipe} i18n={i18n} locale={locale} />
           ))}
         </ul>
       )}
@@ -159,7 +163,8 @@ type CardRecipe = {
   prepMinutes: number | null;
   photo: { alt: string; updatedAt: Date } | null;
   tags: { name: string }[];
-  _count: { ingredients: number; plannedFor: number };
+  _count: { ingredients: number };
+  plannedFor: { date: Date }[];
 };
 
 const TONES = [
@@ -190,7 +195,8 @@ function PhotoPlaceholder({ id }: { id: string }) {
 }
 
 /** One recipe in the list: the whole card is a link, so its tags are plain text. */
-function RecipeCard({ recipe, i18n }: { recipe: CardRecipe; i18n: I18n }) {
+function RecipeCard({ recipe, i18n, locale }: { recipe: CardRecipe; i18n: I18n; locale: Locale }) {
+  const next = recipe.plannedFor[0]?.date;
   return (
     <li>
       <Link
@@ -230,7 +236,7 @@ function RecipeCard({ recipe, i18n }: { recipe: CardRecipe; i18n: I18n }) {
               servings: recipe.servings,
               prepMinutes: recipe.prepMinutes,
               ingredients: recipe._count.ingredients,
-              plannedFor: recipe._count.plannedFor,
+              nextPlanned: next && `${formatWeekday(next, locale, "short")} ${formatDayMonth(next, locale)}`,
             }).join(" · ")}
           </p>
         </div>
