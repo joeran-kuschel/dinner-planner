@@ -23,6 +23,10 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 - The week plan is one list of days instead of seven cards; recipes without a photo get a coloured tile; the grocery list shows a progress bar and two columns on wide screens.
 - The prep time field of the recipe form is labelled "Prep time (min)" ([#14](https://github.com/boyonthedocks/dinner-planner/issues/14)).
 
+### Fixed
+
+- Undo after "Clear day" no longer overwrites a dinner planned for that day in another tab in the meantime ([#24](https://github.com/boyonthedocks/dinner-planner/issues/24)).
+
 ## 2026-10-01
 
 ### Added

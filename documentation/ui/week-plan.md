@@ -89,7 +89,14 @@ with an **Undo** button, and the focus moves to it, since the **Clear day** butt
 - **Undo** puts the day back as it was: the dinner (a recipe or a one-off title), the servings and the note. Afterwards
   the focus is on the dinner field.
 - The offer stays until the next save on that card, however long that takes; there is no timer to beat. Reloading the
-  page or leaving the week ends it.
+  page or leaving the week ends it. It also goes away when the day is planned again somewhere else (another tab or
+  window) and this page picks that up, for example with its next save. The card then says so ("This day was changed
+  elsewhere, so nothing was put back. It shows what is planned now."), and if the focus was on **Undo** it moves to the
+  dinner field instead of dropping to the page; focus anywhere else is left alone.
+- **Undo never overwrites a newer plan.** If this page has not heard of the new plan yet, pressing **Undo** checks the day
+  first: when a dinner has been planned for it in the meantime, nothing is put back, the card says "This day was changed
+  elsewhere, so nothing was put back. It shows what is planned now." and shows what is planned. See
+  [Planned meals](../backend/planned-meals.md).
 - If the undo cannot be saved, for example because the recipe was deleted in the meantime, the card shows the usual
   "could not be saved" message.
 

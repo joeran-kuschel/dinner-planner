@@ -643,6 +643,10 @@ msgstr "Dinge, die du immer zu Hause hast. Sie stehen nicht auf der Einkaufslist
 msgid "This day could not be saved. It shows what is saved now; please try again."
 msgstr "Dieser Tag konnte nicht gespeichert werden. Er zeigt jetzt, was gespeichert ist; bitte versuch es noch einmal."
 
+#: components/day-card.tsx
+msgid "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
+msgstr "Dieser Tag wurde woanders geändert, deshalb wurde nichts zurückgesetzt. Er zeigt, was jetzt geplant ist."
+
 #: app/not-found.tsx
 msgid "This page does not exist, or the recipe was deleted."
 msgstr "Diese Seite gibt es nicht, oder das Rezept wurde gelöscht."

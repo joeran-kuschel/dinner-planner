@@ -305,6 +305,60 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
   });
 
+  test("Undo does not overwrite a dinner planned elsewhere in the meantime", async ({ page, context }) => {
+    const mine = unique("Frittata");
+    const theirs = unique("Pizza night");
+    await createRecipe(page, { name: mine, ingredients: [{ quantity: "6", name: "Eggs" }] });
+    await page.goto("/?week=2027-07-05");
+    await planRecipe(page, "Monday", mine);
+
+    const card = dayCard(page, "Monday");
+    await afterServerAction(page, () => card.getByRole("button", { name: "Clear day" }).click());
+    const undo = card.getByRole("button", { name: "Undo clearing Monday" });
+    await expect(undo).toBeVisible();
+
+    // Another tab plans the day; this one has not heard of it.
+    const other = await context.newPage();
+    await other.goto("/?week=2027-07-05");
+    await planOnce(other, "Monday", theirs);
+
+    await afterServerAction(page, () => undo.click());
+    await expect(card.getByRole("alert")).toHaveText(
+      "This day was changed elsewhere, so nothing was put back. It shows what is planned now.",
+    );
+    await expect(dinnerField(page, "Monday")).toHaveValue(theirs);
+    await expect(undo).toHaveCount(0);
+    await expectAccessible(page);
+
+    await page.reload();
+    await expect(dinnerField(page, "Monday")).toHaveValue(theirs);
+  });
+
+  test("the offer to undo goes away once the day is planned elsewhere and the week is refreshed", async ({
+    page,
+    context,
+  }) => {
+    const mine = unique("Frittata");
+    const theirs = unique("Leftovers");
+    await createRecipe(page, { name: mine, ingredients: [{ name: "Eggs" }] });
+    await page.goto("/?week=2027-07-12");
+    await planRecipe(page, "Monday", mine);
+
+    const card = dayCard(page, "Monday");
+    await afterServerAction(page, () => card.getByRole("button", { name: "Clear day" }).click());
+    const undo = card.getByRole("button", { name: "Undo clearing Monday" });
+    await expect(undo).toBeVisible();
+
+    const other = await context.newPage();
+    await other.goto("/?week=2027-07-12");
+    await planOnce(other, "Monday", theirs);
+
+    // A save on another card of this week brings the newer plan along.
+    await planRecipe(page, "Tuesday", mine);
+    await expect(dinnerField(page, "Monday")).toHaveValue(theirs);
+    await expect(undo).toHaveCount(0);
+  });
+
   test("moves between weeks with the week query parameter", async ({ page }) => {
     const title = unique("Pizza night");
     // Any day of the week opens the week from its Monday.

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { addDays, dayKey, parseDayKey, startOfWeek, weekDays } from "@/lib/week";
 import { formData } from "@/tests/support/db";
-import { clearPlannedMeal, clearWeek, setPlannedMeal } from "@/app/actions/meals";
+import { clearPlannedMeal, clearWeek, restorePlannedMeal, setPlannedMeal } from "@/app/actions/meals";
 
 // A fixed Monday, so the tests never depend on the real clock.
 const MONDAY = parseDayKey("2026-09-28")!;
@@ -371,6 +371,64 @@ describe("clearPlannedMeal", () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("restorePlannedMeal", () => {
+  it("puts the day back, with its servings and note, while it is still empty", async () => {
+    const recipe = await createRecipe("Frittata");
+
+    const result = await restorePlannedMeal(
+      formData({ day: dayKey(MONDAY), dinner: recipe.name, recipeId: recipe.id, servings: "5", notes: "Use the chives" }),
+    );
+
+    expect(result).toBe("restored");
+    expect(await mealOn(MONDAY)).toMatchObject({ recipeId: recipe.id, servings: 5, notes: "Use the chives" });
+    expectMealViewsRevalidated();
+  });
+
+  it("leaves a dinner planned in the meantime alone and says so", async () => {
+    const recipe = await createRecipe("Frittata");
+    await prisma.plannedMeal.create({ data: { date: MONDAY, customTitle: "Newer plan", servings: 3 } });
+
+    const result = await restorePlannedMeal(
+      formData({ day: dayKey(MONDAY), dinner: recipe.name, recipeId: recipe.id, servings: "5" }),
+    );
+
+    expect(result).toBe("occupied");
+    expect(await mealOn(MONDAY)).toMatchObject({ recipeId: null, customTitle: "Newer plan", servings: 3 });
+    // The card is told to show what the day holds now.
+    expectMealViewsRevalidated();
+  });
+
+  it("also protects a day that another tab planned with a recipe", async () => {
+    const newer = await createRecipe("Newer recipe");
+    const older = await createRecipe("Older recipe");
+    await prisma.plannedMeal.create({ data: { date: MONDAY, recipeId: newer.id } });
+
+    expect(await restorePlannedMeal(formData({ day: dayKey(MONDAY), dinner: older.name, recipeId: older.id }))).toBe(
+      "occupied",
+    );
+    expect((await mealOn(MONDAY))?.recipeId).toBe(newer.id);
+  });
+
+  it("treats a row that names neither a recipe nor a title as an empty day", async () => {
+    await prisma.plannedMeal.create({ data: { date: MONDAY } });
+
+    expect(await restorePlannedMeal(formData({ day: dayKey(MONDAY), dinner: "Pizza night" }))).toBe("restored");
+    expect(await mealOn(MONDAY)).toMatchObject({ customTitle: "Pizza night" });
+  });
+
+  it("only looks at the given day", async () => {
+    await prisma.plannedMeal.create({ data: { date: WEDNESDAY, customTitle: "Leftovers" } });
+
+    expect(await restorePlannedMeal(formData({ day: dayKey(MONDAY), dinner: "Soup" }))).toBe("restored");
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ customTitle: "Leftovers" });
+  });
+
+  it.each([["missing", undefined], ["malformed", "2026-13-01"]])("throws when the day is %s", async (_label, day) => {
+    await expect(restorePlannedMeal(formData(day === undefined ? {} : { day }))).rejects.toThrow(/`day`/);
+    expect(await prisma.plannedMeal.count()).toBe(0);
+  });
 });
 
 describe("clearWeek", () => {
