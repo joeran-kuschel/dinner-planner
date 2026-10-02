@@ -134,3 +134,17 @@ export function formatQuantity(quantity: number | null, unit: string | null, i18
   const amount = i18n.number(quantity, { maximumFractionDigits: 2, useGrouping: false });
   return unit ? `${amount} ${unit}` : amount;
 }
+
+/**
+ * What a week's planned days contribute to the list: the distinct recipes (one recipe on three days
+ * is still one) and the days that are only a typed name, which add no ingredients.
+ */
+export function mealSources(meals: { recipe: { id: string } | null; customTitle: string | null }[]): {
+  recipes: number;
+  typed: number;
+} {
+  return {
+    recipes: new Set(meals.flatMap((meal) => (meal.recipe ? [meal.recipe.id] : []))).size,
+    typed: meals.filter((meal) => meal.recipe === null && meal.customTitle).length,
+  };
+}

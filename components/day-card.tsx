@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearPlannedMeal, setPlannedMeal } from "@/app/actions/meals";
-import { isSameDinner, matchingTag, MAX_SERVINGS, suggestsRecipe } from "@/lib/planner";
+import { isSameDinner, matchingTag, MAX_SERVINGS, SERVINGS_HINT_ID, suggestsRecipe } from "@/lib/planner";
 
 export type DayCardMeal = {
   recipeId: string | null;
@@ -541,6 +541,7 @@ function PlannedDetails({
           className="field w-20"
           type="number"
           name="servings"
+          aria-describedby={SERVINGS_HINT_ID}
           min={1}
           max={MAX_SERVINGS}
           defaultValue={meal?.servings ?? 2}

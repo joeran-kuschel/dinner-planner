@@ -181,6 +181,11 @@ html {
   }
 
   /* A tag. The remove button of a chip in the recipe form is at least 24 px square (WCAG 2.5.8). */
+  /* The line that opens a <details>. Roomy enough to hit (24 px with a mouse, 44 px on a touch screen). */
+  .disclosure-summary {
+    @apply cursor-pointer py-2 text-sm font-semibold;
+  }
+
   .pill {
     @apply inline-flex items-center gap-1 rounded-full bg-surface-muted px-3 py-0.5 text-xs font-medium text-foreground;
   }
@@ -192,6 +197,10 @@ html {
   /* Touch screens: every button is at least 44 px wide and high, the size of a fingertip, where a
    * mouse gets the compact one. (WCAG 2.5.8 asks for 24 px; 2.5.5 for 44.) */
   @media (pointer: coarse) {
+    .disclosure-summary {
+      padding-block: 0.75rem;
+    }
+
     .btn,
     .btn-primary,
     .btn-secondary,

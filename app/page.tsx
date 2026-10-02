@@ -7,6 +7,7 @@ import { DayCard } from "@/components/day-card";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
+import { SERVINGS_HINT_ID } from "@/lib/planner";
 import {
   addDays,
   dayKey,
@@ -56,6 +57,12 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
 
         <WeekNav basePath="/" weekStart={weekStart} i18n={i18n} />
       </header>
+
+      {plannedCount > 0 && (
+        <p id={SERVINGS_HINT_ID} className="-mt-3 text-sm text-muted">
+          {t(i18n)`“Serves” is how many people eat; the grocery list scales the amounts to it.`}
+        </p>
+      )}
 
       {recipes.length === 0 && (
         <p className="card p-4 text-sm text-muted">

@@ -99,6 +99,7 @@ function RecipeSearchForm({
   i18n: I18n;
 }) {
   const searching = isSearching(search);
+  const selected = search.tags.length;
   // A tag in the address that no recipe has any more still filters, so it stays visible to be unticked.
   const filterTags = [...new Set([...tags, ...search.tags])].sort();
   return (
@@ -118,21 +119,33 @@ function RecipeSearchForm({
       </div>
 
       {filterTags.length > 0 && (
-        <fieldset className="flex flex-wrap gap-2">
-          <legend className="label mb-1">{t(i18n)`Only recipes with all of these tags`}</legend>
-          {filterTags.map((tag) => (
-            <label key={tag} className="pill cursor-pointer">
-              <input
-                type="checkbox"
-                name="tag"
-                value={tag}
-                defaultChecked={search.tags.includes(tag)}
-                className="size-4 accent-[var(--accent)]"
-              />
-              {tag}
-            </label>
-          ))}
-        </fieldset>
+        // Closed until a tag filters, so an active filter is never hidden. A closed disclosure still sends its ticked boxes.
+        <details open={selected > 0}>
+          <summary className="disclosure-summary">
+            {t(i18n)`Tags`}
+            {selected > 0 && (
+              <>
+                {" "}
+                <span className="ml-1 font-normal text-muted">{t(i18n)`(${selected} selected)`}</span>
+              </>
+            )}
+          </summary>
+          <fieldset className="mt-3 flex flex-wrap gap-2">
+            <legend className="label mb-1">{t(i18n)`Only recipes with all of these tags`}</legend>
+            {filterTags.map((tag) => (
+              <label key={tag} className="pill cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="tag"
+                  value={tag}
+                  defaultChecked={search.tags.includes(tag)}
+                  className="size-4 accent-[var(--accent)]"
+                />
+                {tag}
+              </label>
+            ))}
+          </fieldset>
+        </details>
       )}
     </form>
   );

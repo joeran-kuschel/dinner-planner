@@ -8,11 +8,14 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- The recipe search folds its tag list away until a tag filters, and then counts the selected tags ([#30](https://github.com/boyonthedocks/dinner-planner/issues/30)).
+- A line on the week plan says that "Serves" scales the grocery list ([#19](https://github.com/boyonthedocks/dinner-planner/issues/19)).
 - The recipe form's ingredient rows have visible column names instead of example text, suggest units, and Enter jumps to the next row's first field (adding a row after the last) ([#14](https://github.com/boyonthedocks/dinner-planner/issues/14)).
 - A changelog (this file), checked by a test ([#32](https://github.com/boyonthedocks/dinner-planner/issues/32)).
 
 ### Changed
 
+- The grocery list's header counts distinct recipes and says how many typed dinners add nothing ([#20](https://github.com/boyonthedocks/dinner-planner/issues/20)).
 - A new look for the whole app: warm paper colours with a tomato accent, serif headings, rounded buttons, and a clearer focus ring on everything you tab to ([#33](https://github.com/boyonthedocks/dinner-planner/issues/33)).
 - On a phone the menu is a tab bar at the bottom of the screen.
 - The browser tab and the home-screen icon show the app's logo, the tomato disc with the plate.

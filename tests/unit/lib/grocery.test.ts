@@ -6,6 +6,7 @@ import {
   groceryKey,
   groupByCategory,
   type IngredientInput,
+  mealSources,
   type MealInput,
 } from "@/lib/grocery";
 import { testI18n } from "@/tests/support/i18n";
@@ -339,5 +340,26 @@ describe("groupByCategory", () => {
 
   it("returns nothing for no lines", () => {
     expect(groupByCategory([])).toEqual([]);
+  });
+});
+
+describe("mealSources", () => {
+  const recipe = (id: string) => ({ recipe: { id }, customTitle: null });
+  const typed = (title: string | null) => ({ recipe: null, customTitle: title });
+
+  it("counts a recipe planned on several days once", () => {
+    expect(mealSources([recipe("a"), recipe("a"), recipe("b")])).toEqual({ recipes: 2, typed: 0 });
+  });
+
+  it("counts the days that are only a typed name", () => {
+    expect(mealSources([recipe("a"), typed("Pizza"), typed("Leftovers")])).toEqual({ recipes: 1, typed: 2 });
+  });
+
+  it("ignores a day with neither a recipe nor a title", () => {
+    expect(mealSources([typed(null), typed("")])).toEqual({ recipes: 0, typed: 0 });
+  });
+
+  it("is zero for an empty week", () => {
+    expect(mealSources([])).toEqual({ recipes: 0, typed: 0 });
   });
 });

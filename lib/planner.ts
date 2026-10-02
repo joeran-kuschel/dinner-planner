@@ -36,3 +36,6 @@ export function matchingTag(recipe: { name: string; tags: string[] }, typed: str
   if (!normalize(typed) || suggestsRecipe(recipe.name, typed)) return null;
   return recipe.tags.find((tag) => normalize(tag).includes(normalize(typed))) ?? null;
 }
+
+/** The id of the line on the week plan that says what "Serves" does; each day's servings field points to it. */
+export const SERVINGS_HINT_ID = "servings-hint";

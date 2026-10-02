@@ -7,6 +7,14 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
+#: app/page.tsx
+msgid "“Serves” is how many people eat; the grocery list scales the amounts to it."
+msgstr "“Serves” is how many people eat; the grocery list scales the amounts to it."
+
+#: app/recipes/page.tsx
+msgid "({selected} selected)"
+msgstr "({selected} selected)"
+
 #: components/day-card.tsx
 #: components/recipe-search-box.tsx
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
@@ -43,6 +51,10 @@ msgstr "{recipeCount} of {totalCount, plural, one {# recipe} other {# recipes}}"
 #: components/grocery-list.tsx
 msgid "{ticked} of {total} ticked off"
 msgstr "{ticked} of {total} ticked off"
+
+#: app/groceries/page.tsx
+msgid "{typedCount, plural, one {# dinner without a recipe adds nothing} other {# dinners without a recipe add nothing}}"
+msgstr "{typedCount, plural, one {# dinner without a recipe adds nothing} other {# dinners without a recipe add nothing}}"
 
 #: components/recipe-form.tsx
 msgid "A bowl of red lentil dal with coriander"
@@ -224,8 +236,8 @@ msgid "Everything ticked off."
 msgstr "Everything ticked off."
 
 #: app/groceries/page.tsx
-msgid "from {plannedMeals, plural, one {# recipe} other {# recipes}}"
-msgstr "from {plannedMeals, plural, one {# recipe} other {# recipes}}"
+msgid "from {recipeCount, plural, one {# recipe} other {# recipes}}"
+msgstr "from {recipeCount, plural, one {# recipe} other {# recipes}}"
 
 #: lib/grocery-category.ts
 msgid "Frozen"

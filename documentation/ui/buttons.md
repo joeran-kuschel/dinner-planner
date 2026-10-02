@@ -27,7 +27,7 @@ first, with a small question that has the solid danger button ([Recipes](recipes
   24 px that WCAG 2.2 asks for (success criterion 2.5.8).
 - On a **touch screen** (the browser reports a coarse pointer) every button is at least **44 px wide and high**, the size of
   a fingertip (the stricter criterion 2.5.5): the week arrows, the ✕ buttons, the tag chips' remove buttons, **Delete**,
-  **Clear day** and the rest. Rows that hold such a button become a little taller.
+  **Clear day** and the rest. Rows that hold such a button become a little taller. The line that opens a disclosure (**Tags** in the recipe search, **Pantry staples**) has padding of its own (`.disclosure-summary`) and is 44 px high there too.
 
 The week arrows ← and → have no visible words, as people know them; a screen reader says "Previous week" and "Next week".
 

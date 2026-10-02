@@ -44,12 +44,15 @@ export function PantrySection({ staples, hiddenCount, showHidden, toggleHref, su
 
   return (
     <details open={showHidden} className="card p-4">
-      <summary className="cursor-pointer text-sm font-semibold">
+      <summary className="disclosure-summary">
         {t(i18n)`Pantry staples`}
         {hiddenCount > 0 && (
-          <span className="ml-2 font-normal text-muted">
-            {t(i18n)`${plural(hiddenCount, { one: "# item hidden", other: "# items hidden" })}`}
-          </span>
+          <>
+            {" "}
+            <span className="ml-1 font-normal text-muted">
+              {t(i18n)`${plural(hiddenCount, { one: "# item hidden", other: "# items hidden" })}`}
+            </span>
+          </>
         )}
       </summary>
 
