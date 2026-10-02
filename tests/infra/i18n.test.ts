@@ -97,7 +97,6 @@ export default {
       "recipe card servings": (i18n, servings) => t(i18n)`Serves ${servings}`,
       "recipe card ingredients": (i18n, ingredients) =>
         t(i18n)`${plural(ingredients, { one: "# ingredient", other: "# ingredients" })}`,
-      "recipe card planned days": (i18n, plannedFor) => t(i18n)`planned ${plannedFor}×`,
       "grocery list sources": (i18n, recipeCount) =>
         t(i18n)`from ${plural(recipeCount, { one: "# recipe", other: "# recipes" })}`,
       "grocery list typed dinners": (i18n, typedCount) =>
@@ -115,7 +114,6 @@ export default {
       ["recipe card servings", 4, "Serves 4", "Für 4 Personen"],
       ["recipe card ingredients", 1, "1 ingredient", "1 Zutat"],
       ["recipe card ingredients", 3, "3 ingredients", "3 Zutaten"],
-      ["recipe card planned days", 2, "planned 2×", "2× geplant"],
       ["grocery list sources", 1, "from 1 recipe", "aus 1 Rezept"],
       ["grocery list sources", 2, "from 2 recipes", "aus 2 Rezepten"],
       ["grocery list typed dinners", 1, "1 dinner without a recipe adds nothing", "1 Abendessen ohne Rezept steuert nichts bei"],

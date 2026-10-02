@@ -6,17 +6,17 @@ const en = testI18n("en");
 const de = testI18n("de");
 
 describe("recipeFacts", () => {
-  it("lists servings, ingredient count, prep time and how often it is planned", () => {
-    expect(recipeFacts(en, { servings: 4, prepMinutes: 30, ingredients: 3, plannedFor: 2 })).toEqual([
+  it("lists servings, ingredient count, prep time and the next planned day", () => {
+    expect(recipeFacts(en, { servings: 4, prepMinutes: 30, ingredients: 3, nextPlanned: "Tue 6 Oct" })).toEqual([
       "Serves 4",
       "3 ingredients",
       "30 min",
-      "planned 2×",
+      "next Tue 6 Oct",
     ]);
   });
 
-  it("leaves out what is missing: no prep time, not planned, counts not given", () => {
-    expect(recipeFacts(en, { servings: 2, prepMinutes: null, ingredients: 1, plannedFor: 0 })).toEqual([
+  it("leaves out what is missing: no prep time, nothing planned, counts not given", () => {
+    expect(recipeFacts(en, { servings: 2, prepMinutes: null, ingredients: 1, nextPlanned: null })).toEqual([
       "Serves 2",
       "1 ingredient",
     ]);
@@ -24,8 +24,8 @@ describe("recipeFacts", () => {
   });
 
   it.each([
-    [{ servings: 1, prepMinutes: null, ingredients: 1, plannedFor: 1 }, ["Für 1 Person", "1 Zutat", "1× geplant"]],
-    [{ servings: 4, prepMinutes: 45, ingredients: 0, plannedFor: 3 }, ["Für 4 Personen", "0 Zutaten", "45 Min.", "3× geplant"]],
+    [{ servings: 1, prepMinutes: null, ingredients: 1, nextPlanned: "Di. 6. Okt." }, ["Für 1 Person", "1 Zutat", "nächster Termin Di. 6. Okt."]],
+    [{ servings: 4, prepMinutes: 45, ingredients: 0 }, ["Für 4 Personen", "0 Zutaten", "45 Min."]],
   ])("speaks German with its own plurals (%j)", (facts, expected) => {
     expect(recipeFacts(de, facts)).toEqual(expected);
   });

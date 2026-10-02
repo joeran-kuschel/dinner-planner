@@ -356,6 +356,10 @@ msgstr "Name, tag or ingredient"
 msgid "New recipe"
 msgstr "New recipe"
 
+#: lib/recipe-facts.ts
+msgid "next {nextPlanned}"
+msgstr "next {nextPlanned}"
+
 #: components/week-nav.tsx
 msgid "Next week"
 msgstr "Next week"
@@ -455,10 +459,6 @@ msgstr "Plan “{name}” for this day only"
 #: app/layout.tsx
 msgid "Plan the week's dinners, keep recipes, and get one grocery list."
 msgstr "Plan the week's dinners, keep recipes, and get one grocery list."
-
-#: lib/recipe-facts.ts
-msgid "planned {plannedFor}×"
-msgstr "planned {plannedFor}×"
 
 #: app/recipes/[id]/page.tsx
 msgid "Planned for {plannedDays}."
