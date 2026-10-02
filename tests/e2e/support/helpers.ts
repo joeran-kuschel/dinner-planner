@@ -138,3 +138,12 @@ export async function confirmAction(page: Page, label: string, confirmLabel: str
   await page.locator("summary", { hasText: new RegExp(`^${label}$`) }).click();
   await page.getByRole("button", { name: confirmLabel, exact: true }).click();
 }
+
+/** Open the grocery page's "Add something else" disclosure (closed by default; it stays open while items are added). */
+export async function openAddForm(page: Page): Promise<void> {
+  const details = page.locator("details", { has: page.locator("summary", { hasText: /^Add something else$/ }) });
+  if (!(await details.evaluate((element: HTMLDetailsElement) => element.open))) {
+    await details.locator("summary").click();
+  }
+  await expect(details.getByRole("textbox", { name: "Item", exact: true })).toBeVisible();
+}

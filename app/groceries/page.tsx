@@ -120,11 +120,11 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         </div>
       </header>
 
-      <GroceryList weekStart={weekKey} lines={lines} allInPantry={pantryView.allInPantry} />
-
-      <section className="card flex flex-col gap-3 p-4">
-        <h2 className="section-title">{t(i18n)`Add something else`}</h2>
-        <form action={addGroceryExtra} className="flex flex-wrap items-end gap-2">
+      {/* Closed, so the list stays the first thing on the page. It stays open while the visitor keeps adding
+          items (the page re-renders without touching `open`) and starts closed again for another week. */}
+      <details key={weekKey} className="card p-4">
+        <summary className="disclosure-summary">{t(i18n)`Add something else`}</summary>
+        <form action={addGroceryExtra} className="mt-3 flex flex-wrap items-end gap-2">
           <input type="hidden" name="weekStart" value={weekKey} />
           <div className="basis-full">
             <RequiredNote>{t(i18n)`required`}</RequiredNote>
@@ -163,7 +163,9 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
             {t(i18n)`Add`}
           </button>
         </form>
-      </section>
+      </details>
+
+      <GroceryList weekStart={weekKey} lines={lines} allInPantry={pantryView.allInPantry} />
 
       <PantrySection
         staples={staples}

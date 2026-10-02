@@ -15,6 +15,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- On the grocery list, "Add something else" moved above the list as a closed fold-out, so a forgotten item no longer needs a scroll past everything ([#21](https://github.com/boyonthedocks/dinner-planner/issues/21)).
 - A recipe card shows the next day the recipe is planned for ("next Tue 6 Oct") instead of how many times it has been planned ([#15](https://github.com/boyonthedocks/dinner-planner/issues/15)).
 - The grocery list's header counts distinct recipes and says how many typed dinners add nothing ([#20](https://github.com/boyonthedocks/dinner-planner/issues/20)).
 - A new look for the whole app: warm paper colours with a tomato accent, serif headings, rounded buttons, and a clearer focus ring on everything you tab to ([#33](https://github.com/boyonthedocks/dinner-planner/issues/33)).

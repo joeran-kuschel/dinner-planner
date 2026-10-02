@@ -1,5 +1,5 @@
 import { expect, test } from "@/tests/e2e/support/test";
-import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import { createRecipe, expectAccessible, openAddForm, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The database is empty at the start of every test, so each one creates what it looks at.
 
@@ -114,6 +114,7 @@ test.describe("pantry staples", () => {
 
   test("never hides a line added by hand", async ({ page }) => {
     await page.goto(`/groceries?week=${WEEK}`);
+    await openAddForm(page);
     await page.getByRole("textbox", { name: "Item", exact: true }).fill("Salt");
     await page.getByRole("button", { name: "Add", exact: true }).first().click();
     await expect(tick(page, "Salt")).toBeVisible();
@@ -127,6 +128,7 @@ test.describe("pantry staples", () => {
   test("never hides a hand-added line that shares its name and unit with a line from the plan", async ({ page }) => {
     await planSoup(page);
     await page.goto(`/groceries?week=${WEEK}`);
+    await openAddForm(page);
     await page.getByLabel("Unit", { exact: true }).fill("tsp");
     await page.getByRole("textbox", { name: "Item", exact: true }).fill("Salt");
     await page.getByRole("button", { name: "Add", exact: true }).first().click();

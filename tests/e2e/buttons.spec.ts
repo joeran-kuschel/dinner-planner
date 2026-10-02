@@ -1,6 +1,6 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
-import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import { createRecipe, expectAccessible, openAddForm, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // Destructive actions look different from the rest, and every button can be hit with a fingertip.
 // The database is empty at the start of every test, so each one creates what it looks at.
@@ -14,6 +14,7 @@ async function setUp(page: Page) {
   await page.goto(`/?week=${WEEK}`);
   await planRecipe(page, "Monday", name);
   await page.goto(`/groceries?week=${WEEK}`);
+  await openAddForm(page);
   await page.getByRole("textbox", { name: "Item", exact: true }).fill(unique("Soap"));
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByRole("button", { name: /^Remove / })).toBeVisible();

@@ -4,6 +4,7 @@ import {
   createRecipe,
   dinnerField,
   expectAccessible,
+  openAddForm,
   planOnce,
   planRecipe,
   tabTo,
@@ -91,6 +92,7 @@ test.describe("accessibility", () => {
     await planRecipe(page, "Monday", name);
 
     await page.goto("/groceries?week=2027-06-14");
+    await openAddForm(page);
     await page.getByRole("textbox", { name: "Item", exact: true }).fill("Bin bags");
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByRole("button", { name: "Remove Bin bags" })).toBeVisible();
@@ -162,6 +164,9 @@ test.describe("accessibility", () => {
     const item = unique("Coffee");
     await page.goto("/groceries?week=2027-06-21");
 
+    // The form is a disclosure: Enter on its summary opens it, then Tab reaches the fields.
+    await tabTo(page, page.locator("summary", { hasText: /^Add something else$/ }));
+    await page.keyboard.press("Enter");
     await tabTo(page, page.getByRole("textbox", { name: "Item", exact: true }));
     await page.keyboard.type(item);
     await page.keyboard.press("Enter");

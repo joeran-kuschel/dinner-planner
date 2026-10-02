@@ -1,9 +1,11 @@
+import { type Locator } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
   createRecipe,
   expectAccessible,
   fillIngredients,
   groceryRow,
+  openAddForm,
   planOnce,
   planRecipe,
   setServings,
@@ -124,7 +126,6 @@ test.describe("groceries", () => {
       "Bakery (1)",
       "Dairy and eggs (1)",
       "Other (1)",
-      "Add something else",
     ]);
     const produce = page.getByRole("region", { name: "Fruit and vegetables (1)" });
     await expect(produce.getByRole("checkbox", { name: "Tick off Tomatoes" })).toBeVisible();
@@ -168,9 +169,57 @@ test.describe("groceries", () => {
     expect(await order()).toEqual(before);
   });
 
+  test("keeps the add form closed above the list, and open while items are added", async ({ page }) => {
+    const name = unique("Dal");
+    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
+    await page.goto("/?week=2027-10-04");
+    await planRecipe(page, "Monday", name);
+    await page.goto("/groceries?week=2027-10-04");
+
+    const details = page.locator("details", { has: page.locator("summary", { hasText: /^Add something else$/ }) });
+    const summary = details.locator("summary");
+    await expect(details).not.toHaveAttribute("open", "");
+    await expect(details.getByRole("textbox", { name: "Item", exact: true })).toBeHidden();
+    // Above the list, so a forgotten item does not need a scroll past everything.
+    const top = async (locator: Locator) => {
+      const box = await locator.boundingBox();
+      if (!box) throw new Error("expected the element to be on the page");
+      return box.y;
+    };
+    expect(await top(summary)).toBeLessThan(await top(page.getByRole("checkbox", { name: "Tick off Lentils" })));
+    await expectAccessible(page);
+
+    // It opens by itself, and stays open for the next item.
+    await openAddForm(page);
+    await expectAccessible(page);
+    for (const item of [unique("Soap"), unique("Sponge")]) {
+      await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
+      await page.getByRole("button", { name: "Add", exact: true }).first().click();
+      await expect(groceryRow(page, item)).toContainText("added by hand");
+      await expect(details).toHaveAttribute("open", "");
+      await expect(page.getByRole("textbox", { name: "Item", exact: true })).toHaveValue("");
+    }
+
+    // Another week starts closed, and so does a new visit.
+    await page.getByRole("link", { name: "Next week" }).click();
+    await expect(page).toHaveURL(/week=2027-10-11/);
+    await expect(details).not.toHaveAttribute("open", "");
+    await page.goto("/groceries?week=2027-10-04");
+    await expect(details).not.toHaveAttribute("open", "");
+  });
+
+  test("calls the add form by its German name", async ({ browser }) => {
+    const context = await browser.newContext({ locale: "de-DE" });
+    const page = await context.newPage();
+    await page.goto("/groceries?week=2027-10-11");
+    await expect(page.locator("details summary", { hasText: /^Etwas anderes hinzufügen$/ })).toBeVisible();
+    await context.close();
+  });
+
   test("files a hand-added item under the chosen section", async ({ page }) => {
     const item = unique("Beer");
     await page.goto("/groceries?week=2027-09-13");
+    await openAddForm(page);
     await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
     await page.getByLabel("Category", { exact: true }).selectOption({ label: "Drinks" });
     await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -180,6 +229,7 @@ test.describe("groceries", () => {
 
   test("marks the mandatory item of the add form with an asterisk and explains it", async ({ page }) => {
     await page.goto("/groceries?week=2027-04-19");
+    await openAddForm(page);
     await expect(page.getByText("* required")).toBeVisible();
     await expect(page.locator("label[for=label]").getByTitle("Required")).toBeVisible();
     await expectAccessible(page);
@@ -190,6 +240,7 @@ test.describe("groceries", () => {
     await page.goto("/groceries?week=2027-04-19");
     await expect(page.getByText("Nothing to buy yet.", { exact: false })).toBeVisible();
 
+    await openAddForm(page);
     await page.getByLabel("Amount", { exact: true }).fill("1,5");
     await page.getByLabel("Unit", { exact: true }).fill("l");
     await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
