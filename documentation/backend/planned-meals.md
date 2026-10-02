@@ -10,9 +10,10 @@ The server actions live in `app/actions/meals.ts`:
 | ------------------ | ------------------------------------------------------------ |
 | `setPlannedMeal`   | Plans, changes or clears one day (below).                    |
 | `clearPlannedMeal` | Deletes one day's row.                                       |
+| `restorePlannedMeal` | Puts a cleared day back, only while the day is still empty (below). |
 | `clearWeek`        | Deletes the seven rows of the Monday-based week of `weekStart`. |
 
-All three refresh the week view (`/`), the grocery list (`/groceries`) and the recipe pages (`/recipes` and below),
+All of them refresh the week view (`/`), the grocery list (`/groceries`) and the recipe pages (`/recipes` and below),
 which show where each recipe is planned and list a recipe added from a day card.
 
 ## `setPlannedMeal`
@@ -53,6 +54,20 @@ recipe list.
 
 A save that fails (for example because the picked recipe was deleted in another tab) throws. The day card catches it,
 says so in an alert, shows what is saved and reloads the page data; see [Week plan](../ui/week-plan.md).
+
+## `restorePlannedMeal`
+
+The day card's **Undo** after **Clear day** posts what the clear removed (the same form `setPlannedMeal` reads) to this
+action instead of to `setPlannedMeal`. It looks at the day first:
+
+- If the day holds no dinner (no row, or a row naming neither a recipe nor a title), it plans it exactly as
+  `setPlannedMeal` would and returns `"restored"`.
+- If a dinner was planned for it in the meantime (another tab or window), it changes nothing, refreshes the views and
+  returns `"occupied"`. The card then says nothing was put back and shows what is planned now, so an old Undo can
+  never overwrite a newer plan.
+
+The check and the write are two steps, not one transaction, so two Undos landing in the same few milliseconds could
+still collide; for one person with two tabs that window is accepted.
 
 ## Deleting a recipe
 

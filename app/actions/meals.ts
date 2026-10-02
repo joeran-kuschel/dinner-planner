@@ -62,6 +62,30 @@ export async function setPlannedMeal(formData: FormData) {
 }
 
 /**
+ * Put a day back after "Clear day": the same form `setPlannedMeal` reads, but only while the day is
+ * still empty. If a dinner was planned for it in the meantime (another tab, another window), that
+ * newer plan is left alone and the card is told, so an old Undo never overwrites it. Two Undos
+ * landing within the same few milliseconds could still collide; that window is accepted.
+ */
+export async function restorePlannedMeal(formData: FormData): Promise<"restored" | "occupied"> {
+  const day = parseDayKey(readText(formData, "day"));
+  if (!day) throw new Error("restorePlannedMeal: missing or malformed `day`");
+
+  // A row naming neither a recipe nor a title shows as an empty day, so it does not count.
+  const planned = await prisma.plannedMeal.findFirst({
+    where: { date: day, OR: [{ recipeId: { not: null } }, { customTitle: { not: null } }] },
+    select: { date: true },
+  });
+  if (planned) {
+    // The card shows what the day holds now.
+    revalidateMealViews();
+    return "occupied";
+  }
+  await setPlannedMeal(formData);
+  return "restored";
+}
+
+/**
  * Prisma runs a case-insensitive `equals` as `ILIKE`, where `%` and `_` are
  * wildcards: "Shak_huka" would plan "Shakshuka". Escaped, they match themselves.
  */

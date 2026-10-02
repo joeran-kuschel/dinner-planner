@@ -15,7 +15,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearPlannedMeal, setPlannedMeal } from "@/app/actions/meals";
+import { clearPlannedMeal, restorePlannedMeal, setPlannedMeal } from "@/app/actions/meals";
 import { isSameDinner, matchingTag, MAX_SERVINGS, SERVINGS_HINT_ID, suggestsRecipe } from "@/lib/planner";
 
 export type DayCardMeal = {
@@ -24,6 +24,11 @@ export type DayCardMeal = {
   servings: number;
   notes: string | null;
 };
+
+/** One string for everything the card shows of a day, to notice when the server's value moves. */
+function mealKey(meal: DayCardMeal | null): string | null {
+  return meal && `${meal.recipeId}\n${meal.customTitle}\n${meal.servings}\n${meal.notes}`;
+}
 
 export type DayCardProps = {
   dayKey: string;
@@ -50,7 +55,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   const [choice, setChoice, resyncChoice] = useChoice(meal, recipes);
   const formRef = useServerSync(meal);
   const router = useRouter();
-  const [pending, failed, saved, undo, submit] = useAutoSave(() => {
+  const [pending, failed, saved, undo, submit] = useAutoSave(meal, () => {
     // E.g. the picked recipe was deleted in another tab. Show what is saved
     // (as of the latest render, not the one the save started in), and fetch
     // the current recipes so the stale one is no longer suggested.
@@ -95,7 +100,9 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
       <div className="flex min-w-0 flex-col gap-3">
         {failed && (
           <p role="alert" className="text-sm font-medium text-accent-text">
-            {t(i18n)`This day could not be saved. It shows what is saved now; please try again.`}
+            {failed === "changed"
+              ? t(i18n)`This day was changed elsewhere, so nothing was put back. It shows what is planned now.`
+              : t(i18n)`This day could not be saved. It shows what is saved now; please try again.`}
           </p>
         )}
 
@@ -119,6 +126,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
         {undo && (
           <ClearedNotice
             weekday={weekdayLabel}
+            focusId={`dinner-${dayKey}`}
             onUndo={() => {
               undo();
               // The undo button goes away with the notice; the dinner field is where the day comes back.
@@ -175,19 +183,33 @@ function useChoice(meal: DayCardMeal | null, recipes: DayCardProps["recipes"]) {
  * the server action from `onSubmit` skips that reset. The `action` props stay
  * for browsers without JavaScript, where the form posts normally.
  */
-function useAutoSave(onFailure: () => void) {
+function useAutoSave(meal: DayCardMeal | null, onFailure: () => void) {
   const [pending, startTransition] = useTransition();
-  const [failed, setFailed] = useState(false);
+  // "error": the save failed. "changed": an Undo found the day planned again and put nothing back.
+  const [failed, setFailed] = useState<"error" | "changed" | null>(null);
   // The number of the save whose "Saved" is showing, or 0. A new number for
   // every finished save restarts the timer below.
   const [saved, setSaved] = useState(0);
   // What the last "Clear day" removed, in the shape `setPlannedMeal` reads, so
-  // that undoing it is saving it again. It stays until the next save.
+  // that undoing it is saving it again. It stays until the next save, or until the day is
+  // planned again elsewhere.
   const [cleared, setCleared] = useState<FormData | null>(null);
   // Saves can overlap (a blur while an earlier save is in flight). Only the
   // latest one reports: an older one finishing late must not confirm, or
   // blame, a write the user has since replaced.
   const latest = useRef(0);
+
+  // The day was planned again somewhere else (the card follows the server's value): the old dinner
+  // must not be put back over it, so the offer goes.
+  const plannedKey = mealKey(meal);
+  const [seenKey, setSeenKey] = useState(plannedKey);
+  if (plannedKey !== seenKey) {
+    setSeenKey(plannedKey);
+    if (plannedKey !== null && cleared) {
+      setCleared(null);
+      setFailed("changed");
+    }
+  }
 
   // "Saved" is confirmation, not state: it goes away by itself.
   useEffect(() => {
@@ -196,15 +218,24 @@ function useAutoSave(onFailure: () => void) {
     return () => clearTimeout(timer);
   }, [saved]);
 
-  const run = (action: typeof setPlannedMeal, data: FormData, clearing = false) => {
+  const run = (
+    action: (data: FormData) => Promise<unknown>,
+    data: FormData,
+    clearing = false,
+  ) => {
     const save = ++latest.current;
-    setFailed(false);
+    setFailed(null);
     setSaved(0);
     setCleared(null);
     startTransition(async () => {
       try {
-        await action(data);
+        const result = await action(data);
         if (save !== latest.current) return;
+        if (result === "occupied") {
+          setFailed("changed");
+          onFailure();
+          return;
+        }
         // Clearing has nothing left on the card to say "Saved" next to; it
         // offers the undo instead.
         if (clearing) setCleared(data);
@@ -212,7 +243,7 @@ function useAutoSave(onFailure: () => void) {
       } catch {
         if (save !== latest.current) return;
         // Without this, a failed save would end on Next's error page.
-        setFailed(true);
+        setFailed("error");
         onFailure();
       }
     });
@@ -224,7 +255,7 @@ function useAutoSave(onFailure: () => void) {
     const clearing = submitter?.dataset.intent === "clear";
     run(clearing ? clearPlannedMeal : setPlannedMeal, new FormData(event.currentTarget), clearing);
   };
-  const undo = cleared && (() => run(setPlannedMeal, cleared));
+  const undo = cleared && (() => run(restorePlannedMeal, cleared));
   return [pending, failed, saved > 0, undo, submit] as const;
 }
 
@@ -238,9 +269,10 @@ function useAutoSave(onFailure: () => void) {
  */
 function useServerSync(meal: DayCardMeal | null) {
   const formRef = useRef<HTMLFormElement>(null);
+  const key = mealKey(meal);
   useLayoutEffect(() => {
     if (formRef.current) showSavedValues(formRef.current);
-  }, [meal?.recipeId, meal?.customTitle, meal?.servings, meal?.notes]);
+  }, [key]);
   return formRef;
 }
 
@@ -485,7 +517,7 @@ function SuggestionList({
  * since the card's status region already announces them. It stays until the
  * next save rather than timing out, so there is no clock to beat.
  */
-function ClearedNotice({ weekday, onUndo }: { weekday: string; onUndo: () => void }) {
+function ClearedNotice({ weekday, focusId, onUndo }: { weekday: string; focusId: string; onUndo: () => void }) {
   const { i18n } = useLingui();
   const undoButton = useRef<HTMLButtonElement>(null);
   // "Clear day" had the focus and goes with the rest of the details, which drops the focus on the
@@ -495,6 +527,14 @@ function ClearedNotice({ weekday, onUndo }: { weekday: string; onUndo: () => voi
     const active = document.activeElement as HTMLElement | null;
     if (!active || active === document.body || active.dataset.intent === "clear") undoButton.current?.focus();
   }, []);
+  // The notice can go while Undo has the focus (the day was planned elsewhere, or Undo was used):
+  // the dinner field is where the day is, so the focus goes there instead of to the page.
+  useLayoutEffect(
+    () => () => {
+      if (document.activeElement === undoButton.current) document.getElementById(focusId)?.focus();
+    },
+    [focusId],
+  );
   return (
     <div className="flex items-center gap-2 text-xs text-muted">
       <span aria-hidden>{t(i18n)`Day cleared`}</span>

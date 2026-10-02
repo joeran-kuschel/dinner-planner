@@ -9,6 +9,7 @@ import { DayCard, type DayCardMeal, type DayCardProps } from "@/components/day-c
 const actions = vi.hoisted(() => ({
   setPlannedMeal: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   clearPlannedMeal: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
+  restorePlannedMeal: vi.fn<(formData: FormData) => Promise<"restored" | "occupied">>(async () => "restored"),
 }));
 vi.mock("@/app/actions/meals", () => actions);
 
@@ -45,7 +46,7 @@ const dinnerField = () => screen.getByRole("combobox", { name: "Dinner for Monda
 const suggestions = () => screen.queryAllByRole("option").map((option) => option.textContent);
 /** The card's save status: read out by screen readers, empty when there is nothing to say. */
 const status = () => document.getElementById("save-status-2026-09-28")!;
-const lastFormData = (fn: typeof actions.setPlannedMeal) => fn.mock.calls.at(-1)![0];
+const lastFormData = (fn: { mock: { calls: [FormData][] } }) => fn.mock.calls.at(-1)![0];
 
 /** An action whose promise the test settles, to observe the pending state. */
 function deferred() {
@@ -537,6 +538,110 @@ describe("DayCard", () => {
     });
   });
 
+  describe("undoing Clear day when the day changed elsewhere", () => {
+    const undoButton = () => screen.findByRole("button", { name: "Undo clearing Monday" });
+
+    async function clearDay(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole("button", { name: "Clear day" }));
+      return undoButton();
+    }
+
+    it("drops the offer when the day is planned again elsewhere", async () => {
+      const { user, rerender } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      // The server cleared the day: that is the state the offer is made in.
+      rerender(<DayCard {...props({ meal: null })} />);
+      expect(await undoButton()).toBeInTheDocument();
+
+      // Another tab planned the day and this card now follows the server's value.
+      rerender(<DayCard {...props({ meal: ONE_OFF })} />);
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Undo clearing Monday" })).not.toBeInTheDocument());
+      expect(dinnerField()).toHaveValue("Pizza night");
+      expect(actions.restorePlannedMeal).not.toHaveBeenCalled();
+      // The offer does not vanish silently: the card says why, and the focus (it was on Undo) moves to the day.
+      expect(screen.getByRole("alert")).toHaveTextContent("This day was changed elsewhere");
+      expect(dinnerField()).toHaveFocus();
+    });
+
+    it("leaves the focus where it is when the offer goes while the user is elsewhere", async () => {
+      const user = userEvent.setup();
+      const ui = (meal: DayCardMeal | null) => (
+        <>
+          <DayCard {...props({ meal })} />
+          <button type="button">Elsewhere</button>
+        </>
+      );
+      const { rerender } = renderWithI18n(ui(PLANNED));
+      await clearDay(user);
+      rerender(ui(null));
+      await undoButton();
+      await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+      expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+
+      rerender(ui(ONE_OFF));
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Undo clearing Monday" })).not.toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Elsewhere" })).toHaveFocus();
+    });
+
+    it("keeps the offer while the server's value for the day stays the same", async () => {
+      const { user, rerender } = renderCard({ meal: PLANNED });
+      await clearDay(user);
+      rerender(<DayCard {...props({ meal: null })} />);
+      // A refresh that brings nothing new for this day.
+      rerender(<DayCard {...props({ meal: null })} />);
+
+      expect(await undoButton()).toBeInTheDocument();
+    });
+
+    it("says nothing was put back when the day was changed elsewhere, and reloads the data", async () => {
+      actions.restorePlannedMeal.mockResolvedValueOnce("occupied");
+      const { user } = renderCard({ meal: PLANNED });
+      await user.click(await clearDay(user));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "This day was changed elsewhere, so nothing was put back.",
+      );
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("button", { name: "Undo clearing Monday" })).not.toBeInTheDocument();
+      expect(status()).toHaveTextContent("");
+      // The button the focus was on is gone; the day is where it goes.
+      expect(dinnerField()).toHaveFocus();
+    });
+
+    it("takes the message away with the next save that goes through", async () => {
+      actions.restorePlannedMeal.mockResolvedValueOnce("occupied");
+      const { user } = renderCard({ meal: PLANNED });
+      await user.click(await clearDay(user));
+      await screen.findByRole("alert");
+
+      await user.type(screen.getByPlaceholderText("Note (optional)"), "!");
+      await user.tab();
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("is replaced by the failure message when the next save fails", async () => {
+      actions.restorePlannedMeal.mockResolvedValueOnce("occupied");
+      const { user } = renderCard({ meal: PLANNED });
+      await user.click(await clearDay(user));
+      await screen.findByRole("alert");
+
+      actions.setPlannedMeal.mockRejectedValueOnce(new Error("offline"));
+      await user.type(screen.getByPlaceholderText("Note (optional)"), "!");
+      await user.tab();
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("This day could not be saved."));
+    });
+
+    it("says it in German", async () => {
+      actions.restorePlannedMeal.mockResolvedValueOnce("occupied");
+      const user = userEvent.setup();
+      renderWithI18n(<DayCard {...props({ meal: PLANNED })} />, { locale: "de" });
+      await user.click(screen.getByRole("button", { name: "Tag leeren" }));
+      await user.click(await screen.findByRole("button", { name: /rückgängig/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Dieser Tag wurde woanders geändert");
+    });
+  });
+
   describe("a failed save", () => {
     it("says so, shows what is saved and reloads the data", async () => {
       actions.setPlannedMeal.mockRejectedValueOnce(new Error("setPlannedMeal: unknown `recipeId`"));
@@ -904,13 +1009,15 @@ describe("DayCard", () => {
       await clearDay(user);
       await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
 
-      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
-      const data = lastFormData(actions.setPlannedMeal);
+      await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+      const data = lastFormData(actions.restorePlannedMeal);
       expect(data.get("day")).toBe("2026-09-28");
       expect(data.get("dinner")).toBe("Mushroom risotto");
       expect(data.get("recipeId")).toBe("r-risotto");
       expect(data.get("servings")).toBe("3");
       expect(data.get("notes")).toBe("Use the good stock");
+      // Undo must never overwrite: it goes through the action that checks the day is still empty.
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
     });
 
     it("restores a one-off dinner by its title", async () => {
@@ -918,8 +1025,8 @@ describe("DayCard", () => {
       await clearDay(user);
       await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
 
-      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
-      const data = lastFormData(actions.setPlannedMeal);
+      await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+      const data = lastFormData(actions.restorePlannedMeal);
       expect(data.get("dinner")).toBe("Pizza night");
       expect(data.get("recipeId")).toBe("");
     });
@@ -967,7 +1074,7 @@ describe("DayCard", () => {
     });
 
     it("says nothing is saved when the undo fails, and shows the alert", async () => {
-      actions.setPlannedMeal.mockRejectedValueOnce(new Error("The recipe is gone"));
+      actions.restorePlannedMeal.mockRejectedValueOnce(new Error("The recipe is gone"));
       const { user } = renderCard({ meal: PLANNED });
       await clearDay(user);
       await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
