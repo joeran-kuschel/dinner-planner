@@ -150,7 +150,8 @@ test.describe("recipe search", () => {
 
     // Closed by default; the summary names the list.
     await page.goto("/recipes");
-    const tags = page.locator("details");
+    // The tag list, not the New recipe split button's menu (a <details> too).
+    const tags = page.locator("details", { has: page.locator("summary", { hasText: /^Tags/ }) });
     const summary = tags.locator("summary");
     await expect(tags).not.toHaveAttribute("open", "");
     await expect(summary).toHaveText("Tags");
@@ -212,7 +213,7 @@ test.describe("recipe search", () => {
     await expect(page.getByText("Kein Rezept passt.", { exact: false })).toBeVisible();
     await expect(page.getByRole("link", { name: "Zurücksetzen" })).toBeVisible();
     await page.goto(`/recipes?tag=${uniqueWord("x")}`);
-    await expect(page.locator("details summary")).toHaveText("Tags (1 ausgewählt)");
+    await expect(page.locator("details", { has: page.locator("summary", { hasText: /^Tags/ }) }).locator("summary")).toHaveText("Tags (1 ausgewählt)");
     await context.close();
   });
 });

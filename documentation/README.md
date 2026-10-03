@@ -17,6 +17,7 @@ Feature documentation, split into the user interface and the backend.
 - [Recipe tags and search](backend/recipe-tags.md): the `Tag` table, the chip form, pruning, the list query and the dinner field
 - [Grocery categories](backend/grocery-categories.md): the shop-section enum, how it travels from recipe form to list, merging and grouping
 - [Pantry staples](backend/pantry-staples.md): the `PantryStaple` table, name-only matching, hiding at render time, the actions
+- [Recipe import](backend/recipe-import.md): "Add from a link", what may be fetched, how the recipe is read, the test switch
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
 

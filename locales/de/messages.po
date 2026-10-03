@@ -86,6 +86,13 @@ msgstr "„{name}“ als neues Rezept anlegen"
 msgid "Add a staple"
 msgstr "Vorratsartikel hinzufügen"
 
+#: app/recipes/new/page.tsx
+#: app/recipes/page.tsx
+#: components/import-recipe-dialog.tsx
+#: components/new-recipe-screen.tsx
+msgid "Add from a link"
+msgstr "Über einen Link hinzufügen"
+
 #: components/recipe-form.tsx
 msgid "Add ingredient"
 msgstr "Zutat hinzufügen"
@@ -121,6 +128,7 @@ msgid "Bakery"
 msgstr "Backwaren"
 
 #: components/confirm-action.tsx
+#: components/import-recipe-dialog.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -227,6 +235,10 @@ msgstr "Rezept bearbeiten"
 msgid "Edit the plan"
 msgstr "Plan bearbeiten"
 
+#: lib/recipe-import/messages.ts
+msgid "Enter a web address starting with http:// or https://."
+msgstr "Gib eine Webadresse ein, die mit http:// oder https:// beginnt."
+
 #: components/grocery-list.tsx
 msgid "Everything this week's dinners need is in your pantry."
 msgstr "Alles, was die Abendessen dieser Woche brauchen, ist im Vorrat."
@@ -234,6 +246,10 @@ msgstr "Alles, was die Abendessen dieser Woche brauchen, ist im Vorrat."
 #: components/grocery-list.tsx
 msgid "Everything ticked off."
 msgstr "Alles abgehakt."
+
+#: components/import-recipe-dialog.tsx
+msgid "Fetching the page…"
+msgstr "Seite wird abgerufen …"
 
 #: app/groceries/page.tsx
 msgid "from {recipeCount, plural, one {# recipe} other {# recipes}}"
@@ -272,6 +288,15 @@ msgstr "Einkaufsliste für diese Woche"
 #: components/pantry-section.tsx
 msgid "Hide the pantry items again"
 msgstr "Vorratsartikel wieder ausblenden"
+
+#: app/recipes/new/page.tsx
+#: components/import-recipe-dialog.tsx
+msgid "Import"
+msgstr "Importieren"
+
+#: components/import-recipe-dialog.tsx
+msgid "Importing…"
+msgstr "Wird importiert …"
 
 #: components/grocery-list.tsx
 msgid "in the pantry"
@@ -314,6 +339,11 @@ msgstr "Sprache"
 msgid "Leave the amount blank for “to taste”."
 msgstr "Lass die Menge leer für „nach Geschmack“."
 
+#: app/recipes/new/page.tsx
+#: components/import-recipe-dialog.tsx
+msgid "Link to the recipe"
+msgstr "Link zum Rezept"
+
 #: components/site-nav.tsx
 msgid "Main"
 msgstr "Hauptnavigation"
@@ -334,6 +364,10 @@ msgstr "Die Rezept-ID fehlt."
 #: lib/units.ts
 msgid "ml"
 msgstr "ml"
+
+#: app/recipes/page.tsx
+msgid "More ways to add a recipe"
+msgstr "Weitere Möglichkeiten, ein Rezept hinzuzufügen"
 
 #: components/recipe-form.tsx
 msgid "Mushroom risotto"
@@ -367,6 +401,10 @@ msgstr "Nächste Woche"
 #: app/recipes/page.tsx
 msgid "No recipe matches. Try fewer tags or another word."
 msgstr "Kein Rezept passt. Versuche weniger Tags oder ein anderes Wort."
+
+#: lib/recipe-import/messages.ts
+msgid "No recipe was found on that page. Importing needs recipe data that the website publishes for search engines."
+msgstr "Auf dieser Seite wurde kein Rezept gefunden. Der Import braucht Rezeptdaten, die die Website für Suchmaschinen bereitstellt."
 
 #: app/page.tsx
 msgid "No recipes yet. <0>Add your first one</0> and it will be suggested for every day."
@@ -432,6 +470,10 @@ msgstr "Vorräte"
 msgid "Pantry staples"
 msgstr "Vorratsartikel"
 
+#: components/import-recipe-dialog.tsx
+msgid "Paste the address of a recipe page. The recipe is filled in for you to check; nothing is saved until you save it."
+msgstr "Füge die Adresse einer Rezeptseite ein. Das Rezept wird zum Prüfen ausgefüllt; gespeichert wird erst, wenn du es speicherst."
+
 #: components/recipe-form.tsx
 msgid "Photo"
 msgstr "Foto"
@@ -487,6 +529,10 @@ msgstr "Die Mengen unten gelten für so viele Personen."
 #: components/recipe-search-box.tsx
 msgid "recipe"
 msgstr "Rezept"
+
+#: components/new-recipe-screen.tsx
+msgid "Recipe imported. Check it, then press “Create recipe”."
+msgstr "Rezept importiert. Prüfe es und wähle dann „Rezept anlegen“."
 
 #: app/recipes/[id]/page.tsx
 #: app/recipes/new/page.tsx
@@ -606,13 +652,37 @@ msgstr "Tags dieses Rezepts"
 msgid "tbsp"
 msgstr "EL"
 
+#: lib/recipe-import/messages.ts
+msgid "That address cannot be imported: it points to this computer or to a private network."
+msgstr "Diese Adresse kann nicht importiert werden: Sie verweist auf diesen Computer oder auf ein privates Netzwerk."
+
+#: lib/recipe-import/messages.ts
+msgid "That address is not a web page."
+msgstr "Diese Adresse ist keine Webseite."
+
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
 msgstr "Die Beschreibung des Fotos darf höchstens {MAX_PHOTO_ALT_LENGTH} Zeichen lang sein."
 
+#: lib/recipe-import/messages.ts
+msgid "The import was cancelled."
+msgstr "Der Import wurde abgebrochen."
+
 #: components/pantry-section.tsx
 msgid "The list is full: {MAX_STAPLES} staples. Remove one to add another."
 msgstr "Die Liste ist voll: {MAX_STAPLES} Vorratsartikel. Entferne einen, um einen neuen hinzuzufügen."
+
+#: lib/recipe-import/messages.ts
+msgid "The page could not be fetched. Check the address and try again."
+msgstr "Die Seite konnte nicht abgerufen werden. Prüfe die Adresse und versuche es erneut."
+
+#: lib/recipe-import/messages.ts
+msgid "The page is too large to import."
+msgstr "Die Seite ist zu groß für den Import."
+
+#: lib/recipe-import/messages.ts
+msgid "The page took too long to answer. Try again later."
+msgstr "Die Seite hat zu lange nicht geantwortet. Versuche es später noch einmal."
 
 #: lib/recipe-photo.ts
 msgid "The photo could not be read. Choose another image."

@@ -57,6 +57,9 @@ export default defineConfig({
       NODE_ENV: "production",
       PORT: String(PORT),
       HOSTNAME: "localhost",
+      // The recipe import refuses private addresses; its sample website here runs on this machine.
+      // Only the test server gets this (tests/infra/recipe-import.test.ts checks no deployment does).
+      RECIPE_IMPORT_ALLOW_PRIVATE: "1",
     },
     // Never reuse a server someone else started: it could use the real database.
     reuseExistingServer: false,

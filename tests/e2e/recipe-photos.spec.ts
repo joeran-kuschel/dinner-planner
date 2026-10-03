@@ -145,7 +145,10 @@ test.describe("recipe photos", () => {
     await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
     await page.getByLabel("Photo file").setInputFiles(await photoUpload());
     // As if the browser did not check: a script, or a browser that skips validation.
-    await page.getByRole("main").locator("form").evaluate((form: HTMLFormElement) => (form.noValidate = true));
+    // The recipe form: the page also has the language switch and the closed "Add from a link" dialog, with forms of their own.
+    await page
+      .locator("form", { has: page.getByRole("button", { name: "Create recipe" }) })
+      .evaluate((form: HTMLFormElement) => (form.noValidate = true));
     await page.getByRole("button", { name: "Create recipe" }).click();
 
     await expect(page.getByRole("main").getByRole("alert")).toHaveText(
