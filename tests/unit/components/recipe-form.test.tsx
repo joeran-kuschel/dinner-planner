@@ -382,6 +382,50 @@ describe("RecipeForm", () => {
     });
   });
 
+  describe("initial values (an imported recipe)", () => {
+    const render = (action: Action = vi.fn<Action>(async (prev) => prev)) =>
+      renderWithI18n(<RecipeForm action={action} initialValues={REJECTED_VALUES} />);
+
+    it("fills a new recipe's form from the values it is given, without an id", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      render(action);
+      expect(field("Description")).toHaveValue("Still typing");
+      expect(field("Serves")).toHaveValue(3);
+      expect(field("Source")).toHaveValue("https://example.com/soup");
+      expect(field("Method")).toHaveValue("Chop\nSimmer");
+      expect(ingredientRow(1)).toEqual(["2", "", "Leek"]);
+      expect(ingredientRow(2)).toEqual(["1,5", "l", "Stock"]);
+      expect(screen.getByRole("button", { name: "Remove tag soup" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Create recipe" })).toBeInTheDocument();
+    });
+
+    it("submits what the visitor made of it", async () => {
+      const action = vi.fn<Action>(async (prev) => prev);
+      render(action);
+      const user = userEvent.setup();
+      await user.type(field("Name"), "Leek soup");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+      const data = submittedData(action);
+      expect(data.get("name")).toBe("Leek soup");
+      expect(data.get("sourceUrl")).toBe("https://example.com/soup");
+      expect(data.getAll("ingredientName")).toEqual(["Leek", "Stock"]);
+      expect(data.getAll("tag")).toEqual(["soup", "quick"]);
+      expect(data.has("id")).toBe(false);
+    });
+
+    it("gives way to the values a rejected save hands back", async () => {
+      const action = rejectingAction(NAME_MISSING, { ...REJECTED_VALUES, description: "Echoed back" });
+      render(action);
+      const user = userEvent.setup();
+      await user.type(field("Name"), "x");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+      await screen.findByRole("alert");
+      expect(field("Description")).toHaveValue("Echoed back");
+    });
+  });
+
   describe("ingredient entry", () => {
     const amount = (n: number) => screen.getByRole("textbox", { name: `Amount for ingredient ${n}` });
     const name = (n: number) => screen.getByRole("textbox", { name: `Name of ingredient ${n}` });

@@ -97,6 +97,42 @@ Creating and editing use the same form.
 Saving replaces the recipe's ingredients with the rows in the form, in that order. When the server rejects the form, for
 example for a blank name, the message is announced and everything typed is still in the form.
 
+## Adding a recipe from a link
+
+On the recipe list, **New recipe** is a split button. The main part opens the empty form, as always; the arrow beside it
+("More ways to add a recipe") opens a short menu with **Add from a link**. It leads to the New recipe page with a dialog
+already open, and the page has the same **Add from a link** button above the form for another go.
+
+**The dialog** is a modal dialog titled "Add from a link": it asks for the **Link to the recipe** (focus starts there),
+with **Import** and **Cancel**. Everything behind it is inert, Tab stays inside, and Escape or **Cancel** closes it and
+puts the focus back on the button that opened it.
+
+- A typo (anything that does not start with `http://` or `https://`) is answered at once, inside the dialog, without
+  asking the server. The dialog stays open and the focus goes back to the field.
+- While the page is being fetched the dialog says "Fetching the page…" (announced to screen readers) and the button
+  reads "Importing…". **Cancel** (or Escape) stops the wait: the request to the server is cancelled and the dialog
+  closes. A page that takes more than 10 seconds counts as too slow.
+- A problem comes back as a message in the dialog, which stays open for a corrected address: the page could not be
+  fetched, took too long, is too large (over 2 MB) or is no web page, the address points to this computer or a private
+  network (which is never fetched), or the page has no recipe data.
+- On success the dialog closes, the form is filled in and the focus is on its name. "Recipe imported. Check it, then
+  press “Create recipe”." is announced. **Nothing is saved** until you press **Create recipe**; going away keeps nothing.
+  Importing again replaces the form with the new recipe.
+
+**What is filled in** (from the recipe data the website publishes for search engines): the name, a one-line description,
+how many people it serves, the prep time (the total time when there is no prep time), the page's address as the source,
+the method (one step per line), up to six tags (category and cuisine first, then the site's keywords) and the
+ingredients. Each ingredient line is split into amount, unit and name: "200 g flour", "1½ cups rice" or "½ TL Salz"
+become 200 / g / flour, 1.5 / cup / rice and 0.5 / TL / Salz, in English and German. A range ("2–3 cloves") is shopped
+for at its upper end, notes after a comma or in brackets are dropped from the name ("garlic, minced" → "garlic"), and
+what cannot be read stays in the name. Every ingredient starts in **Other**. The recipe's **photo is not imported**; add
+one in the form if you like. Always check the result: websites word things in their own way.
+
+**Without JavaScript** the same thing is a plain form. **Add from a link** in the menu leads to the New recipe page,
+which then shows a **Link to the recipe** field with an **Import** button above the form. Sending it opens the page
+again with the form filled in (`/recipes/new?from=<link>`); a problem is shown as a message beside the field. How it
+works and what it will not fetch: [Recipe import](../backend/recipe-import.md).
+
 ## Mandatory fields
 
 A field that has to be filled in shows a "*" after its label, and the line "* required" at the top of the form explains

@@ -55,6 +55,8 @@ export type RecipeFormProps = {
   tagSuggestions?: string[];
   /** The units to offer in the ingredient rows. */
   unitSuggestions?: string[];
+  /** What a new recipe starts from instead of an empty form, e.g. a recipe imported from a link. */
+  initialValues?: RecipeFormValues;
 };
 
 const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: DEFAULT_GROCERY_CATEGORY };
@@ -94,7 +96,13 @@ function toFormValues(recipe: RecipeFormProps["recipe"]): RecipeFormValues {
   };
 }
 
-export function RecipeForm({ action, recipe, tagSuggestions = [], unitSuggestions = [] }: RecipeFormProps) {
+export function RecipeForm({
+  action,
+  recipe,
+  tagSuggestions = [],
+  unitSuggestions = [],
+  initialValues,
+}: RecipeFormProps) {
   const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
   const { i18n } = useLingui();
 
@@ -111,7 +119,7 @@ export function RecipeForm({ action, recipe, tagSuggestions = [], unitSuggestion
 
   // Also without the reset, a rejected submission is re-filled from the values the action
   // handed back, which covers the browsers without JavaScript.
-  const values = state.values ?? toFormValues(recipe);
+  const values = state.values ?? initialValues ?? toFormValues(recipe);
   const ingredients = useIngredientRows(values.ingredients, state.attempt);
 
   return (

@@ -107,6 +107,7 @@ lib/
   tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
   recipe-search.ts      the recipe list's search + tag filter, tagNames() — server only
   units.ts              the recipe form's unit suggestions: the common units plus those in use — server only
+  recipe-import/        "Add from a link": safe-fetch.ts is the only code that fetches a user-supplied address — server only except errors.ts and messages.ts
   recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
   recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
   recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
@@ -228,6 +229,13 @@ the lines.** `PantryStaple` is a global table of normalised names (the same
 `normalize` as tags); `splitStaples()` (`lib/pantry.ts`) runs after the aggregation,
 matches the ingredient name only (not the unit, not a part of the name) and never
 hides a hand-added extra. Details: `documentation/backend/pantry-staples.md`.
+
+**Only `lib/recipe-import/safe-fetch.ts` fetches an address a user typed.** The app runs inside the
+cluster, so a pasted link must never reach a private address: `fetchPage()` allows only http(s) on ports 80/443, refuses
+private and reserved IPs in the socket's own `lookup` (so DNS tricks fail too), re-checks every redirect (3 at most),
+and limits time (10 s) and size (2 MB after decompression). Never call `fetch` or `node:http(s)` for a user-supplied URL
+anywhere else (`tests/infra/recipe-import.test.ts` checks). `RECIPE_IMPORT_ALLOW_PRIVATE=1` lifts the rule for the
+Playwright server alone and must never appear in a manifest. Details: `documentation/backend/recipe-import.md`.
 
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all

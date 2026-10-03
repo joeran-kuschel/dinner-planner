@@ -1,5 +1,6 @@
 import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
+import { NewRecipeMenu } from "@/components/new-recipe-menu";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { prisma } from "@/lib/db";
 import { RecipeSearchBox } from "@/components/recipe-search-box";
@@ -56,9 +57,11 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
               : t(i18n)`${plural(recipeCount, { one: "# recipe", other: "# recipes" })} to plan from`}
           </p>
         </div>
-        <Link href="/recipes/new" className="btn-primary">
-          {t(i18n)`New recipe`}
-        </Link>
+        <NewRecipeMenu
+          newLabel={t(i18n)`New recipe`}
+          moreLabel={t(i18n)`More ways to add a recipe`}
+          items={[{ href: "/recipes/new?import=1", label: t(i18n)`Add from a link` }]}
+        />
       </header>
 
       {(recipes.length > 0 || searching) && (
