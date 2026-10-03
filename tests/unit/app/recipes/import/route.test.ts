@@ -27,6 +27,12 @@ describe("POST /recipes/import", () => {
     expect(await response.json()).toMatchObject({ ok: true, values: { name: "Lemon pancakes", servings: "4" } });
   });
 
+  it("names the picture of the recipe, as an absolute address, or none", async () => {
+    vi.stubEnv("RECIPE_IMPORT_ALLOW_PRIVATE", "1");
+    expect((await (await post({ url: `${site.base}/recipe-photo` })).json()).photoUrl).toBe(`${site.base}/photo.jpg`);
+    expect((await (await post({ url: `${site.base}/recipe` })).json()).photoUrl).toBeNull();
+  });
+
   it.each([
     ["no recipe on the page", "/plain", "no-recipe"],
     ["a page that does not exist", "/nothing-here", "unreachable"],

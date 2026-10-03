@@ -9,6 +9,7 @@ export const IMPORT_ERROR_MESSAGES: Record<ImportErrorCode, MessageDescriptor> =
   timeout: msg`The page took too long to answer. Try again later.`,
   "too-large": msg`The page is too large to import.`,
   "not-html": msg`That address is not a web page.`,
+  "not-image": msg`That address is not a picture.`,
   unreachable: msg`The page could not be fetched. Check the address and try again.`,
   "no-recipe": msg`No recipe was found on that page. Importing needs recipe data that the website publishes for search engines.`,
   cancelled: msg`The import was cancelled.`,

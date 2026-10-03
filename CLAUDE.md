@@ -233,8 +233,9 @@ hides a hand-added extra. Details: `documentation/backend/pantry-staples.md`.
 **Only `lib/recipe-import/safe-fetch.ts` fetches an address a user typed.** The app runs inside the
 cluster, so a pasted link must never reach a private address: `fetchPage()` allows only http(s) on ports 80/443, refuses
 private and reserved IPs in the socket's own `lookup` (so DNS tricks fail too), re-checks every redirect (3 at most),
-and limits time (10 s) and size (2 MB after decompression). Never call `fetch` or `node:http(s)` for a user-supplied URL
-anywhere else (`tests/infra/recipe-import.test.ts` checks). `RECIPE_IMPORT_ALLOW_PRIVATE=1` lifts the rule for the
+and limits time (10 s) and size (2 MB after decompression). A downloaded picture goes through `fetchImage()` and
+`sniffPhotoType()` (JPEG, PNG or WebP by its bytes) and is re-encoded by `processPhoto()` on save. Never call
+`fetch` or `node:http(s)` for a user-supplied URL anywhere else (`tests/infra/recipe-import.test.ts` checks). `RECIPE_IMPORT_ALLOW_PRIVATE=1` lifts the rule for the
 Playwright server alone and must never appear in a manifest. Details: `documentation/backend/recipe-import.md`.
 
 **Mutations must revalidate every view they touch.** The plan, the recipes and the

@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import zlib from "node:zlib";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ImportError, type ImportErrorCode } from "@/lib/recipe-import/errors";
-import { fetchPage, nextHop } from "@/lib/recipe-import/safe-fetch";
+import { fetchImage, fetchPage, nextHop } from "@/lib/recipe-import/safe-fetch";
 
 // A small web server on this machine. The fetcher refuses private addresses unless a test says otherwise.
 let server: http.Server;
@@ -89,6 +89,19 @@ beforeAll(async () => {
         return html("<html/>", "application/xhtml+xml");
       case "/slow":
         return; // never answers
+      case "/img":
+        response.writeHead(200, { "content-type": "image/jpeg" });
+        return response.end(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]));
+      case "/img-redirect":
+        response.writeHead(302, { location: "/img" });
+        return response.end();
+      case "/img-big": {
+        response.writeHead(200, { "content-type": "image/png" });
+        return response.end(Buffer.alloc(6 * 1024 * 1024));
+      }
+      case "/img-gzip":
+        response.writeHead(200, { "content-type": "image/svg+xml", "content-encoding": "gzip" });
+        return response.end(zlib.gzipSync("<svg/>"));
       case "/headers":
         return html(JSON.stringify(request.headers));
       default:
@@ -265,5 +278,51 @@ describe("fetchPage", () => {
     it("reports an unreachable host as unreachable", async () => {
       expect(await codeOf(fetchPage("http://127.0.0.1:1/", allow))).toBe("unreachable");
     });
+  });
+});
+
+describe("fetchImage", () => {
+  it("returns a picture's bytes and what the server calls it", async () => {
+    const image = await fetchImage(`${base}/img`, allow);
+    expect(image.contentType).toBe("image/jpeg");
+    expect([...image.body.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+    expect(image.url.pathname).toBe("/img");
+  });
+
+  it("follows a redirect, and asks for pictures", async () => {
+    expect((await fetchImage(`${base}/img-redirect`, allow)).url.pathname).toBe("/img");
+    const headers = JSON.parse((await fetchPage(`${base}/headers`, allow)).html);
+    expect(headers.accept).not.toContain("image/");
+  });
+
+  it("refuses what is not an image, whatever its size", async () => {
+    expect(await codeOf(fetchImage(`${base}/page`, allow))).toBe("not-image");
+    expect(await codeOf(fetchImage(`${base}/json`, allow))).toBe("not-image");
+  });
+
+  it("stops at the size of a photo (5 MB), not the 2 MB of a page", async () => {
+    expect(await codeOf(fetchImage(`${base}/img-big`, allow))).toBe("too-large");
+    expect(await codeOf(fetchImage(`${base}/img`, { ...allow, maxBytes: 3 }))).toBe("too-large");
+    // A caller cannot raise the limit above the photo size either.
+    expect(await codeOf(fetchImage(`${base}/img-big`, { ...allow, maxBytes: 100 * 1024 * 1024 }))).toBe("too-large");
+  });
+
+  it("unpacks compression within the same limit", async () => {
+    const image = await fetchImage(`${base}/img-gzip`, allow);
+    expect(image.body.toString()).toBe("<svg/>");
+  });
+
+  it("keeps the rules on where it may go", async () => {
+    expect(await codeOf(fetchImage(`${base}/img`))).toBe("blocked");
+    expect(await codeOf(fetchImage("http://169.254.169.254/x.png"))).toBe("blocked");
+    expect(await codeOf(fetchImage("not a url"))).toBe("invalid-url");
+  });
+
+  it("can be cancelled and times out like a page", async () => {
+    const controller = new AbortController();
+    const cancelled = codeOf(fetchImage(`${base}/slow`, { ...allow, signal: controller.signal }));
+    setTimeout(() => controller.abort(), 100);
+    expect(await cancelled).toBe("cancelled");
+    expect(await codeOf(fetchImage(`${base}/slow`, { ...allow, timeoutMs: 200 }))).toBe("timeout");
   });
 });

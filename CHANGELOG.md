@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- "Add from a link" also brings the recipe's photo along, when the page has one: it lands in the photo field for you to check, described with the recipe's name until you change it ([#5](https://github.com/boyonthedocks/dinner-planner/issues/5)).
 - A recipe can be added from a link: "Add from a link" in the New recipe menu fetches the page and fills the recipe form for you to check, with a clear message when a page has no recipe ([#5](https://github.com/boyonthedocks/dinner-planner/issues/5)).
 - The recipe search folds its tag list away until a tag filters, and then counts the selected tags ([#30](https://github.com/boyonthedocks/dinner-planner/issues/30)).
 - A line on the week plan says that "Serves" scales the grocery list ([#19](https://github.com/boyonthedocks/dinner-planner/issues/19)).

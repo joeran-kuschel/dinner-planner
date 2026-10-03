@@ -106,7 +106,7 @@ describe("ImportRecipeDialog", () => {
       const { user, onImported, onClose } = renderDialog();
       await user.type(field(), "  https://example.com/pancakes  {Enter}");
 
-      await waitFor(() => expect(onImported).toHaveBeenCalledWith(VALUES));
+      await waitFor(() => expect(onImported).toHaveBeenCalledWith(VALUES, { file: null, failed: false }));
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
       expect(url).toBe("/recipes/import");
@@ -140,6 +140,114 @@ describe("ImportRecipeDialog", () => {
       renderDialog();
       expect(screen.getByRole("status")).toBeInTheDocument();
       expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
+  });
+
+  describe("the recipe's photo", () => {
+    const WITH_PHOTO = { ok: true, values: VALUES, photoUrl: "https://example.com/pancakes.jpg" } as const;
+    const imageResponse = (type = "image/jpeg") => new Response("JPEGDATA", { headers: { "content-type": type } });
+
+    /** A fetch that answers the recipe, then the picture with what `photo` gives. */
+    function fetchWith(photo: () => Response | Promise<Response>) {
+      const fetchMock = vi.fn(async (url: string) => (url === "/recipes/import" ? new Response(JSON.stringify(WITH_PHOTO)) : photo()));
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it("fetches it after the recipe and hands it over as a file named after the recipe", async () => {
+      const fetchMock = fetchWith(() => imageResponse());
+      const { user, onImported } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+
+      await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1));
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/recipes/import", "/recipes/import/photo"]);
+      const [, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ url: "https://example.com/pancakes.jpg" });
+      const [values, photo] = onImported.mock.calls[0];
+      expect(values).toEqual(VALUES);
+      expect(photo.failed).toBe(false);
+      expect(photo.file).toBeInstanceOf(File);
+      expect(photo.file.name).toBe("lemon-pancakes.jpg");
+      expect(photo.file.type).toBe("image/jpeg");
+      expect(photo.file.size).toBe(8);
+    });
+
+    it.each([
+      ["image/png", "lemon-pancakes.png"],
+      ["image/webp", "lemon-pancakes.webp"],
+    ])("names a %s file with its own ending", async (type, fileName) => {
+      fetchWith(() => imageResponse(type));
+      const { user, onImported } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+      await waitFor(() => expect(onImported).toHaveBeenCalled());
+      expect(onImported.mock.calls[0][1].file.name).toBe(fileName);
+    });
+
+    it("says it is fetching the photo while it does", async () => {
+      let settle!: (response: Response) => void;
+      fetchWith(() => new Promise<Response>((resolve) => (settle = resolve)));
+      const { user, onImported } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+
+      expect(await screen.findByText("Fetching the photo…")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Fetching the photo…");
+      expect(screen.getByRole("button", { name: "Importing…" })).toBeInTheDocument();
+      expect(onImported).not.toHaveBeenCalled();
+      settle(imageResponse());
+      await waitFor(() => expect(onImported).toHaveBeenCalled());
+    });
+
+    it.each([
+      ["the server cannot fetch it", () => new Response(JSON.stringify({ ok: false, error: "not-image" }), { headers: { "content-type": "application/json" } })],
+      ["the answer is an error status", () => new Response("nope", { status: 502, headers: { "content-type": "image/jpeg" } })],
+      ["the answer is no image type", () => new Response("<html>", { headers: { "content-type": "text/html" } })],
+      ["a type of picture the form does not take", () => new Response("GIF", { headers: { "content-type": "image/gif" } })],
+      ["the request fails", () => Promise.reject(new TypeError("offline"))],
+    ])("still imports the recipe, without the photo, when %s", async (_label, photo) => {
+      fetchWith(photo);
+      const { user, onImported, onClose } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+
+      await waitFor(() => expect(onImported).toHaveBeenCalledWith(VALUES, { file: null, failed: true }));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    it("asks for no photo when the recipe names none", async () => {
+      const fetchMock = vi.fn(async () => reply({ ok: true, values: VALUES }));
+      vi.stubGlobal("fetch", fetchMock);
+      const { user, onImported } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+      await waitFor(() => expect(onImported).toHaveBeenCalledWith(VALUES, { file: null, failed: false }));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops the wait for the photo too: Cancel aborts it and nothing is handed over", async () => {
+      let signal!: AbortSignal;
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (url === "/recipes/import") return Promise.resolve(new Response(JSON.stringify(WITH_PHOTO)));
+        signal = init!.signal as AbortSignal;
+        return new Promise<Response>((_resolve, reject) => signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const { user, onImported, onClose } = renderDialog();
+      await user.type(field(), "https://example.com/pancakes{Enter}");
+      await screen.findByText("Fetching the photo…");
+
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(signal.aborted).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(onImported).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("speaks German while it fetches the photo", async () => {
+      fetchWith(() => new Promise<Response>(() => undefined));
+      const { user } = renderDialog({ locale: "de" });
+      await user.type(screen.getByLabelText("Link zum Rezept"), "https://example.com/pancakes");
+      await user.click(screen.getByRole("button", { name: "Importieren" }));
+      expect(await screen.findByText("Foto wird abgerufen …")).toBeInTheDocument();
     });
   });
 

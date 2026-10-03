@@ -191,10 +191,27 @@ export function recipeFormValues(node: Node, pageUrl: URL): RecipeFormValues {
   };
 }
 
-/** The recipe on a page, or `null` when it publishes none. */
-export function recipeFromHtml(html: string, pageUrl: URL): RecipeFormValues | null {
+/** The picture of a recipe: the first usable address in `image` (a string, an object with a `url`, or a list of them). */
+export function imageUrlFrom(value: unknown, pageUrl: URL): string | null {
+  for (const candidate of [value].flat(2)) {
+    const raw = isNode(candidate)
+      ? [candidate.url, candidate.contentUrl].flat().find((item) => typeof item === "string" && item.trim())
+      : candidate;
+    if (typeof raw !== "string" || !raw.trim()) continue;
+    try {
+      const url = new URL(raw.trim(), pageUrl);
+      if ((url.protocol === "http:" || url.protocol === "https:") && url.href.length <= 2048) return url.href;
+    } catch {
+      // Not an address: try the next one.
+    }
+  }
+  return null;
+}
+
+/** The recipe on a page and the address of its picture, or `null` when the page publishes no recipe. */
+export function recipeFromHtml(html: string, pageUrl: URL): { values: RecipeFormValues; imageUrl: string | null } | null {
   const node = findRecipe(extractJsonLd(html));
   if (!node) return null;
   const values = recipeFormValues(node, pageUrl);
-  return values.name ? values : null;
+  return values.name ? { values, imageUrl: imageUrlFrom(node.image, pageUrl) } : null;
 }

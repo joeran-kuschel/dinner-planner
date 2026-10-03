@@ -4,7 +4,8 @@ import https from "node:https";
 import type { LookupFunction } from "node:net";
 import zlib from "node:zlib";
 import type { Readable } from "node:stream";
-import { ImportError } from "@/lib/recipe-import/errors";
+import { ImportError, type ImportErrorCode } from "@/lib/recipe-import/errors";
+import { MAX_PHOTO_BYTES } from "@/lib/recipe-photo-shared";
 import { isPublicAddress, parseImportUrl } from "@/lib/recipe-import/address";
 
 /**
@@ -61,7 +62,11 @@ function decoderFor(encoding: string | undefined): zlib.Gunzip | zlib.Inflate | 
   }
 }
 
-function requestOnce(url: URL, options: Required<Pick<FetchOptions, "maxBytes" | "allowPrivateAddresses">>, signal: AbortSignal): Promise<Raw> {
+function requestOnce(
+  url: URL,
+  options: Required<Pick<FetchOptions, "maxBytes" | "allowPrivateAddresses">> & { accept: string },
+  signal: AbortSignal,
+): Promise<Raw> {
   return new Promise((resolve, reject) => {
     const client = url.protocol === "https:" ? https : http;
     const request = client.request(
@@ -73,7 +78,7 @@ function requestOnce(url: URL, options: Required<Pick<FetchOptions, "maxBytes" |
         lookup: guardedLookup(options.allowPrivateAddresses),
         headers: {
           "user-agent": "DinnerPlanner/1.0 (personal recipe import)",
-          accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+          accept: options.accept,
           "accept-language": "en,de;q=0.8",
           "accept-encoding": "gzip, deflate, br",
         },
@@ -149,17 +154,32 @@ function decodePage(body: Buffer, contentType: string): string {
   return body.toString("utf8");
 }
 
-/** Fetch a web page at `rawUrl` within the limits above. Throws an `ImportError` for everything that goes wrong. */
-export async function fetchPage(rawUrl: string, options: FetchOptions = {}): Promise<FetchedPage> {
+export type Resource = { body: Buffer; contentType: string; url: URL };
+
+type ResourceKind = {
+  /** The `Accept` header: what we ask for. */
+  accept: string;
+  /** What the answer's `Content-Type` has to look like. */
+  contentType: RegExp;
+  /** The error for an answer of another kind. */
+  otherType: ImportErrorCode;
+  maxBytes: number;
+};
+
+/**
+ * Fetch `rawUrl` within the limits above: redirects followed (and checked) up to three times, the answer one of the
+ * kind asked for. Throws an `ImportError` for everything that goes wrong.
+ */
+async function fetchResource(rawUrl: string, kind: ResourceKind, options: FetchOptions): Promise<Resource> {
   const allowPrivateAddresses = options.allowPrivateAddresses ?? false;
   const timeout = AbortSignal.timeout(options.timeoutMs ?? FETCH_TIMEOUT_MS);
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
-  const maxBytes = options.maxBytes ?? MAX_PAGE_BYTES;
+  const maxBytes = Math.min(options.maxBytes ?? kind.maxBytes, kind.maxBytes);
 
   let url = parseImportUrl(rawUrl, { allowPrivateAddresses });
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      const response = await requestOnce(url, { maxBytes, allowPrivateAddresses }, signal);
+      const response = await requestOnce(url, { maxBytes, allowPrivateAddresses, accept: kind.accept }, signal);
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.location;
         if (!location) throw new ImportError("unreachable");
@@ -167,8 +187,8 @@ export async function fetchPage(rawUrl: string, options: FetchOptions = {}): Pro
         continue;
       }
       const contentType = String(response.headers["content-type"] ?? "");
-      if (!/^(text\/html|application\/xhtml\+xml)\b/i.test(contentType)) throw new ImportError("not-html");
-      return { html: decodePage(response.body, contentType), url };
+      if (!kind.contentType.test(contentType)) throw new ImportError(kind.otherType);
+      return { body: response.body, contentType, url };
     }
     throw new ImportError("unreachable");
   } catch (error) {
@@ -178,4 +198,28 @@ export async function fetchPage(rawUrl: string, options: FetchOptions = {}): Pro
     if (error instanceof ImportError) throw error;
     throw new ImportError("unreachable");
   }
+}
+
+/** Fetch the web page at `rawUrl`, as text. */
+export async function fetchPage(rawUrl: string, options: FetchOptions = {}): Promise<FetchedPage> {
+  const { body, contentType, url } = await fetchResource(
+    rawUrl,
+    {
+      accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+      contentType: /^(text\/html|application\/xhtml\+xml)\b/i,
+      otherType: "not-html",
+      maxBytes: MAX_PAGE_BYTES,
+    },
+    options,
+  );
+  return { html: decodePage(body, contentType), url };
+}
+
+/** Fetch the picture at `rawUrl` (at most as large as an uploaded photo can be). What it is, is for the caller to check. */
+export async function fetchImage(rawUrl: string, options: FetchOptions = {}): Promise<Resource> {
+  return fetchResource(
+    rawUrl,
+    { accept: "image/webp,image/jpeg,image/png,image/*;q=0.5", contentType: /^image\//i, otherType: "not-image", maxBytes: MAX_PHOTO_BYTES },
+    options,
+  );
 }

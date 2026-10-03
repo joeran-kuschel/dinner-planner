@@ -26,7 +26,7 @@ export default async function NewRecipePage({ searchParams }: PageProps<"/recipe
   let failure: ImportErrorCode | null = null;
   if (link !== undefined) {
     try {
-      imported = await importRecipe(link);
+      imported = (await importRecipe(link)).values;
     } catch (error) {
       failure = error instanceof ImportError ? error.code : "unreachable";
     }

@@ -125,8 +125,17 @@ the method (one step per line), up to six tags (category and cuisine first, then
 ingredients. Each ingredient line is split into amount, unit and name: "200 g flour", "1½ cups rice" or "½ TL Salz"
 become 200 / g / flour, 1.5 / cup / rice and 0.5 / TL / Salz, in English and German. A range ("2–3 cloves") is shopped
 for at its upper end, notes after a comma or in brackets are dropped from the name ("garlic, minced" → "garlic"), and
-what cannot be read stays in the name. Every ingredient starts in **Other**. The recipe's **photo is not imported**; add
-one in the form if you like. Always check the result: websites word things in their own way.
+what cannot be read stays in the name. Every ingredient starts in **Other**.
+
+**The photo** comes along when the page names a picture for the recipe: after the recipe, the dialog says "Fetching the
+photo…" and puts the picture in the form's **Photo file** field as if you had chosen it (you see its name, for example
+`lemon-pancakes.jpg`). The **Description of the photo** starts as the recipe's name, a starting point only: it is required
+for every photo, so change it to say what the picture shows. Saving uploads the photo like any other and re-encodes it
+(see [The photo](#the-photo)); take it away by choosing another file, or use the form without it. A picture has to be a
+JPEG, PNG or WebP of at most 5 MB. When it is none of these or cannot be fetched, the recipe is imported anyway, the
+photo field stays empty and the page says "Recipe imported, but its photo could not be fetched." (The page without
+JavaScript cannot fill the file field: there the photo has to be chosen yourself.) The photo belongs to the website; the
+source link stays on the recipe. Always check the result: websites word things in their own way.
 
 **Without JavaScript** the same thing is a plain form. **Add from a link** in the menu leads to the New recipe page,
 which then shows a **Link to the recipe** field with an **Import** button above the form. Sending it opens the page

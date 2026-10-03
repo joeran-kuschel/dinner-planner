@@ -224,4 +224,91 @@ test.describe("add a recipe from a link", () => {
       await expect(dialog(page)).toBeVisible();
     });
   });
+  test.describe("the recipe's photo", () => {
+    const photoName = (page: import("@playwright/test").Page) =>
+      page.getByLabel("Photo file").evaluate((input: HTMLInputElement) => (input.files?.[0] ? `${input.files[0].name} ${input.files[0].type}` : null));
+
+    test("goes into the photo field, described with the recipe's name, and is saved with the recipe", async ({ page }) => {
+      await page.goto("/recipes/new?import=1");
+      await page.getByLabel("Link to the recipe").fill(`${site.base}/recipe-photo`);
+      await importButton(page).click();
+
+      await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
+      await expect(page.getByText("Recipe and photo imported. Check them, then press “Create recipe”.")).toBeVisible();
+      expect(await photoName(page)).toBe("lemon-pancakes.jpg image/jpeg");
+      // The photo needs a description; the recipe's name is where it starts, and it is required as for any photo.
+      const description = page.getByLabel(/^Description of the photo/);
+      await expect(description).toHaveValue("Lemon pancakes");
+      await expect(description).toHaveAttribute("required", "");
+      await expectAccessible(page);
+
+      await description.fill("A stack of lemon pancakes");
+      await page.getByRole("button", { name: "Create recipe" }).click();
+      const photo = page.getByRole("img", { name: "A stack of lemon pancakes" });
+      await expect(photo).toBeVisible();
+      // Saved like any upload: re-encoded, never served as it came in.
+      const answer = await page.request.get((await photo.getAttribute("src"))!);
+      expect(answer.headers()["content-type"]).toBe("image/webp");
+    });
+
+    for (const [page_, expected] of [
+      ["recipe-photo-object", "lemon-pancakes.png image/png"],
+      ["recipe-photo-list", "lemon-pancakes.webp image/webp"],
+      ["recipe-photo-redirect", "lemon-pancakes.jpg image/jpeg"],
+    ]) {
+      test(`finds the picture however the page names it: ${page_}`, async ({ page }) => {
+        await page.goto("/recipes/new?import=1");
+        await page.getByLabel("Link to the recipe").fill(`${site.base}/${page_}`);
+        await importButton(page).click();
+        await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
+        expect(await photoName(page)).toBe(expected);
+      });
+    }
+
+    for (const page_ of ["recipe-photo-fake", "recipe-photo-svg", "recipe-photo-gif", "recipe-photo-missing", "recipe-photo-too-big"]) {
+      test(`imports the recipe without the picture when it cannot be used: ${page_}`, async ({ page }) => {
+        await page.goto("/recipes/new?import=1");
+        await page.getByLabel("Link to the recipe").fill(`${site.base}/${page_}`);
+        await importButton(page).click();
+
+        await expect(dialog(page)).toBeHidden();
+        await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
+        await expect(page.getByText("Recipe imported, but its photo could not be fetched.", { exact: false })).toBeVisible();
+        expect(await photoName(page)).toBeNull();
+        await expect(page.getByLabel(/^Description of the photo/)).toHaveValue("");
+        await expect(page.getByLabel(/^Description of the photo/)).not.toHaveAttribute("required", "");
+        await expect(page.locator("#name")).toBeFocused();
+      });
+    }
+
+    test("a recipe without a picture imports as before", async ({ page }) => {
+      await page.goto("/recipes/new?import=1");
+      await page.getByLabel("Link to the recipe").fill(`${site.base}/recipe`);
+      await importButton(page).click();
+      await expect(page.getByText("Recipe imported. Check it, then press “Create recipe”.")).toBeVisible();
+      expect(await photoName(page)).toBeNull();
+    });
+
+    test("Cancel stops the wait for the picture too, and imports nothing", async ({ page }) => {
+      await page.goto("/recipes/new?import=1");
+      await page.getByLabel("Link to the recipe").fill(`${site.base}/recipe-photo-slow`);
+      await importButton(page).click();
+      await expect(dialog(page).getByRole("status")).toHaveText("Fetching the photo…");
+
+      await dialog(page).getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog(page)).toBeHidden();
+      await expect(page.locator("#name")).toHaveValue("");
+      expect(await photoName(page)).toBeNull();
+    });
+
+    test("is described in German", async ({ browser }) => {
+      const context = await browser.newContext({ locale: "de-DE" });
+      const page = await context.newPage();
+      await page.goto("/recipes/new?import=1");
+      await page.getByLabel("Link zum Rezept").fill(`${site.base}/recipe-photo`);
+      await page.getByRole("button", { name: "Importieren", exact: true }).click();
+      await expect(page.getByText("Rezept und Foto importiert. Prüfe sie und wähle dann „Rezept anlegen“.")).toBeVisible();
+      await context.close();
+    });
+  });
 });
