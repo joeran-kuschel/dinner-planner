@@ -7,6 +7,37 @@ import { isWebUrl, type RecipeFormValues } from "@/lib/recipe-form";
 import type { ImportErrorCode } from "@/lib/recipe-import/errors";
 import { IMPORT_ERROR_MESSAGES } from "@/lib/recipe-import/messages";
 
+/** The recipe's picture as a file, or none (`failed` when the page had one that could not be fetched). */
+export type ImportedPhoto = { file: File | null; failed: boolean };
+
+type RecipeAnswer = { ok: true; values: RecipeFormValues; photoUrl: string | null } | { ok: false; error: ImportErrorCode };
+
+/** Post an address to one of the import routes. */
+const postUrl = (path: string, url: string, signal: AbortSignal) =>
+  fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }), signal });
+
+const NO_PHOTO: ImportedPhoto = { file: null, failed: false };
+
+const PHOTO_EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/** The recipe's picture as a file, or `failed` when it cannot be had: the recipe is worth importing without it. */
+async function fetchPhoto(url: string, recipeName: string, signal: AbortSignal): Promise<ImportedPhoto> {
+  try {
+    const response = await postUrl("/recipes/import/photo", url, signal);
+    const type = response.headers.get("content-type") ?? "";
+    if (!response.ok || !(type in PHOTO_EXTENSIONS)) return { file: null, failed: true };
+    const base = recipeName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "photo";
+    const blob = await response.blob();
+    // A cancel that lands while the picture arrives ends the whole import.
+    if (signal.aborted) throw new DOMException("aborted", "AbortError");
+    return { file: new File([blob], `${base}.${PHOTO_EXTENSIONS[type]}`, { type }), failed: false };
+  } catch {
+    // A cancel is the visitor's own doing and ends the whole import; anything else just leaves the photo out.
+    if (signal.aborted) throw new DOMException("aborted", "AbortError");
+    return { file: null, failed: true };
+  }
+}
+
 /**
  * "Add from a link": a modal dialog that asks for the address of a recipe page, has the server read the recipe
  * (`POST /recipes/import`) and hands the values over for the visitor to review. A native `<dialog>` opened with
@@ -20,13 +51,15 @@ export function ImportRecipeDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onImported: (values: RecipeFormValues) => void;
+  /** The recipe, and its picture as a file when the page had one (`failed` when it had one that could not be fetched). */
+  onImported: (values: RecipeFormValues, photo: ImportedPhoto) => void;
 }) {
   const { i18n } = useLingui();
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
-  const [working, setWorking] = useState(false);
+  // "page" while the recipe page is fetched, then "photo" while its picture is.
+  const [working, setWorking] = useState<"page" | "photo" | null>(null);
   const [error, setError] = useState<ImportErrorCode | null>(null);
 
   useEffect(() => {
@@ -36,9 +69,15 @@ export function ImportRecipeDialog({
     if (!open && element.open) element.close();
   }, [open]);
 
+  /** The picture, while the dialog says so. */
+  const photoOf = (url: string, recipeName: string, signal: AbortSignal) => {
+    setWorking("photo");
+    return fetchPhoto(url, recipeName, signal);
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (working) return;
+    if (working !== null) return;
     const url = String(new FormData(event.currentTarget).get("url") ?? "").trim();
     // Checked here first, so a typo is answered at once, without closing the dialog or asking the server.
     if (!isWebUrl(url)) {
@@ -47,19 +86,14 @@ export function ImportRecipeDialog({
       return;
     }
     setError(null);
-    setWorking(true);
+    setWorking("page");
     const controller = new AbortController();
     request.current = controller;
     try {
-      const response = await fetch("/recipes/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url }),
-        signal: controller.signal,
-      });
-      const result: { ok: true; values: RecipeFormValues } | { ok: false; error: ImportErrorCode } = await response.json();
+      const result: RecipeAnswer = await (await postUrl("/recipes/import", url, controller.signal)).json();
       if (result.ok) {
-        onImported(result.values);
+        const photo = result.photoUrl ? await photoOf(result.photoUrl, result.values.name, controller.signal) : NO_PHOTO;
+        onImported(result.values, photo);
         dialog.current?.close();
       } else {
         setError(result.error);
@@ -70,7 +104,7 @@ export function ImportRecipeDialog({
     } finally {
       if (request.current === controller) {
         request.current = null;
-        setWorking(false);
+        setWorking(null);
       }
     }
   };
@@ -83,7 +117,7 @@ export function ImportRecipeDialog({
       onClose={() => {
         request.current?.abort();
         request.current = null;
-        setWorking(false);
+        setWorking(null);
         setError(null);
         onClose();
       }}
@@ -107,7 +141,7 @@ export function ImportRecipeDialog({
             inputMode="url"
             autoComplete="off"
             spellCheck={false}
-            readOnly={working}
+            readOnly={working !== null}
             aria-invalid={error === "invalid-url" || undefined}
             aria-describedby={error ? "import-error" : undefined}
             placeholder="https://…"
@@ -116,7 +150,7 @@ export function ImportRecipeDialog({
         </div>
         {/* Always on the page, so a screen reader is already listening when the text appears. */}
         <p role="status" className="min-h-5 text-sm text-muted">
-          {working ? t(i18n)`Fetching the page…` : ""}
+          {working === "page" ? t(i18n)`Fetching the page…` : working === "photo" ? t(i18n)`Fetching the photo…` : ""}
         </p>
         {error && (
           <p id="import-error" role="alert" className="text-sm font-medium text-accent-text">
@@ -127,8 +161,8 @@ export function ImportRecipeDialog({
           <button type="button" className="btn-secondary" onClick={() => dialog.current?.close()}>
             {t(i18n)`Cancel`}
           </button>
-          <button type="submit" className="btn-primary" aria-disabled={working || undefined}>
-            {working ? t(i18n)`Importing…` : t(i18n)`Import`}
+          <button type="submit" className="btn-primary" aria-disabled={working !== null || undefined}>
+            {working !== null ? t(i18n)`Importing…` : t(i18n)`Import`}
           </button>
         </div>
       </form>

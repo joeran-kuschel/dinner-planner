@@ -7,6 +7,8 @@ import { polyfillDialog } from "@/tests/support/dialog";
 import { renderWithI18n } from "@/tests/support/render";
 
 vi.mock("@/app/actions/recipes", () => ({ createRecipe: vi.fn(async (state: unknown) => state) }));
+const attach = vi.hoisted(() => ({ attachFile: vi.fn() }));
+vi.mock("@/lib/attach-file", () => attach);
 
 beforeAll(() => polyfillDialog());
 
@@ -145,6 +147,88 @@ describe("NewRecipeScreen", () => {
     await within(dialog()).findByRole("alert");
     expect(name()).toHaveValue("");
     expect(announcement()).toBeEmptyDOMElement();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("NewRecipeScreen with a photo", () => {
+  /** What the server answers for a recipe (with a picture address) and for the picture. */
+  function serverWith(photo: () => Response | Promise<Response>) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/recipes/import"
+          ? new Response(JSON.stringify({ ok: true, values: IMPORTED, photoUrl: "https://example.com/p.jpg" }))
+          : photo(),
+      ),
+    );
+  }
+  const importRecipe = async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} openImport />);
+    await user.type(screen.getByLabelText("Link to the recipe"), "https://example.com/pancakes{Enter}");
+    await waitFor(() => expect(name()).toHaveValue("Lemon pancakes"));
+  };
+
+  it("puts the photo in the form's file field, describes it with the recipe's name, and says so", async () => {
+    attach.attachFile.mockClear();
+    serverWith(() => new Response("JPEGDATA", { headers: { "content-type": "image/jpeg" } }));
+    await importRecipe();
+
+    expect(attach.attachFile).toHaveBeenCalledTimes(1);
+    const [input, file] = attach.attachFile.mock.calls[0];
+    expect(input).toBe(document.getElementById("photo"));
+    expect(file).toBeInstanceOf(File);
+    expect(file.name).toBe("lemon-pancakes.jpg");
+    expect(screen.getByLabelText(/^Description of the photo/)).toHaveValue("Lemon pancakes");
+    // (That the description becomes required is the change event of the real attachFile: see the end-to-end test.)
+    expect(announcement()).toHaveTextContent("Recipe and photo imported. Check them, then press “Create recipe”.");
+    expect(name()).toHaveFocus();
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves the photo field and its description empty, and says so, when the photo cannot be fetched", async () => {
+    attach.attachFile.mockClear();
+    serverWith(() => new Response(JSON.stringify({ ok: false, error: "not-image" })));
+    await importRecipe();
+
+    expect(attach.attachFile).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Description of the photo/)).toHaveValue("");
+    expect(announcement()).toHaveTextContent("Recipe imported, but its photo could not be fetched.");
+    expect(name()).toHaveFocus();
+    vi.unstubAllGlobals();
+  });
+
+  it("does not touch the photo field when the recipe has no picture", async () => {
+    attach.attachFile.mockClear();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, values: IMPORTED, photoUrl: null }))));
+    await importRecipe();
+    expect(attach.attachFile).not.toHaveBeenCalled();
+    expect(announcement()).toHaveTextContent("Recipe imported. Check it");
+    vi.unstubAllGlobals();
+  });
+
+  it("takes the next recipe's photo, and none from the one before", async () => {
+    attach.attachFile.mockClear();
+    const second = { ...IMPORTED, name: "Waffles" };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, values: IMPORTED, photoUrl: "https://example.com/a.jpg" })))
+        .mockResolvedValueOnce(new Response("A", { headers: { "content-type": "image/jpeg" } }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, values: second, photoUrl: null }))),
+    );
+    const user = userEvent.setup();
+    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} openImport />);
+    await user.type(screen.getByLabelText("Link to the recipe"), "https://example.com/a{Enter}");
+    await waitFor(() => expect(attach.attachFile).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Add from a link" }));
+    await user.type(screen.getByLabelText("Link to the recipe"), "https://example.com/b{Enter}");
+    await waitFor(() => expect(name()).toHaveValue("Waffles"));
+    expect(attach.attachFile).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(/^Description of the photo/)).toHaveValue("");
     vi.unstubAllGlobals();
   });
 });

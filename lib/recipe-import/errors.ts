@@ -5,6 +5,7 @@ export type ImportErrorCode =
   | "timeout"
   | "too-large"
   | "not-html"
+  | "not-image"
   | "unreachable"
   | "no-recipe"
   | "cancelled";
@@ -15,6 +16,7 @@ export const IMPORT_ERROR_CODES: readonly ImportErrorCode[] = [
   "timeout",
   "too-large",
   "not-html",
+  "not-image",
   "unreachable",
   "no-recipe",
   "cancelled",

@@ -6,6 +6,7 @@ import {
   findRecipe,
   instructionLines,
   recipeFormValues,
+  imageUrlFrom,
   recipeFromHtml,
   servingsFrom,
 } from "@/lib/recipe-import/jsonld";
@@ -236,9 +237,46 @@ describe("recipeFormValues", () => {
   });
 });
 
+describe("imageUrlFrom", () => {
+  const url = (value: unknown) => imageUrlFrom(value, URL_);
+
+  it("reads an address, an object with a url, and a list of those", () => {
+    expect(url("https://cdn.example.org/pie.jpg")).toBe("https://cdn.example.org/pie.jpg");
+    expect(url({ "@type": "ImageObject", url: "https://cdn.example.org/pie.jpg", width: 800 })).toBe("https://cdn.example.org/pie.jpg");
+    expect(url({ "@type": "ImageObject", contentUrl: "https://cdn.example.org/pie.jpg" })).toBe("https://cdn.example.org/pie.jpg");
+    expect(url(["https://cdn.example.org/a.jpg", "https://cdn.example.org/b.jpg"])).toBe("https://cdn.example.org/a.jpg");
+    expect(url([{ url: ["https://cdn.example.org/pie.jpg"] }])).toBe("https://cdn.example.org/pie.jpg");
+  });
+
+  it("resolves an address against the page", () => {
+    expect(url("/img/pie.jpg")).toBe("https://example.com/img/pie.jpg");
+    expect(url("pie.jpg")).toBe("https://example.com/recipes/pie.jpg");
+    expect(url("//cdn.example.org/pie.jpg")).toBe("https://cdn.example.org/pie.jpg");
+  });
+
+  it("skips what is no usable address and takes the next one", () => {
+    expect(url(["", "   ", 42, null, "javascript:alert(1)", "data:image/png;base64,AAAA", "ftp://example.com/x.jpg", "https://cdn.example.org/ok.jpg"])).toBe(
+      "https://cdn.example.org/ok.jpg",
+    );
+  });
+
+  it("is null when there is none, or only a very long one", () => {
+    expect(url(undefined)).toBeNull();
+    expect(url([])).toBeNull();
+    expect(url({})).toBeNull();
+    expect(url(`https://example.com/${"a".repeat(2_100)}.jpg`)).toBeNull();
+  });
+
+  it("comes with the recipe of a page", () => {
+    const withImage = recipeFromHtml(page({ ...PIE, image: ["/pie.jpg"] }), URL_);
+    expect(withImage?.imageUrl).toBe("https://example.com/pie.jpg");
+    expect(recipeFromHtml(page(PIE), URL_)?.imageUrl).toBeNull();
+  });
+});
+
 describe("recipeFromHtml", () => {
   it("reads the recipe of a page", () => {
-    expect(recipeFromHtml(page({ "@graph": [{ "@type": "WebSite" }, PIE] }), URL_)?.name).toBe("Apple pie");
+    expect(recipeFromHtml(page({ "@graph": [{ "@type": "WebSite" }, PIE] }), URL_)?.values.name).toBe("Apple pie");
   });
 
   it("is null for a page without a recipe, or a recipe without a name", () => {

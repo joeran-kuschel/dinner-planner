@@ -47,9 +47,19 @@ describe("recipe import: where a pasted link may lead", () => {
     expect(fetching).toEqual(["components/import-recipe-dialog.tsx"]);
   });
 
-  it("is only ever asked through the one function that checks the address", () => {
+  it("is only ever asked through the functions that check the address", () => {
     const sources = ["app", "lib", "components"].flatMap(sourceFiles);
-    const callers = sources.filter((file) => read(file).includes("fetchPage("));
-    expect(callers.sort()).toEqual(["lib/recipe-import/index.ts", "lib/recipe-import/safe-fetch.ts"]);
+    const callersOf = (name: string) => sources.filter((file) => read(file).includes(`${name}(`)).sort();
+    expect(callersOf("fetchPage")).toEqual(["lib/recipe-import/index.ts", "lib/recipe-import/safe-fetch.ts"]);
+    expect(callersOf("fetchImage")).toEqual(["lib/recipe-import/index.ts", "lib/recipe-import/safe-fetch.ts"]);
+    // The routes go through the two entry points, which in turn go through the fetcher.
+    expect(callersOf("importRecipe")).toEqual(["app/recipes/import/route.ts", "app/recipes/new/page.tsx", "lib/recipe-import/index.ts"]);
+    expect(callersOf("importPhoto")).toEqual(["app/recipes/import/photo/route.ts", "lib/recipe-import/index.ts"]);
+  });
+
+  it("serves no downloaded picture as it came: only a JPEG, PNG or WebP by its bytes, with nosniff", () => {
+    const route = read("app/recipes/import/photo/route.ts");
+    expect(route).toContain('"x-content-type-options": "nosniff"');
+    expect(read("lib/recipe-import/index.ts")).toContain("sniffPhotoType");
   });
 });

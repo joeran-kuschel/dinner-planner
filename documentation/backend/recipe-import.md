@@ -22,8 +22,32 @@ shows the failure beside the plain form (the form is inside `<noscript>` for `?i
 only ever shows the dialog).
 
 The error codes (`lib/recipe-import/errors.ts`, safe for client code) map to translated messages in
-`lib/recipe-import/messages.ts`: `invalid-url`, `blocked`, `timeout`, `too-large`, `not-html`, `unreachable`,
-`no-recipe`, `cancelled`.
+`lib/recipe-import/messages.ts`: `invalid-url`, `blocked`, `timeout`, `too-large`, `not-html`, `not-image`,
+`unreachable`, `no-recipe`, `cancelled`. (`not-image` is only ever answered by the photo route; the dialog does not show it, since a
+photo that cannot be had is told as "its photo could not be fetched"; the table of messages stays complete.)
+
+### The photo
+
+`importRecipe()` also returns `photoUrl`: the first usable address in the recipe's `image` (a string, an object with a
+`url` or `contentUrl`, or a list of those; relative addresses are resolved against the page, only http(s) and at most 2048
+characters count). The dialog then asks `POST /recipes/import/photo` (`app/recipes/import/photo/route.ts`, the same
+`{ "url": "…" }` request as the recipe's, read by `lib/recipe-import/request.ts`) for the picture, with the same
+`AbortController`, so Cancel stops this wait as well.
+
+- **`importPhoto()`** fetches it with `fetchImage()` in `safe-fetch.ts`: the same address rules, redirects and timeout as
+  a page, a size limit of `MAX_PHOTO_BYTES` (5 MB, after decompression), and an answer whose `Content-Type` is
+  `image/*`. What it really is comes from its first bytes (`sniffPhotoType`): only a JPEG, PNG or WebP is handed on, whatever
+  the server calls it. An SVG (which can hold a script), a GIF or an HTML page posing as a picture is `not-image`.
+- **The route** answers with the bytes, `Content-Type` from the sniffing, `X-Content-Type-Options: nosniff` and
+  `Cache-Control: no-store`; nothing is stored. Saving the recipe is what keeps the photo, and it goes through
+  `processPhoto()` like every upload, so it is decoded and re-encoded as WebP and nothing downloaded is ever served as it
+  came ([Recipe photos](recipe-photos.md)).
+- **In the browser** (`ImportRecipeDialog`) the answer becomes a `File` named after the recipe, and `NewRecipeScreen` puts
+  it in the new form's file field with `attachFile()` (`lib/attach-file.ts`: a `DataTransfer` and a bubbling `change` event,
+  so the form's own handlers, such as making the description required, run), and starts the description as the recipe's
+  name. A picture that cannot be had never fails the import: the recipe is filled in and the page says the photo could not
+  be fetched.
+- The page without JavaScript imports the recipe only: a server cannot fill a file field.
 
 ## What may be fetched
 
@@ -99,14 +123,15 @@ Most recipe websites publish the recipe as schema.org `Recipe` data in a `<scrip
   one the table knows (English and German spellings, stored in the source's language: `tbsp`, `TL`, `Prise`, …), then the
   name, without bracketed notes and without what follows a comma or semicolon. A unit word only counts after an amount
   (except `pinch`, `dash` and `Prise`). A line that yields no name stays whole. The category is always `OTHER`.
-- **Not imported:** the photo (the form's file field cannot be filled from the server, and other sites' pictures are not
-  ours to copy), the author, ratings and nutrition.
+- **Not imported:** the author, ratings and nutrition. The photo is imported separately, see above.
 
 ## Tests
 
 - `tests/unit/lib/recipe-import/`: `address` (every range, the IPv6 tricks, the URL rules), `safe-fetch` against a local
-  server (redirects, limits, compression, character sets, timeout, cancel, `nextHop`), `ingredient`, `jsonld`, `index`.
-- `tests/unit/app/recipes/import/route.test.ts`: the route's answers, the JSON requirement and cancelling.
+  server (redirects, limits, compression, character sets, timeout, cancel, `nextHop`, `fetchImage`), `ingredient`, `jsonld`, `index`.
+- `tests/unit/app/recipes/import/route.test.ts` and `…/photo/route.test.ts`: the routes' answers, the picture's bytes and
+  type, the JSON requirement, the size limit and cancelling.
+- `tests/unit/lib/recipe-import/image.test.ts`: the sniffing; `attach-file.test.ts` in `tests/unit/lib/`.
 - `tests/unit/components/`: the dialog, the split-button menu, the new-recipe screen, the form's `initialValues`.
 - `tests/e2e/recipe-import.spec.ts`: the whole flow in a browser against a sample website, errors, Cancel, Escape and the
   focus, German, and the page without JavaScript. `tests/support/recipe-site.ts` is that sample website.

@@ -251,6 +251,10 @@ msgstr "Everything ticked off."
 msgid "Fetching the page…"
 msgstr "Fetching the page…"
 
+#: components/import-recipe-dialog.tsx
+msgid "Fetching the photo…"
+msgstr "Fetching the photo…"
+
 #: app/groceries/page.tsx
 msgid "from {recipeCount, plural, one {# recipe} other {# recipes}}"
 msgstr "from {recipeCount, plural, one {# recipe} other {# recipes}}"
@@ -531,6 +535,14 @@ msgid "recipe"
 msgstr "recipe"
 
 #: components/new-recipe-screen.tsx
+msgid "Recipe and photo imported. Check them, then press “Create recipe”."
+msgstr "Recipe and photo imported. Check them, then press “Create recipe”."
+
+#: components/new-recipe-screen.tsx
+msgid "Recipe imported, but its photo could not be fetched. Check the recipe, then press “Create recipe”."
+msgstr "Recipe imported, but its photo could not be fetched. Check the recipe, then press “Create recipe”."
+
+#: components/new-recipe-screen.tsx
 msgid "Recipe imported. Check it, then press “Create recipe”."
 msgstr "Recipe imported. Check it, then press “Create recipe”."
 
@@ -655,6 +667,10 @@ msgstr "tbsp"
 #: lib/recipe-import/messages.ts
 msgid "That address cannot be imported: it points to this computer or to a private network."
 msgstr "That address cannot be imported: it points to this computer or to a private network."
+
+#: lib/recipe-import/messages.ts
+msgid "That address is not a picture."
+msgstr "That address is not a picture."
 
 #: lib/recipe-import/messages.ts
 msgid "That address is not a web page."
