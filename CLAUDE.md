@@ -339,6 +339,7 @@ joins that list. Details: `documentation/ui/buttons.md`.
 - Documentation is key: document every feature in Markdown files in `documentation/`, in dedicated chapters, split into UI (`documentation/ui/`) and Backend (`documentation/backend/`)
 - The tool is available in German and English. Use a gettext-style translation tool; switching the language must not reload the page
 - During development, only run new tests and the tests affected by the changed code, not the entire test suite
+- Delete all test data after every test run: tests and sample data never stay in the real database (the cluster's, or `public` locally). Tests use their own schemas (`e2e`, one per Vitest file), and if a run, a seed or a manual check put sample recipes, planned days or other rows into the real database, remove them right after the run, before reporting it as done. Look at what you delete first (name, creation time) and never touch the user's own recipes
 - Do not commit and push without being asked
 - Every code change (fix, new feature, refactoring) goes into its own branch, which is merged back into main once finished. Never commit code changes to main directly
 - Before every push and every merge, run the `test-engineer` agent (`.claude/agents/test-engineer.md`) in its pre-push/pre-merge check: it runs `npm run check` (the entire test suite, typecheck and lint, with time limits and no retries; `documentation/backend/testing-check.md`) and makes sure everything the push or merge brings in is tested. Push or merge only when it reports "ready"
