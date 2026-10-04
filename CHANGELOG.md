@@ -30,6 +30,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- Removing a tag in the recipe form puts the cursor back in the tag field, so pressing Enter afterwards no longer removes the next tag as well ([#41](https://github.com/joeran-kuschel/dinner-planner/issues/41)).
 - "Back to the plan" on a recipe opened from a day card returns to that card's week instead of the current one ([#23](https://github.com/joeran-kuschel/dinner-planner/issues/23)).
 - Undo after "Clear day" no longer overwrites a dinner planned for that day in another tab in the meantime ([#24](https://github.com/joeran-kuschel/dinner-planner/issues/24)).
 

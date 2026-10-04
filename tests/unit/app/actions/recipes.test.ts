@@ -438,6 +438,12 @@ describe("tags", () => {
     create.mockRestore();
   });
 
+  it("echoes the chips of a refused form whose tag text field is empty (Enter in the empty field)", async () => {
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ name: " ", tag: ["quick", "vegan"], tags: "" }));
+    expect(state.error).toBeTruthy();
+    expect(state.values?.tags).toEqual(["quick", "vegan"]);
+  });
+
   it("refuses more than ten tags, echoing what was typed and changing nothing", async () => {
     const tags = Array.from({ length: 11 }, (_, i) => `tag${i}`);
     const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ tag: tags }));

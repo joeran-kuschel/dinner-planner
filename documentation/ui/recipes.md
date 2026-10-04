@@ -85,11 +85,11 @@ Creating and editing use the same form.
     one. Enter in a row with nothing in it saves the recipe, so the keyboard never gets stuck in the list.
   - **Add ingredient** adds a row, ✕ removes one (the last row stays).
 - **Tags** label the recipe ("vegetarian", "quick") so it can be found again. Type a tag and press **Enter** or type
-  a **comma**: it becomes a chip under the field. A chip's ✕ ("Remove tag vegetarian") takes it away again; the focus moves on to the next chip's ✕, or to the field
-  when none is left. A recipe
+  a **comma**: it becomes a chip under the field. A chip's ✕ ("Remove tag vegetarian") takes it away again; the focus goes back to the field, so a following **Enter**
+  never removes another tag. A recipe
   has up to 10 tags of up to 30 characters. Tags are lowercased ("Quick" and "quick" are one tag) and a tag is only
   added once. The tags already used by other recipes are offered while you type. Enter with nothing typed sends the
-  form like in any other field, and text still in the field when you save is added as a tag. Chips appearing and
+  form like in any other field, and the chips stay: they are saved with the recipe, or come back with a refused form. Text still in the field when you save is added as a tag. Chips appearing and
   disappearing are announced to screen readers ("Added tag quick", "Removed tag quick"). Without JavaScript, type the
   tags into the field separated by commas.
 - **Method** is free text, one step per line.
