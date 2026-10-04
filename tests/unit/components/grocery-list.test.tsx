@@ -245,22 +245,16 @@ describe("GroceryList", () => {
       for (const box of html.match(/<input[^>]*type="checkbox"[^>]*>/g)!) expect(box).toContain("disabled");
     });
 
-    it("is enabled once the page is interactive", () => {
-      renderList([RICE]);
-      expect(screen.getByRole("checkbox", { name: "Tick off Arborio rice" })).toBeEnabled();
-    });
-
-    it("keeps the box as saved after the save ends, and does not let a form reset undo it", async () => {
-      const { user, rerender } = renderList([RICE]);
+    it("never resets the form after a save: React 19 would put the box back to the value it was rendered with", async () => {
+      const reset = vi.spyOn(HTMLFormElement.prototype, "reset");
+      const { user } = renderList([RICE]);
       const box = screen.getByRole("checkbox", { name: "Tick off Arborio rice" });
+      expect(box).toBeEnabled();
       await user.click(box);
-      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
-      // The server answers with the line ticked.
-      rerender(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, checked: true }]} />);
-      await waitFor(() => expect(box).toBeChecked());
-      await user.click(box);
-      rerender(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, checked: false }]} />);
-      await waitFor(() => expect(box).not.toBeChecked());
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(box).not.toBeChecked()); // the transition ended, nothing stored yet
+      expect(reset).not.toHaveBeenCalled();
+      reset.mockRestore();
     });
 
     it("ticks a line when its name is tapped, not only its box", async () => {
