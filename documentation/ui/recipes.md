@@ -77,8 +77,9 @@ Creating and editing use the same form.
 - **Ingredients** are rows of amount, unit, name and category, with the column names above them (on a phone each
   field has its own small name above it). Leave the amount blank for "to taste"; the note under the heading says so, and
   screen readers read it with every amount field.
-  - **Unit** suggests the common ones (g, kg, ml, l, tbsp, tsp, cup, piece, pinch, clove) and every other unit your recipes
-    already use (the common ones in the page's language: "EL" and "TL" in German), so "g" and "grams" do not end up as two lines on the grocery list. You can still type any unit.
+  - **Unit** suggests the common ones (g, kg, ml, l, EL, TL, tbsp, tsp, cup, piece, pinch, clove) and every other unit your recipes
+    already use (the common ones in the page's language, except "EL" and "TL", which are offered in both languages and
+    listed once in German; the grocery list does not merge "EL" with "tbsp" or "TL" with "tsp"), so "g" and "grams" do not end up as two lines on the grocery list. You can still type any unit.
   - The **category** (the section of the shop, "Other" by default) decides where the ingredient sits on the
     [grocery list](groceries.md); screen readers hear it as "Category for ingredient 2".
   - **Enter** in an amount, unit or name field jumps to the first field of the next row, and after the last row it adds
