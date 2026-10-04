@@ -47,15 +47,21 @@ describe("the GitHub Actions check", () => {
     expect(workflow.concurrency["cancel-in-progress"]).toContain("pull_request");
   });
 
-  it("uses the database of compose.yaml and the URL of .env.example", () => {
+  it("uses the database of compose.yaml and the URL of .env.example, with a password of its own", () => {
     const compose = parse(fs.readFileSync(path.join(process.cwd(), "compose.yaml"), "utf-8")).services.db;
     const service = workflow.jobs.check.services.postgres;
     expect(service.image).toBe(compose.image);
-    expect(service.env).toEqual(compose.environment);
     expect(service.ports).toEqual(compose.ports);
+    expect(service.env.POSTGRES_USER).toBe(compose.environment.POSTGRES_USER);
+    expect(service.env.POSTGRES_DB).toBe(compose.environment.POSTGRES_DB);
 
-    const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf-8");
-    expect(example).toContain(`DATABASE_URL="${workflow.jobs.check.env.DATABASE_URL}"`);
+    // compose.yaml reads its password from .env, which the runner does not have: the job's is a throwaway.
+    const url = new URL(workflow.jobs.check.env.DATABASE_URL);
+    expect(url.password).toBe(service.env.POSTGRES_PASSWORD);
+    expect(url.password).not.toBe(compose.environment.POSTGRES_PASSWORD);
+
+    const example = new URL(/^DATABASE_URL="(.+)"$/m.exec(fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf-8"))![1]);
+    expect([url.username, url.host, url.pathname, url.search]).toEqual([example.username, example.host, example.pathname, example.search]);
   });
 
   it("uses the Node version of the Docker image and installs the browser Playwright needs", () => {

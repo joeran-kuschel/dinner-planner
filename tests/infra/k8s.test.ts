@@ -1,7 +1,8 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseAllDocuments } from "yaml";
+import { parse, parseAllDocuments } from "yaml";
 import { MAX_PHOTO_BYTES } from "@/lib/recipe-photo-shared";
 
 const K8S = path.join(process.cwd(), "k8s");
@@ -16,6 +17,14 @@ type Container = {
 // Parsed YAML; each test reads only the fields it checks.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Resource = any;
+
+/** The Secret that k8s/db-secret.sh renders, parsed. */
+function secretManifest(user: string, password: string, database: string): Resource {
+  const output = execFileSync("bash", ["-c", 'source k8s/db-secret.sh && db_secret_manifest "$@"', "bash", user, password, database], {
+    encoding: "utf-8",
+  });
+  return parse(output);
+}
 
 /** Every resource in one manifest file in k8s/. */
 function resources(file: string): Resource[] {
@@ -81,7 +90,9 @@ describe("Kubernetes setup for Docker Desktop", () => {
       .filter((file) => file.endsWith(".yaml") && file !== "kustomization.yaml")
       .flatMap(resources);
     const named = (kind: string) => all.filter((r) => r.kind === kind);
-    const secrets = named("Secret").map((r) => r.metadata.name);
+    // The Secret is not a manifest: deploy.sh creates it (k8s/db-secret.sh), so it is named there.
+    expect(named("Secret")).toEqual([]);
+    const secrets = [/^DB_SECRET=(\S+)$/m.exec(read("k8s/db-secret.sh"))![1]];
     const services = named("Service");
     const podLabels = all.flatMap((r: Resource) => (r.spec?.template?.metadata?.labels ? [r.spec.template.metadata.labels] : []));
 
@@ -102,10 +113,23 @@ describe("Kubernetes setup for Docker Desktop", () => {
       for (const backend of backends) expect(services.map((s) => s.metadata.name)).toContain(backend);
     }
 
-    const secret = named("Secret")[0].stringData;
-    const url = new URL(secret.DATABASE_URL);
+    const manifest = secretManifest("dinner", "pw", "dinner_planner");
+    const url = new URL(manifest.stringData.DATABASE_URL);
     expect(services.map((s) => s.metadata.name)).toContain(url.hostname);
-    expect(url.pathname).toBe(`/${secret.POSTGRES_DB}`);
+    expect(url.pathname).toBe(`/${manifest.stringData.POSTGRES_DB}`);
+    expect(manifest.metadata.namespace).toBe(resources("kustomization.yaml")[0].namespace);
+  });
+
+  it("keeps the database password out of the manifests, the scripts and the docs", () => {
+    const files = [...fs.readdirSync(K8S).map((file) => `k8s/${file}`), "compose.yaml", ".env.example", "README.md"];
+
+    for (const file of files) {
+      const text = read(file);
+      // A value that starts with $ is a template (db-secret.sh) or a variable (compose.yaml), not a password.
+      expect(text, file).not.toMatch(/^\s*POSTGRES_PASSWORD:\s*(?!"?\$)\S/m);
+      if (file.endsWith(".yaml")) expect(text, file).not.toMatch(/^kind: Secret$/m);
+      expect(text, file).not.toContain("dinner:dinner");
+    }
   });
 
   it("has no minikube leftovers in the scripts, manifests or npm scripts", () => {

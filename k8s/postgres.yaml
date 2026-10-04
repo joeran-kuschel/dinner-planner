@@ -1,16 +1,6 @@
-# Postgres for the local cluster. Credentials are deliberately trivial: this
-# runs on a developer laptop and is never exposed outside the cluster.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: dinner-planner-db
-stringData:
-  POSTGRES_USER: dinner
-  POSTGRES_PASSWORD: dinner
-  POSTGRES_DB: dinner_planner
-  # Read by the app and the migration job. The host is the Service below.
-  DATABASE_URL: postgresql://dinner:dinner@dinner-planner-db:5432/dinner_planner
----
+# Postgres for the local cluster. The credentials are not in this repository: the dinner-planner-db Secret
+# (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL) is created with a random password by
+# `npm run k8s:deploy` the first time, and replaced by `npm run k8s:rotate-db-password`. See k8s/db-secret.sh.
 apiVersion: v1
 kind: Service
 metadata:
