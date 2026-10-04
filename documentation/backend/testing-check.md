@@ -65,7 +65,7 @@ schemas stayed in the development database. So `createMigratedSchema()` stamps e
 `dropStaleTestSchemas()` once at the start of every run: it drops the schemas named exactly like that whose stamp is
 more than an hour old. A run takes minutes, so a younger schema may belong to another run that is still going (another
 terminal, another worktree) and stays, as does one without a stamp or with one that cannot be read. `public`, `e2e` and every other name are never
-touched, whatever their age. `tests/infra/stale-test-schemas.test.ts` covers this.
+touched, whatever their age. The cleanup is best effort: the setup also runs for the component tests, which need no database, so a database that cannot be reached or a drop that fails only prints a warning. `tests/infra/stale-test-schemas.test.ts` covers this.
 
 ## Time limits
 

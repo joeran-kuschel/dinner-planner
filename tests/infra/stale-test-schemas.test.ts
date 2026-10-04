@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Client } from "pg";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import dropStaleSchemas from "@/tests/support/drop-stale-schemas";
 import { createMigratedSchema, dropStaleTestSchemas, dropSchema } from "@/tests/support/migrate";
 
 // The base address, without the `?schema=` that setup-server.ts added for this file.
@@ -72,22 +73,56 @@ describe("dropStaleTestSchemas", () => {
     const odd = hexName();
     await leave(bare, null);
     await leave(odd, "created yesterday-ish");
-    expect(await dropStaleTestSchemas(baseUrl)).not.toEqual(expect.arrayContaining([bare, odd]));
+    const dropped = await dropStaleTestSchemas(baseUrl);
+    expect(dropped).not.toContain(bare);
+    expect(dropped).not.toContain(odd);
     expect(await exists(bare)).toBe(true);
     expect(await exists(odd)).toBe(true);
   });
 
   it("only ever touches names like the ones Vitest creates, however old the stamp", async () => {
-    const other = "test_not_a_vitest_schema";
-    await leave(other, `created ${hoursAgo(48)}`);
-    expect(await dropStaleTestSchemas(baseUrl)).not.toContain(other);
-    expect(await exists(other)).toBe(true);
+    const hex = randomBytes(6).toString("hex");
+    const others = [
+      "test_not_a_vitest_schema",
+      `test_${hex}x`, // a suffix
+      `test_${hex.toUpperCase()}`, // upper-case digits
+      `test_${hex.slice(0, 11)}`, // too short
+      `testX${hex}`, // `_` is no wildcard
+    ];
+    for (const other of others) await leave(other, `created ${hoursAgo(48)}`);
+    const dropped = await dropStaleTestSchemas(baseUrl);
+    for (const other of others) {
+      expect(dropped).not.toContain(other);
+      expect(await exists(other)).toBe(true);
+    }
     expect(await exists("public")).toBe(true);
+  });
+
+  it("takes the age limit as a parameter", async () => {
+    const name = hexName();
+    await leave(name, `created ${hoursAgo(0.5)}`);
+    expect(await dropStaleTestSchemas(baseUrl, 60 * 60 * 1000)).not.toContain(name);
+    // A limit of 29 minutes: just under the schema's age, and far above that of any live run's.
+    expect(await dropStaleTestSchemas(baseUrl, 29 * 60 * 1000)).toContain(name);
   });
 
   it("keeps this file's own schema, which was created a moment ago", async () => {
     const own = new URL(process.env.DATABASE_URL!).searchParams.get("schema")!;
     expect(await dropStaleTestSchemas(baseUrl)).not.toContain(own);
     expect(await exists(own)).toBe(true);
+  });
+});
+
+describe("the global setup", () => {
+  it("does not fail a run when the database cannot be reached", async () => {
+    const saved = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgresql://nobody:none@127.0.0.1:1/none";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(dropStaleSchemas()).resolves.toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("Could not drop stale test schemas"));
+    } finally {
+      process.env.DATABASE_URL = saved;
+    }
   });
 });

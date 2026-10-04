@@ -10,5 +10,11 @@ export default async function dropStaleSchemas() {
   loadEnv({ quiet: true });
   const baseUrl = process.env.DATABASE_URL;
   if (!baseUrl) return; // setup-server.ts explains the missing variable
-  await dropStaleTestSchemas(baseUrl);
+  // Best effort: this also runs for the component tests, which need no database, and a stale
+  // schema is no reason to stop a run.
+  try {
+    await dropStaleTestSchemas(baseUrl);
+  } catch (error) {
+    console.warn(`Could not drop stale test schemas: ${error instanceof Error ? error.message : error}`);
+  }
 }
