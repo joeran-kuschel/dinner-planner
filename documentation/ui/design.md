@@ -1,7 +1,7 @@
 # Look and layout
 
 The look of the whole app: one palette, two typefaces, one focus ring and a handful of page layouts. The proposal it
-came from is a design canvas ([#33](https://github.com/boyonthedocks/dinner-planner/issues/33)); this page describes
+came from is a design canvas ([#33](https://github.com/joeran-kuschel/dinner-planner/issues/33)); this page describes
 what is built.
 
 ## Colour
