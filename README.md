@@ -68,3 +68,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 ·
 Prisma 7 · Postgres · Docker · Kubernetes (Docker Desktop)
 
 See `CLAUDE.md` for the notes that matter when changing the code.
+
+## License
+
+[MIT](LICENSE)
