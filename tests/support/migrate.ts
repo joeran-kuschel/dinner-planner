@@ -44,6 +44,9 @@ export async function createMigratedSchema(baseUrl: string, schema: string): Pro
     const quoted = quoteIdent(schema);
     await client.query(`DROP SCHEMA IF EXISTS ${quoted} CASCADE`);
     await client.query(`CREATE SCHEMA ${quoted}`);
+    // The creation time travels with the schema, so `dropStaleTestSchemas` can tell a leftover from
+    // a run that is still going.
+    await client.query(`COMMENT ON SCHEMA ${quoted} IS ${quoteLiteral(`created ${new Date().toISOString()}`)}`);
     // The migration SQL is written unqualified, so it lands wherever the search
     // path points — which is how one schema per test file stays isolated.
     await client.query(`SET search_path TO ${quoted}`);
@@ -89,6 +92,42 @@ export async function dropSchema(baseUrl: string, schema: string): Promise<void>
   } finally {
     await client.end();
   }
+}
+
+/** The schemas Vitest creates, one per test file: `test_` and 12 hex digits (see `setup-server.ts`). */
+const TEST_SCHEMA = /^test_[0-9a-f]{12}$/;
+
+/** A schema older than this was left by a run that was cut off; a run takes minutes. */
+const STALE_SCHEMA_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Drop the test schemas that a cut-off run left behind: named like the ones Vitest creates, stamped
+ * by `createMigratedSchema` and older than `maxAgeMs`. A schema without a stamp, one that is younger
+ * (another run may be using it) and every other name, `public` and `e2e` included, stays. Returns
+ * the names it dropped.
+ */
+export async function dropStaleTestSchemas(baseUrl: string, maxAgeMs = STALE_SCHEMA_AGE_MS): Promise<string[]> {
+  const client = new Client({ connectionString: baseUrl });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ name: string; note: string | null }>(
+      "SELECT nspname AS name, obj_description(oid, 'pg_namespace') AS note FROM pg_namespace WHERE nspname LIKE 'test\\_%'",
+    );
+    const dropped: string[] = [];
+    for (const { name, note } of rows) {
+      const created = Date.parse(note?.match(/^created (.+)$/)?.[1] ?? "");
+      if (!TEST_SCHEMA.test(name) || Number.isNaN(created) || Date.now() - created < maxAgeMs) continue;
+      await client.query(`DROP SCHEMA IF EXISTS ${quoteIdent(name)} CASCADE`);
+      dropped.push(name);
+    }
+    return dropped;
+  } finally {
+    await client.end();
+  }
+}
+
+function quoteLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function quoteIdent(name: string): string {

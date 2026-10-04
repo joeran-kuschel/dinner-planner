@@ -56,6 +56,17 @@ The reset assumes one worker (`playwright.config.ts` sets `workers: 1`, and the 
 workers sharing the schema a reset would pull the data from under a test that is running; running in parallel would need one
 schema per worker.
 
+## Leftover Vitest schemas
+
+Every Vitest file creates a schema of its own, `test_` and 12 hex digits, and drops it in its `afterAll`
+(`tests/support/setup-server.ts`). A run that is killed (Ctrl-C, a time limit, a crash) never reaches that, and the
+schemas stayed in the development database. So `createMigratedSchema()` stamps each schema with its creation time
+(`COMMENT ON SCHEMA … IS 'created <ISO time>'`), and the global setup `tests/support/drop-stale-schemas.ts` calls
+`dropStaleTestSchemas()` once at the start of every run: it drops the schemas named exactly like that whose stamp is
+more than an hour old. A run takes minutes, so a younger schema may belong to another run that is still going (another
+terminal, another worktree) and stays, as does one without a stamp or with one that cannot be read. `public`, `e2e` and every other name are never
+touched, whatever their age. The cleanup is best effort: the setup also runs for the component tests, which need no database, so a database that cannot be reached or a drop that fails only prints a warning. `tests/infra/stale-test-schemas.test.ts` covers this.
+
 ## Time limits
 
 | Stage | Limit |

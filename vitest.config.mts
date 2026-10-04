@@ -15,7 +15,7 @@ export default defineConfig({
     // code that builds planner days from local time instead of UTC midnight.
     env: { TZ: "Europe/Berlin" },
     restoreMocks: true,
-    globalSetup: ["tests/support/compile-catalogs.ts"],
+    globalSetup: ["tests/support/compile-catalogs.ts", "tests/support/drop-stale-schemas.ts"],
     projects: [
       {
         extends: true,
