@@ -11,25 +11,18 @@ import {
 
 describe("readRecipeSearch", () => {
   it("reads the word and the tags from the address parameters", () => {
-    expect(
-      readRecipeSearch({ q: "  lentil ", tag: ["Quick", "vegan"] }),
-    ).toEqual({
+    expect(readRecipeSearch({ q: "  lentil ", tag: ["Quick", "vegan"] })).toEqual({
       text: "lentil",
       tags: ["quick", "vegan"],
     });
   });
 
   it("accepts a single tag, which is a string rather than a list", () => {
-    expect(readRecipeSearch({ tag: "Quick" })).toEqual({
-      text: "",
-      tags: ["quick"],
-    });
+    expect(readRecipeSearch({ tag: "Quick" })).toEqual({ text: "", tags: ["quick"] });
   });
 
   it("drops NUL characters, which Postgres refuses, instead of failing", () => {
-    expect(
-      readRecipeSearch({ q: "le\u0000ntil", tag: ["qu\u0000ick", "\u0000"] }),
-    ).toEqual({
+    expect(readRecipeSearch({ q: "le\u0000ntil", tag: ["qu\u0000ick", "\u0000"] })).toEqual({
       text: "lentil",
       tags: ["quick"],
     });
@@ -37,26 +30,19 @@ describe("readRecipeSearch", () => {
 
   it("reads at most a hundred characters of the word, ten tags, and no tag over thirty characters", () => {
     const tags = Array.from({ length: 15 }, (_, i) => `tag${i}`);
-    const search = readRecipeSearch({
-      q: "x".repeat(300),
-      tag: [...tags, "y".repeat(31)],
-    });
+    const search = readRecipeSearch({ q: "x".repeat(300), tag: [...tags, "y".repeat(31)] });
     expect(search.text).toHaveLength(100);
     expect(search.tags).toEqual(tags.slice(0, 10));
     expect(readRecipeSearch({ tag: ["y".repeat(31)] }).tags).toEqual([]);
   });
 
   it("finds nothing, and does not fail, for a word with a NUL character", async () => {
-    const where = recipeSearchWhere(
-      readRecipeSearch({ q: "\u0000", tag: "\u0000" }),
-    );
+    const where = recipeSearchWhere(readRecipeSearch({ q: "\u0000", tag: "\u0000" }));
     await expect(prisma.recipe.findMany({ where })).resolves.toEqual([]);
   });
 
   it("ignores repeated, blank or missing values", () => {
-    expect(
-      readRecipeSearch({ q: ["a", "b"], tag: ["quick", "Quick ", "", "  "] }),
-    ).toEqual({
+    expect(readRecipeSearch({ q: ["a", "b"], tag: ["quick", "Quick ", "", "  "] })).toEqual({
       text: "",
       tags: ["quick"],
     });
@@ -68,18 +54,8 @@ async function seed(name: string, tags: string[], ingredients: string[] = []) {
   await prisma.recipe.create({
     data: {
       name,
-      tags: {
-        connectOrCreate: tags.map((tag) => ({
-          where: { name: tag },
-          create: { name: tag },
-        })),
-      },
-      ingredients: {
-        create: ingredients.map((ingredient, position) => ({
-          name: ingredient,
-          position,
-        })),
-      },
+      tags: { connectOrCreate: tags.map((tag) => ({ where: { name: tag }, create: { name: tag } })) },
+      ingredients: { create: ingredients.map((ingredient, position) => ({ name: ingredient, position })) },
     },
   });
 }
@@ -94,25 +70,13 @@ async function find(search: Partial<RecipeSearch>): Promise<string[]> {
 
 describe("recipeSearchWhere", () => {
   beforeEach(async () => {
-    await seed(
-      "Red Lentil Dal",
-      ["vegan", "quick", "freezer-friendly"],
-      ["Red lentils", "Coconut milk"],
-    );
-    await seed(
-      "Shakshuka",
-      ["vegetarian", "quick"],
-      ["Eggs", "Chopped tomatoes"],
-    );
+    await seed("Red Lentil Dal", ["vegan", "quick", "freezer-friendly"], ["Red lentils", "Coconut milk"]);
+    await seed("Shakshuka", ["vegetarian", "quick"], ["Eggs", "Chopped tomatoes"]);
     await seed("Roast Chicken", ["meat"], ["Chicken thighs", "Lemon"]);
   });
 
   it("finds everything without a search", async () => {
-    expect(await find({})).toEqual([
-      "Red Lentil Dal",
-      "Roast Chicken",
-      "Shakshuka",
-    ]);
+    expect(await find({})).toEqual(["Red Lentil Dal", "Roast Chicken", "Shakshuka"]);
   });
 
   it("matches a part of the name, ignoring case", async () => {
@@ -130,23 +94,15 @@ describe("recipeSearchWhere", () => {
 
   it("matches a recipe once even when the word is in its name, tag and ingredient", async () => {
     await seed("Lemon cake", ["lemon"], ["Lemon"]);
-    expect(await find({ text: "lemon" })).toEqual([
-      "Lemon cake",
-      "Roast Chicken",
-    ]);
+    expect(await find({ text: "lemon" })).toEqual(["Lemon cake", "Roast Chicken"]);
   });
 
   it("filters by one tag", async () => {
-    expect(await find({ tags: ["quick"] })).toEqual([
-      "Red Lentil Dal",
-      "Shakshuka",
-    ]);
+    expect(await find({ tags: ["quick"] })).toEqual(["Red Lentil Dal", "Shakshuka"]);
   });
 
   it("needs all the chosen tags", async () => {
-    expect(await find({ tags: ["quick", "vegan"] })).toEqual([
-      "Red Lentil Dal",
-    ]);
+    expect(await find({ tags: ["quick", "vegan"] })).toEqual(["Red Lentil Dal"]);
     expect(await find({ tags: ["vegan", "vegetarian"] })).toEqual([]);
   });
 
@@ -241,7 +197,7 @@ describe("recipeSearchWhere", () => {
     expect(await find({ text: "_" })).toEqual([]);
     expect(await find({ text: "r_d" })).toEqual([]);
     expect(await find({ text: "\\" })).toEqual([]);
-    expect(await find({ text: '\'; drop table "Recipe"; --' })).toEqual([]);
+    expect(await find({ text: "'; drop table \"Recipe\"; --" })).toEqual([]);
   });
 });
 

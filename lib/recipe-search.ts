@@ -20,15 +20,10 @@ export type RecipeSearch = {
 };
 
 /** The search as the list's address carries it (`?q=…&tag=…&tag=…`); anything else is ignored. */
-export function readRecipeSearch(params: {
-  q?: string | string[];
-  tag?: string | string[];
-}): RecipeSearch {
+export function readRecipeSearch(params: { q?: string | string[]; tag?: string | string[] }): RecipeSearch {
   // The address is user input: Postgres refuses a NUL character, and there is no use for more.
-  const one = (value: string | string[] | undefined) =>
-    typeof value === "string" ? rawText(value) : "";
-  const many = (value: string | string[] | undefined) =>
-    Array.isArray(value) ? value : value ? [value] : [];
+  const one = (value: string | string[] | undefined) => (typeof value === "string" ? rawText(value) : "");
+  const many = (value: string | string[] | undefined) => (Array.isArray(value) ? value : value ? [value] : []);
   const tags = many(params.tag)
     .map((tag) => normalizeTag(rawText(tag)))
     .filter((tag) => tag && tag.length <= MAX_TAG_LENGTH);
@@ -44,27 +39,16 @@ export function readRecipeSearch(params: {
  */
 export function searchWords(text: string): string[] {
   const words = [...text.matchAll(/"([^"]*)"|[^\s,"]+/g)]
-    .map((match) =>
-      (match[1] ?? match[0])
-        .trim()
-        .replace(/\s+/g, " ")
-        .slice(0, MAX_SEARCH_LENGTH),
-    )
+    .map((match) => (match[1] ?? match[0]).trim().replace(/\s+/g, " ").slice(0, MAX_SEARCH_LENGTH))
     .filter(Boolean);
   return [...new Set(words)].slice(0, MAX_TAGS);
 }
 
-export function recipeSearchWhere({
-  text,
-  tags,
-}: RecipeSearch): Prisma.RecipeWhereInput {
+export function recipeSearchWhere({ text, tags }: RecipeSearch): Prisma.RecipeWhereInput {
   // The text, or one word of it, matches a recipe's name, one of its tags or one of its ingredients.
   const matches = (word: string): Prisma.RecipeWhereInput => {
     // `contains` hands `%` and `_` on as LIKE wildcards; a search for them means the characters.
-    const contains = {
-      contains: word.replace(/[\\%_]/g, "\\$&"),
-      mode: "insensitive",
-    } as const;
+    const contains = { contains: word.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" } as const;
     return {
       OR: [
         { name: contains },
@@ -81,10 +65,7 @@ export function recipeSearchWhere({
       ? matches(text)
       : { OR: [matches(text), { AND: words.map(matches) }] };
   return {
-    AND: [
-      ...(text ? [wholeOrWords] : []),
-      ...tags.map((name) => ({ tags: { some: { name } } })),
-    ],
+    AND: [...(text ? [wholeOrWords] : []), ...tags.map((name) => ({ tags: { some: { name } } }))],
   };
 }
 
@@ -95,16 +76,9 @@ export function recipeSearchWhere({
  */
 export async function searchTerms(): Promise<SearchTerm[]> {
   const [recipes, tags, ingredients] = await Promise.all([
-    prisma.recipe.findMany({
-      select: { name: true },
-      orderBy: { name: "asc" },
-    }),
+    prisma.recipe.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
     prisma.tag.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
-    prisma.ingredient.findMany({
-      select: { name: true },
-      distinct: ["name"],
-      orderBy: { name: "asc" },
-    }),
+    prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
   ]);
   const seen = new Set<string>();
   const terms: SearchTerm[] = [];
@@ -125,9 +99,6 @@ export async function searchTerms(): Promise<SearchTerm[]> {
 
 /** Every tag in use, in alphabetical order. */
 export async function tagNames(): Promise<string[]> {
-  const tags = await prisma.tag.findMany({
-    select: { name: true },
-    orderBy: { name: "asc" },
-  });
+  const tags = await prisma.tag.findMany({ select: { name: true }, orderBy: { name: "asc" } });
   return tags.map((tag) => tag.name);
 }
