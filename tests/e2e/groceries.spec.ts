@@ -90,6 +90,7 @@ test.describe("groceries", () => {
     const carrots = page.getByRole("checkbox", { name: "Tick off Carrots", exact: true });
     await expect(carrots).not.toBeChecked();
     // The box flips at once; the reload below shows what the server saved.
+    await expect(carrots).toBeEnabled();
     await carrots.click();
     await expect(carrots).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: "1 of 2 ticked off" })).toBeVisible();
@@ -98,10 +99,16 @@ test.describe("groceries", () => {
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "Tick off Lemon", exact: true })).not.toBeChecked();
 
-    // Clicking a ticked line again puts it back on the list.
-    await page.getByRole("checkbox", { name: "Tick off Carrots", exact: true }).click();
-    await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
+    // Clicking a ticked line again puts it back on the list. The box is disabled until the page is
+    // interactive, so a click right after the reload is never lost; once the save is through the
+    // box must still show what was saved.
+    const again = page.getByRole("checkbox", { name: "Tick off Carrots", exact: true });
+    await expect(again).toBeEnabled();
+    const saved = page.waitForResponse((response) => response.request().method() === "POST");
+    await again.click();
+    await saved;
     await expect(page.getByRole("status").filter({ hasText: "0 of 2 ticked off" })).toBeVisible();
+    await expect(again).not.toBeChecked();
     await page.reload();
     await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
   });

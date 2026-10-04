@@ -2,7 +2,7 @@
 
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
-import { useOptimistic, useRef, useState } from "react";
+import { type FormEvent, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
@@ -72,6 +72,20 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
   );
 }
 
+const noSubscription = () => () => {};
+
+/**
+ * False in the server-rendered HTML and while React hydrates, true once the page is interactive.
+ * A tick before that has no handler to save it, so the box stays disabled until then.
+ */
+function useHydrated() {
+  return useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
+}
+
 /**
  * One line: a tick box that the whole row works as (a big target for a thumb), the name, a second
  * line saying where it comes from, and the amount. The box flips at once while the server saves;
@@ -83,17 +97,25 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   const { label } = line;
   const [checked, setChecked] = useOptimistic(line.checked);
   const [failed, setFailed] = useState(false);
+  const hydrated = useHydrated();
+  const [, startTransition] = useTransition();
 
   // The box flips for the time of the save and shows what is stored again once it ends, so a save
-  // that fails leaves the box as it was; the message says so.
-  const toggle = async (formData: FormData) => {
-    setFailed(false);
-    setChecked(formData.get("checked") === "true");
-    try {
-      await toggleGroceryLine(formData);
-    } catch {
-      setFailed(true);
-    }
+  // that fails leaves the box as it was; the message says so. The form is submitted by hand, not
+  // through its `action`: React 19 resets a form once its action resolves, and the reset puts the
+  // checkbox back to the value it was rendered with, so it showed the opposite of what was saved.
+  const toggle = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      setFailed(false);
+      setChecked(formData.get("checked") === "true");
+      try {
+        await toggleGroceryLine(formData);
+      } catch {
+        setFailed(true);
+      }
+    });
   };
 
   const notes = [
@@ -104,7 +126,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
 
   return (
     <div className="flex items-center">
-      <form ref={formRef} action={toggle} className="flex-1">
+      <form ref={formRef} action={toggleGroceryLine} onSubmit={toggle} className="flex-1">
         <input type="hidden" name="weekStart" value={weekStart} />
         <input type="hidden" name="key" value={line.key} />
         <input type="hidden" name="label" value={line.label} />
@@ -116,6 +138,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
           <input
             type="checkbox"
             checked={checked}
+            disabled={!hydrated}
             onChange={() => formRef.current?.requestSubmit()}
             className="size-6 shrink-0 accent-[var(--herb)]"
             aria-label={t(i18n)`Tick off ${label}`}
