@@ -58,6 +58,10 @@ jobs:
       # generated/prisma is not committed.
       - run: npm run db:generate
 
+      # The typecheck reads the route types (PageProps, LayoutProps) that `next dev` and `next build` write
+      # to .next/types, which a fresh checkout does not have yet.
+      - run: npx next typegen
+
       - run: npx playwright install --with-deps chromium
 
       - run: npm run check

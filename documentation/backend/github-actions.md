@@ -9,8 +9,9 @@ agent runs on the developer's machine, so a green run there and a green run here
 1. Starts a throwaway Postgres as a service container: the image, login and host port of `compose.yaml`, so the
    `DATABASE_URL` is the one in `.env.example`.
 2. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
-3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed), installs Chromium for
-   Playwright and runs `npm run check`.
+3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
+   (`npx next typegen`: the typecheck reads `PageProps` and `LayoutProps` from `.next/types`, which only `next dev` and
+   `next build` write, so a fresh checkout has none), installs Chromium for Playwright and runs `npm run check`.
 4. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
    `test-results`, kept for 7 days. The check runs Playwright with the line reporter, so there is no HTML report; the
    last lines of any failing stage are in the job log.
