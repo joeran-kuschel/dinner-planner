@@ -98,6 +98,41 @@ body {
   outline-offset: 2px;
 }
 
+/* Printing (the grocery list is the page made for it): black on white whatever the colour scheme, no
+ * page chrome (the pages hide their own navigation and forms with `print:hidden`), and every tick box
+ * an empty square to tick with a pen. Ticked lines are left out (`print:hidden` on the rows). */
+@media print {
+  :root {
+    --background: #fff;
+    --surface: #fff;
+    --surface-muted: #fff;
+    --border: #000;
+    --foreground: #000;
+    --muted: #000;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  /* A plain list: no frames, no padding around the groups. */
+  .card {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  input[type="checkbox"] {
+    appearance: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 1.5px solid #000;
+    background: #fff;
+  }
+}
+
 /* Room for the sticky header, so a field the browser scrolls to on focus is
  * never hidden under it (WCAG 2.4.11). Below `sm` the header takes two rows,
  * three for the German one at 320 px (123 px) and the tab bar sits at the bottom;

@@ -162,9 +162,25 @@ msgstr "Woche leeren"
 msgid "clove"
 msgstr "Zehe"
 
+#: components/grocery-share.tsx
+msgid "Copied"
+msgstr "Kopiert"
+
+#: components/grocery-share.tsx
+msgid "Copy list"
+msgstr "Liste kopieren"
+
+#: components/grocery-share.tsx
+msgid "Copying isn't available here. Select the text below instead."
+msgstr "Kopieren ist hier nicht möglich. Markiere stattdessen den Text unten."
+
 #: components/grocery-list.tsx
 msgid "Could not save the tick. Try again."
 msgstr "Das Abhaken konnte nicht gespeichert werden. Versuche es noch einmal."
+
+#: components/grocery-share.tsx
+msgid "Couldn't copy. Select the text below instead."
+msgstr "Kopieren hat nicht geklappt. Markiere stattdessen den Text unten."
 
 #: components/recipe-form.tsx
 msgid "Create recipe"
@@ -282,6 +298,7 @@ msgid "Groceries"
 msgstr "Einkauf"
 
 #: app/groceries/page.tsx
+#: lib/grocery.ts
 msgid "Grocery list"
 msgstr "Einkaufsliste"
 
@@ -526,6 +543,10 @@ msgstr "Mit Enter oder Komma ein Tag hinzufügen. Bis zu {MAX_TAGS} Tags mit je 
 msgid "Previous week"
 msgstr "Vorige Woche"
 
+#: components/grocery-share.tsx
+msgid "Print"
+msgstr "Drucken"
+
 #: components/recipe-form.tsx
 msgid "Quantities below are for this many people."
 msgstr "Die Mengen unten gelten für so viele Personen."
@@ -687,6 +708,10 @@ msgstr "Die Beschreibung des Fotos darf höchstens {MAX_PHOTO_ALT_LENGTH} Zeiche
 #: lib/recipe-import/messages.ts
 msgid "The import was cancelled."
 msgstr "Der Import wurde abgebrochen."
+
+#: components/grocery-share.tsx
+msgid "The list as text"
+msgstr "Die Liste als Text"
 
 #: components/pantry-section.tsx
 msgid "The list is full: {MAX_STAPLES} staples. Remove one to add another."

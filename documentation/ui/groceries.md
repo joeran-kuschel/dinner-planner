@@ -90,12 +90,35 @@ to remove them; lines that come from the plan cannot be deleted, since they woul
 The **Item** is the only mandatory field. It carries an "*" in the accent colour in its label, and the line "* required" above
 the fields explains the mark (see "Mandatory fields" in [recipes](recipes.md)).
 
+## Copy and print
+
+Under the header, **Copy list** and **Print** take the list to the shop.
+
+- **Copy list** puts the list on the clipboard as plain text, to paste into a message or a notes app: a first line
+  with the title and the week ("Grocery list · 28 Sept – 4 Oct 2026"), then each shop section with its name and one
+  line per item ("- 300 g Rice", "- Salt (to taste)"; an item you added without an amount is just its name).
+  **Ticked lines and lines hidden by a pantry staple are left out** (also when the pantry lines are shown), as are
+  sections that this empties. Nothing is left to copy when everything is ticked, so the button is then not shown.
+  A status line next to the buttons says "Copied" (a screen reader announces it). When the browser refuses, or has no
+  clipboard (it needs `https://` or `localhost`), the status says so and a read-only field "The list as text" appears
+  with the same text, selected when it takes the focus, to copy by hand.
+- **Print** opens the browser's print dialog (so does Ctrl/Cmd+P). The print view is made for paper: black on white
+  whatever the colour scheme, the title and the week as heading, the sections in two columns as a plain list (no frames
+  or padding, no count in the headings) and every tick box as an empty square to tick with a pen.
+  Left out: ticked lines and pantry lines (a section with nothing left disappears whole), the menu and
+  language switcher, **Edit the plan** and the week buttons, both buttons, **Add something else**, the progress line
+  and bar, the ✕ of hand-added lines and the pantry staples fold-out.
+
+Both buttons are shown only when the list has lines. German: **Liste kopieren**, **Drucken**, "Kopiert".
+
 ## Accessibility
 
 - Each section is a landmark region named by its heading, so screen reader users can jump from section to section by
   heading or region.
 - Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes. The ✕ is a 32 px button, 44 px on a touch screen ([Buttons](buttons.md)). A ticked line is put back on the list by clicking it again; there is no button that unticks everything.
 - Ticked lines are struck through and muted rather than faded, which keeps their text at AA contrast.
+- The copy confirmation is a polite status region that is in the page from the start, so it is announced when its text
+  appears; the fallback field has a visible label and is read-only, not disabled, so it can take the focus and be selected.
 - The week buttons are ordinary links, so they work with the keyboard and without JavaScript.
 
 ## Related

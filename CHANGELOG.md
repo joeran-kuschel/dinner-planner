@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- The grocery list can be copied as plain text ("Copy list", without ticked or pantry items) and printed ("Print", a plain black-on-white list of what is still to buy, with empty tick boxes) ([#6](https://github.com/joeran-kuschel/dinner-planner/issues/6)).
 - The source is open under the MIT license (the `LICENSE` file).
 - "Add from a link" also brings the recipe's photo along, when the page has one: it lands in the photo field for you to check, described with the recipe's name until you change it ([#5](https://github.com/joeran-kuschel/dinner-planner/issues/5)).
 - A recipe can be added from a link: "Add from a link" in the New recipe menu fetches the page and fills the recipe form for you to check, with a clear message when a page has no recipe ([#5](https://github.com/joeran-kuschel/dinner-planner/issues/5)).

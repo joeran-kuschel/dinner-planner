@@ -9,7 +9,7 @@
 
 import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
-import { GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
+import { categoryLabel, GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
 
 export type IngredientInput = {
   name: string;
@@ -133,6 +133,31 @@ export function formatQuantity(quantity: number | null, unit: string | null, i18
   if (quantity === null) return unit ? unit : t(i18n)`to taste`;
   const amount = i18n.number(quantity, { maximumFractionDigits: 2, useGrouping: false });
   return unit ? `${amount} ${unit}` : amount;
+}
+
+/**
+ * The list as plain text for the clipboard: the title with the week, then each shop section with one
+ * "- amount name" line per item ("- 300 g Rice"; "- Salt (to taste)" when no amount is known; a hand-added
+ * item without an amount is just its name, or "- Wine (bottles)" with a unit only). Ticked lines and lines a pantry staple hides are left out, since
+ * they are not to be bought. Sections left empty by that are left out. Returns "" when nothing is left.
+ */
+export function groceryListText(
+  { weekRange, lines }: { weekRange: string; lines: (GroceryLine & { pantry?: boolean })[] },
+  i18n: I18n,
+): string {
+  const open = lines.filter((line) => !line.checked && !line.pantry);
+  if (open.length === 0) return "";
+
+  const sections = groupByCategory(open).map(({ category, lines: group }) => {
+    const items = group.map((line) => {
+      if (line.quantity === null && line.sources.length > 0) return `- ${line.label} (${t(i18n)`to taste`})`;
+      if (line.quantity === null) return line.unit ? `- ${line.label} (${line.unit})` : `- ${line.label}`;
+      return `- ${formatQuantity(line.quantity, line.unit, i18n)} ${line.label}`;
+    });
+    return [categoryLabel(category, i18n), ...items].join("\n");
+  });
+
+  return [`${t(i18n)`Grocery list`} · ${weekRange}`, ...sections].join("\n\n");
 }
 
 /**

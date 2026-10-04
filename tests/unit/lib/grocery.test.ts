@@ -4,6 +4,7 @@ import {
   formatGroceryQuantity,
   formatQuantity,
   groceryKey,
+  groceryListText,
   groupByCategory,
   type IngredientInput,
   mealSources,
@@ -361,5 +362,53 @@ describe("mealSources", () => {
 
   it("is zero for an empty week", () => {
     expect(mealSources([])).toEqual({ recipes: 0, typed: 0 });
+  });
+});
+
+describe("groceryListText", () => {
+  const base = { key: "k", quantity: null, unit: null, category: "OTHER", sources: [], manual: false, checked: false } as const;
+  const lines = [
+    { ...base, label: "Rice", quantity: 300, unit: "g", category: "PANTRY", sources: ["Risotto"] },
+    { ...base, label: "Onion", quantity: 1.5, category: "PRODUCE", sources: ["Risotto"] },
+    { ...base, label: "Salt", category: "PANTRY", sources: ["Risotto"] },
+    { ...base, label: "Napkins", manual: true },
+    { ...base, label: "Wine", quantity: 2, unit: "bottles", manual: true },
+    { ...base, label: "Milk", quantity: 1, unit: "l", category: "DAIRY_EGGS", sources: ["Risotto"], checked: true },
+    { ...base, label: "Pepper", quantity: 1, unit: "tsp", category: "PANTRY", sources: ["Risotto"], pantry: true },
+  ] as Parameters<typeof groceryListText>[0]["lines"];
+
+  it("lists the week, then each shop section with one line per item", () => {
+    expect(groceryListText({ weekRange: "28 Sept – 4 Oct 2026", lines }, en)).toBe(
+      [
+        "Grocery list · 28 Sept – 4 Oct 2026",
+        "Fruit and vegetables\n- 1.5 Onion",
+        "Pantry\n- 300 g Rice\n- Salt (to taste)",
+        "Other\n- Napkins\n- 2 bottles Wine",
+      ].join("\n\n"),
+    );
+  });
+
+  it("keeps the unit of a hand-added item that has no amount", () => {
+    const text = groceryListText({ weekRange: "w", lines: [{ ...lines[3], label: "Wine", unit: "bottles" }] }, en);
+    expect(text).toBe("Grocery list · w\n\nOther\n- Wine (bottles)");
+  });
+
+  it("leaves out ticked lines, pantry lines and the sections they empty", () => {
+    const text = groceryListText({ weekRange: "w", lines }, en);
+    expect(text).not.toContain("Milk");
+    expect(text).not.toContain("Dairy");
+    expect(text).not.toContain("Pepper");
+  });
+
+  it("is empty when nothing is left to buy", () => {
+    expect(groceryListText({ weekRange: "w", lines: [] }, en)).toBe("");
+    expect(groceryListText({ weekRange: "w", lines: [{ ...lines[0], checked: true }] }, en)).toBe("");
+  });
+
+  it("is in German with the decimal comma", () => {
+    const text = groceryListText({ weekRange: "28. Sept. – 4. Okt. 2026", lines }, de);
+    expect(text).toContain("Einkaufsliste · 28. Sept. – 4. Okt. 2026");
+    expect(text).toContain("Obst und Gemüse\n- 1,5 Onion");
+    expect(text).toContain("- Salt (nach Geschmack)");
   });
 });
