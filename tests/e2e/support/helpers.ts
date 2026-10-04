@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page } from "@playwright/test";
+import { contrastRatio, parseColor, type Rgb } from "@/tests/support/color";
+
+export { contrastRatio, parseColor, type Rgb };
 
 /** A single word no other test uses, for a tag or a search: lowercase letters and digits only. */
 export function uniqueWord(prefix = "w"): string {
@@ -124,6 +127,37 @@ export async function tabTo(page: Page, target: Locator, maxTabs = 40): Promise<
     await page.keyboard.press("Tab");
   }
   throw new Error(`Tab never reached ${target}`);
+}
+
+/**
+ * Give `target` the keyboard focus the way a keyboard user gets it, so `:focus-visible` applies: after a
+ * click, or a script's `focus()` on its own, the browser does not count the focus as the keyboard's.
+ */
+export async function focusByKeyboard(page: Page, target: Locator): Promise<void> {
+  await target.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(target).toBeFocused();
+}
+
+/**
+ * The colour a focus ring sits on: the first background that is not transparent, starting at the
+ * element itself, or at its parent for an outline, which is drawn outside the element.
+ */
+export async function surfaceColor(target: Locator, from: "self" | "parent" = "parent"): Promise<Rgb> {
+  const css = await target.evaluate((element, start) => {
+    for (let node = start === "self" ? element : element.parentElement; node; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      // A picture or gradient has no single colour to measure against.
+      if (style.backgroundImage !== "none") throw new Error(`The surface has a background image: ${style.backgroundImage}`);
+      const background = style.backgroundColor;
+      if (!/^rgba\(.*,\s*0\)$/.test(background) && background !== "transparent") return background;
+    }
+    throw new Error("No element above the control has a background colour");
+  }, from);
+  const colour = parseColor(css);
+  if (colour.a !== 1) throw new Error(`The surface is translucent: ${css}`);
+  return colour;
 }
 
 /** The row (a form) for one line on the grocery list. */
