@@ -4,11 +4,15 @@ import { prisma } from "@/lib/db";
 
 /** Offered in the ingredient rows even before any recipe uses them, in the language of the page. */
 export function commonUnits(i18n: I18n): string[] {
-  return [
+  // "EL" and "TL" are offered untranslated in both languages; the German tbsp/tsp
+  // translations are the same words, so the repeat is dropped.
+  const units = [
     t(i18n)`g`,
     t(i18n)`kg`,
     t(i18n)`ml`,
     t(i18n)`l`,
+    "EL",
+    "TL",
     t(i18n)`tbsp`,
     t(i18n)`tsp`,
     t(i18n)`cup`,
@@ -16,6 +20,13 @@ export function commonUnits(i18n: I18n): string[] {
     t(i18n)`pinch`,
     t(i18n)`clove`,
   ];
+  const seen = new Set<string>();
+  return units.filter((unit) => {
+    const key = unit.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** The common units, then the ones recipes already use (each once, ignoring case). */
