@@ -18,7 +18,8 @@ The development database from `npm run db:up` is not backed up; it only holds te
 - A launchd job runs the backup every hour and right after the Mac wakes up. It only succeeds while Docker Desktop and the
   cluster are running; failed runs are logged and retried at the next interval.
 - The credentials never leave the cluster: the commands run inside the Postgres pod, which gets them from the
-  `dinner-planner-db` Secret.
+  `dinner-planner-db` Secret ([database-credentials.md](database-credentials.md)). A dump does not contain the
+  password, and restoring one does not change it.
 
 Backups are stored outside the repository and must never be committed.
 

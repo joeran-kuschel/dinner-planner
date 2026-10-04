@@ -12,7 +12,7 @@ and tests, and Docker Desktop's Kubernetes for the real thing. See "Kubernetes".
 ## Commands
 
 ```bash
-npm run db:up        # local Postgres in Docker (host port 5433) — needed by dev and tests
+npm run db:up        # local Postgres in Docker (host port 5433), first creates .env with a random password — needed by dev and tests
 npm run dev          # dev server on :3000
 npm run build        # production build (also type-checks)
 npm run typecheck    # tsc --noEmit
@@ -30,6 +30,7 @@ npm run db:studio    # browse the database
 npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal deploy
 npm run k8s:seed     # sample data into the cluster's database (one-off Job)
 npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
+npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
 npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
 npm run k8s:status   # pods, services, ingress
 npm run k8s:logs     # follow the app's logs
@@ -126,7 +127,8 @@ prisma/
 generated/prisma/       generated client — never edit, never commit
 Dockerfile              two targets: `app` (Next standalone) and `migrator`
 compose.yaml            Postgres for local development only
-k8s/                    manifests + deploy.sh / seed.sh — see "Kubernetes"
+k8s/                    manifests + deploy.sh / seed.sh / rotate-db-password.sh — see "Kubernetes"
+scripts/                check.ts (npm run check), ensure-env.ts (creates .env for npm run db:up)
 .github/workflows/      check.yml: `npm run check` on every pull request and push to main — documentation/backend/github-actions.md
 ```
 
@@ -294,6 +296,13 @@ change.
   keeps running. `deploy.sh` builds `repo:<timestamp>` and substitutes it into
   the rendered manifests; the checked-in manifests keep `:dev`. `k8s/seed.sh`
   reads the tag back off the running Deployment rather than guessing.
+- **The database password is in no file of the repository.** Locally `npm run db:up` runs `scripts/ensure-env.ts`,
+  which writes a random one into the git-ignored `.env` (an older `.env` keeps its password: the volume has it). In
+  the cluster the `dinner-planner-db` Secret is not a manifest: `deploy.sh` creates it once from `k8s/db-secret.sh`
+  and then leaves it alone, because Postgres reads `POSTGRES_PASSWORD` only when it creates the data directory, so
+  a new password in the Secret alone locks the app out. `npm run k8s:rotate-db-password` backs up, changes the password
+  in the Secret and in Postgres, and restarts both. Never `kubectl apply -k k8s` by hand (no Secret, Postgres
+  does not start). CI uses a throwaway of its own. Details: `documentation/backend/database-credentials.md`.
 - **`prisma`, `tsx` and `dotenv` are runtime dependencies, not dev ones.** The
   migrator image installs with `--omit=dev`; moving any of them to
   `devDependencies` breaks migrations and seeding in the cluster with

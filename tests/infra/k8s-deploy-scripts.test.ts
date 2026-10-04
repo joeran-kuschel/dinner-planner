@@ -9,8 +9,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const K8S = path.join(process.cwd(), "k8s");
 
 // Logs every call. `kustomize` prints the real app manifest (standing in for the
-// rendered kustomization), `apply -f -` stores what it is given, and each
-// command can be made to fail through FAIL_<name>.
+// rendered kustomization), `apply -f -` stores what it is given (the last one in
+// applied.yaml, all of them in applied-all.yaml), `get secret` says the database Secret
+// does not exist unless SECRET_EXIT=0, and each command can be made to fail through FAIL_<name>.
 const FAKE_KUBECTL = `#!/bin/bash
 echo "$*" >> "$FAKE_DIR/kubectl.log"
 args="$*"
@@ -19,7 +20,8 @@ case "$args" in
   *"get nodes"*) exit "\${FAIL_NODES:-0}" ;;
   *"get ingressclass nginx"*) exit "\${FAIL_INGRESS:-0}" ;;
   *"kustomize k8s"*) cat k8s/app.yaml ;;
-  *"apply -f -"*) cat > "$FAKE_DIR/applied.yaml" ;;
+  *"get secret dinner-planner-db"*) exit "\${SECRET_EXIT:-1}" ;;
+  *"apply -f -"*) tee -a "$FAKE_DIR/applied-all.yaml" > "$FAKE_DIR/applied.yaml" ;;
   *"rollout status deployment/"*) exit "\${FAIL_ROLLOUT:-0}" ;;
   *"get deployment dinner-planner -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planner-migrator:20260928101500}" ;;
   *"wait --for=condition=complete"*) exit "\${FAIL_WAIT:-0}" ;;
@@ -71,6 +73,39 @@ afterEach(() => {
 });
 
 describe("deploy.sh", () => {
+  it("creates the database Secret with a random password the first time, before it builds anything", () => {
+    const result = run("deploy.sh");
+
+    expect(result.status).toBe(0);
+    const applied = log("applied-all.yaml");
+    const password = /POSTGRES_PASSWORD: (\w+)/.exec(applied)![1];
+    expect(password).toMatch(/^[0-9a-f]{48}$/);
+    expect(applied).toContain(`DATABASE_URL: postgresql://dinner:${password}@dinner-planner-db:5432/dinner_planner`);
+    expect(log("kubectl.log")).toContain("apply -f k8s/namespace.yaml");
+    // The password travels on stdin only: it is in no command line, no log and no output.
+    expect(log("kubectl.log")).not.toContain(password);
+    expect(log("docker.log")).not.toContain(password);
+    expect(result.stdout + result.stderr).not.toContain(password);
+    expect(result.stdout).toContain("Created the dinner-planner-db Secret");
+  });
+
+  it("gives every first deploy its own password", () => {
+    run("deploy.sh");
+    const first = /POSTGRES_PASSWORD: (\w+)/.exec(log("applied-all.yaml"))![1];
+    fs.rmSync(path.join(dir, "applied-all.yaml"));
+    run("deploy.sh");
+
+    expect(/POSTGRES_PASSWORD: (\w+)/.exec(log("applied-all.yaml"))![1]).not.toBe(first);
+  });
+
+  it("keeps an existing database Secret: a new password would lock the app out of the existing database", () => {
+    const result = run("deploy.sh", { SECRET_EXIT: "0" });
+
+    expect(result.status).toBe(0);
+    expect(log("applied-all.yaml")).not.toContain("POSTGRES_PASSWORD");
+    expect(result.stdout).toContain("exists and is kept");
+  });
+
   it("builds both targets under one fresh timestamp tag and imports them into the node", () => {
     const result = run("deploy.sh");
 

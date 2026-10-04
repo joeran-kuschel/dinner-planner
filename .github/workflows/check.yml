@@ -23,12 +23,13 @@ jobs:
     timeout-minutes: 20
 
     services:
-      # The same image and login as compose.yaml, on the same host port as `npm run db:up`.
+      # The same image, user and database as compose.yaml, on the same host port as `npm run db:up`. The password
+      # is a throwaway that exists only on this runner: there is no .env here, and a fork's pull request is given no secret values.
       postgres:
         image: postgres:17-alpine
         env:
           POSTGRES_USER: dinner
-          POSTGRES_PASSWORD: dinner
+          POSTGRES_PASSWORD: ci-throwaway
           POSTGRES_DB: dinner_planner
         ports:
           - 5433:5432
@@ -39,7 +40,7 @@ jobs:
           --health-retries 20
 
     env:
-      DATABASE_URL: postgresql://dinner:dinner@localhost:5433/dinner_planner?schema=public
+      DATABASE_URL: postgresql://dinner:ci-throwaway@localhost:5433/dinner_planner?schema=public
 
     steps:
       # Actions are pinned to a commit, not a tag that can move; Dependabot proposes updates

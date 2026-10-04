@@ -18,6 +18,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- The database password is no longer in the source: `npm run db:up` creates a random one in your own `.env`, and the Kubernetes setup creates its own on the first deploy. `npm run k8s:rotate-db-password` changes the cluster's password later, after a backup.
 - On the grocery list, "Add something else" moved above the list as a closed fold-out, so a forgotten item no longer needs a scroll past everything ([#21](https://github.com/joeran-kuschel/dinner-planner/issues/21)).
 - A recipe card shows the next day the recipe is planned for ("next Tue 6 Oct") instead of how many times it has been planned ([#15](https://github.com/joeran-kuschel/dinner-planner/issues/15)).
 - The grocery list's header counts distinct recipes and says how many typed dinners add nothing ([#20](https://github.com/joeran-kuschel/dinner-planner/issues/20)).

@@ -20,8 +20,7 @@ are no accounts.
 
 ```bash
 npm install
-cp .env.example .env
-npm run db:up                       # Postgres in Docker, on host port 5433
+npm run db:up                       # Postgres in Docker, on host port 5433; creates .env with a random password
 npm run db:migrate -- --name init   # create the schema
 npm run db:seed                     # optional: a few recipes to start from
 npm run dev
@@ -29,9 +28,9 @@ npm run dev
 
 Then open http://localhost:3000.
 
-> **About the `dinner:dinner` login.** The database user and password in `.env.example`,
-> `compose.yaml` and `k8s/postgres.yaml` are throwaway values for a database that runs on your
-> own machine only. They are not a leaked credential. Never reuse them anywhere that others can reach.
+The database password is not in the repository: `npm run db:up` writes a random one into `.env`
+(which git ignores), and the cluster gets its own when it is first deployed. See
+[documentation/backend/database-credentials.md](documentation/backend/database-credentials.md).
 
 ### In Kubernetes
 
@@ -45,7 +44,8 @@ npm run k8s:seed     # optional sample data
 
 The app is then at http://dinner.local. `k8s:deploy` prints the `/etc/hosts`
 lines to add if they are missing (they need sudo, so it will not do it for
-you). `npm run k8s:delete` removes it again, including its database.
+you). `npm run k8s:delete` removes it again, including its database. The first deploy creates the
+database login with a random password; `npm run k8s:rotate-db-password` replaces it later.
 
 The cluster's database is backed up every hour to `~/DinnerPlannerBackups` once
 you run `npm run k8s:backup:install`; see

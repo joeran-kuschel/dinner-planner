@@ -18,6 +18,8 @@ APP_IMAGE="$APP_REPO:$TAG"
 MIGRATOR_IMAGE="$MIGRATOR_REPO:$TAG"
 
 cd "$(dirname "$0")/.."
+# shellcheck source=k8s/db-secret.sh
+source k8s/db-secret.sh
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
@@ -39,6 +41,18 @@ if ! "${KUBECTL[@]}" get ingressclass nginx >/dev/null 2>&1; then
   echo >&2
   echo "  kubectl --context $CLUSTER apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.15.1/deploy/static/provider/cloud/deploy.yaml" >&2
   exit 1
+fi
+
+step "Checking the database login"
+# The Secret is not in k8s/. It is created once, with a random password, and then left alone: Postgres only
+# reads its password when it first creates the data directory, so a new one in the Secret would lock the app
+# out of the existing database. `npm run k8s:rotate-db-password` changes it properly.
+"${KUBECTL[@]}" apply -f k8s/namespace.yaml >/dev/null
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$DB_SECRET" >/dev/null 2>&1; then
+  echo "The $DB_SECRET Secret exists and is kept."
+else
+  db_secret_manifest dinner "$(new_db_password)" dinner_planner | "${KUBECTL[@]}" apply -f - >/dev/null
+  echo "Created the $DB_SECRET Secret with a random password."
 fi
 
 step "Building images ($TAG)"

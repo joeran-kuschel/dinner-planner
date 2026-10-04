@@ -24,7 +24,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "tsx scripts/check.ts",
-    "db:up": "docker compose up -d --wait db",
+    "db:up": "tsx scripts/ensure-env.ts && docker compose up -d --wait db",
     "db:down": "docker compose down",
     "k8s:deploy": "bash k8s/deploy.sh",
     "k8s:seed": "bash k8s/seed.sh",
@@ -33,6 +33,7 @@
     "k8s:delete": "kubectl --context docker-desktop -n dinner-planner delete -k k8s --ignore-not-found",
     "k8s:backup": "bash k8s/backup-db.sh",
     "k8s:restore": "bash k8s/restore-db.sh",
+    "k8s:rotate-db-password": "bash k8s/rotate-db-password.sh",
     "k8s:backup:install": "bash k8s/install-backup-job.sh"
   },
   "dependencies": {

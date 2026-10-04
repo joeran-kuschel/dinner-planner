@@ -6,8 +6,9 @@ agent runs on the developer's machine, so a green run there and a green run here
 
 ## What the job does
 
-1. Starts a throwaway Postgres as a service container: the image, login and host port of `compose.yaml`, so the
-   `DATABASE_URL` is the one in `.env.example`.
+1. Starts a throwaway Postgres as a service container: the image, user, database and host port of `compose.yaml`, with
+   a password that exists only on the runner (compose reads its own from `.env`, which a fresh checkout does not
+   have), so the `DATABASE_URL` is `.env.example`'s with that password.
 2. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
 3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
    (`npx next typegen`: the typecheck reads `PageProps` and `LayoutProps` from `.next/types`, which only `next dev` and
@@ -25,7 +26,7 @@ token in `.git/config`. `.github/dependabot.yml` opens a pull request weekly whe
 ## Safe for pull requests from forks
 
 The workflow runs on `pull_request`, never `pull_request_target`, so a fork's code runs with a read-only token
-(`permissions: contents: read`) and no secrets. It uses none: the database login is the throwaway one in the repository.
+(`permissions: contents: read`) and no secrets. It uses none: the database password is the runner's throwaway.
 `tests/infra/github-actions.test.ts` checks these properties, and that the service container and the Node version
 still match `compose.yaml`, `.env.example` and the `Dockerfile`.
 

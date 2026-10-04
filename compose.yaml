@@ -7,7 +7,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: dinner
-      POSTGRES_PASSWORD: dinner
+      # From .env, which `npm run db:up` creates with a random password (scripts/ensure-env.ts).
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Run npm run db:up, which writes the password into .env}"
       POSTGRES_DB: dinner_planner
     ports:
       # 5433 on the host, so this never fights a Postgres you already run on 5432.
