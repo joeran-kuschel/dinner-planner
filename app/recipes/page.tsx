@@ -5,7 +5,7 @@ import { RecipePhoto } from "@/components/recipe-photo";
 import { prisma } from "@/lib/db";
 import { RecipeSearchBox } from "@/components/recipe-search-box";
 import type { SearchTerm } from "@/lib/recipe-search-terms";
-import { readRecipeSearch, recipeSearchWhere, searchTerms, tagNames } from "@/lib/recipe-search";
+import { readRecipeSearch, recipeHref, recipeSearchWhere, searchTerms, tagNames } from "@/lib/recipe-search";
 import type { RecipeSearch } from "@/lib/recipe-search";
 import type { I18n } from "@lingui/core";
 import { PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared";
@@ -79,7 +79,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} i18n={i18n} locale={locale} />
+            <RecipeCard key={recipe.id} recipe={recipe} search={search} i18n={i18n} locale={locale} />
           ))}
         </ul>
       )}
@@ -198,12 +198,22 @@ function PhotoPlaceholder({ id }: { id: string }) {
 }
 
 /** One recipe in the list: the whole card is a link, so its tags are plain text. */
-function RecipeCard({ recipe, i18n, locale }: { recipe: CardRecipe; i18n: I18n; locale: Locale }) {
+function RecipeCard({
+  recipe,
+  search,
+  i18n,
+  locale,
+}: {
+  recipe: CardRecipe;
+  search: RecipeSearch;
+  i18n: I18n;
+  locale: Locale;
+}) {
   const next = recipe.plannedFor[0]?.date;
   return (
     <li>
       <Link
-        href={`/recipes/${recipe.id}`}
+        href={recipeHref(recipe.id, search)}
         className="card flex h-full flex-col overflow-hidden transition-colors hover:border-field"
       >
         {recipe.photo ? (

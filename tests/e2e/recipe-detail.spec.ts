@@ -1,6 +1,6 @@
 import { expect, test } from "@/tests/e2e/support/test";
 import { dayKey, startOfWeek, today } from "@/lib/week";
-import { createRecipe, expectAccessible, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import { createRecipe, expectAccessible, planRecipe, unique, uniqueWord } from "@/tests/e2e/support/helpers";
 
 // The recipe detail and edit pages beyond creating and editing (recipes.spec.ts):
 // unknown ids, the upcoming-plan line, the list's plan count and empty sections.
@@ -31,6 +31,36 @@ test.describe("recipe detail", () => {
       await page.goto(`/recipes/${id}${query}`);
       await expect(back, query).toHaveAttribute("href", currentWeek);
     }
+  });
+
+  test("\"Back to recipes\" is reachable twice and keeps the search and tag filter the recipe was opened from", async ({ page }) => {
+    const [tag, word] = [uniqueWord("t"), uniqueWord("find")];
+    const name = unique(word);
+    const id = await createRecipe(page, { name, ingredients: [{ name: "Rice" }], tags: [tag] });
+    const card = page.getByRole("link").filter({ has: page.getByRole("heading", { name, exact: true }) });
+
+    // Straight to the page: the plain list.
+    await page.goto(`/recipes/${id}`);
+    await expect(page.getByRole("link", { name: "← Recipes" })).toHaveAttribute("href", "/recipes");
+    await expect(page.getByRole("link", { name: "Back to recipes" })).toHaveAttribute("href", "/recipes");
+    await expectAccessible(page);
+
+    // Filter, open the card, go back: the filter is still there.
+    await page.goto(`/recipes?q=${word}&tag=${tag}`);
+    await card.click();
+    await expect(page).toHaveURL(new RegExp(`/recipes/${id}\\?q=${word}&tag=${tag}$`));
+    await page.getByRole("link", { name: "Back to recipes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/recipes\\?q=${word}&tag=${tag}$`));
+    await expect(page.getByRole("combobox", { name: "Search recipes" })).toHaveValue(word);
+    await expect(page.getByRole("checkbox", { name: tag })).toBeChecked();
+
+    // The button at the top does the same, and the plan's week is not disturbed.
+    await card.click();
+    await page.getByRole("link", { name: "← Recipes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/recipes\\?q=${word}&tag=${tag}$`));
+    await page.goto(`/recipes/${id}?week=2027-03-03&q=${word}`);
+    await expect(page.getByRole("link", { name: "Back to the plan" })).toHaveAttribute("href", "/?week=2027-03-01");
+    await expect(page.getByRole("link", { name: "Back to recipes" })).toHaveAttribute("href", `/recipes?q=${word}`);
   });
 
   test("lists the upcoming days a recipe is planned for, but not past ones", async ({ page }) => {

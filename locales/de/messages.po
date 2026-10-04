@@ -118,6 +118,10 @@ msgstr "Menge"
 msgid "Amount for ingredient {number}"
 msgstr "Menge für Zutat {number}"
 
+#: app/recipes/[id]/page.tsx
+msgid "Back to recipes"
+msgstr "Zurück zu den Rezepten"
+
 #: app/not-found.tsx
 #: app/recipes/[id]/page.tsx
 msgid "Back to the plan"
