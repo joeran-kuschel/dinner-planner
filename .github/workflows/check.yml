@@ -1,0 +1,73 @@
+# The same check as `npm run check` on a developer's machine: typecheck, lint, Vitest and
+# Playwright against a throwaway Postgres. See documentation/backend/github-actions.md.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only token, no secrets: a pull request from a fork gets nothing it could leak or misuse.
+permissions:
+  contents: read
+
+# A newer push to the same pull request makes the older run pointless. Runs on main are never cancelled,
+# so every merged commit gets a result.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # The same image and login as compose.yaml, on the same host port as `npm run db:up`.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dinner
+          POSTGRES_PASSWORD: dinner
+          POSTGRES_DB: dinner_planner
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dinner -d dinner_planner"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://dinner:dinner@localhost:5433/dinner_planner?schema=public
+
+    steps:
+      # Actions are pinned to a commit, not a tag that can move; Dependabot proposes updates
+      # (.github/dependabot.yml).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # generated/prisma is not committed.
+      - run: npm run db:generate
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run check
+
+      # Traces and screenshots of a failed Playwright test (the stage reports with the line reporter,
+      # so there is no HTML report).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7

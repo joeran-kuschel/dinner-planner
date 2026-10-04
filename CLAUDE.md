@@ -127,6 +127,7 @@ generated/prisma/       generated client — never edit, never commit
 Dockerfile              two targets: `app` (Next standalone) and `migrator`
 compose.yaml            Postgres for local development only
 k8s/                    manifests + deploy.sh / seed.sh — see "Kubernetes"
+.github/workflows/      check.yml: `npm run check` on every pull request and push to main — documentation/backend/github-actions.md
 ```
 
 ## Things worth knowing before changing code
