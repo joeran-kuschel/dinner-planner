@@ -1,6 +1,18 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
-import { createRecipe, expectAccessible, openAddForm, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import {
+  contrastRatio,
+  createRecipe,
+  dinnerField,
+  expectAccessible,
+  focusByKeyboard,
+  groceryRow,
+  openAddForm,
+  parseColor,
+  planRecipe,
+  surfaceColor,
+  unique,
+} from "@/tests/e2e/support/helpers";
 
 // Destructive actions look different from the rest, and every button can be hit with a fingertip.
 // The database is empty at the start of every test, so each one creates what it looks at.
@@ -86,37 +98,91 @@ for (const colorScheme of ["light", "dark"] as const) {
   });
 }
 
+// One ring for everything: a solid 3 px outline in the text colour (no translucent shadow), and
+// at least 3:1 against the surface it sits on (WCAG 1.4.11), in both colour schemes.
+const ring = (locator: Locator) =>
+  locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { style: style.outlineStyle, width: style.outlineWidth, color: style.outlineColor };
+  });
+
 test.describe("keyboard focus", () => {
   test("the destructive buttons and the ✕ buttons show a solid focus ring, not the faint one of other buttons", async ({
     page,
   }) => {
     const { id } = await setUp(page);
-    // One ring for everything: a solid 3 px outline in the text colour (no translucent shadow).
-    const ring = (locator: Locator) =>
-      locator.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return { style: style.outlineStyle, width: style.outlineWidth, color: style.outlineColor };
-      });
     const foreground = await textColor(page.locator("body"));
 
-    // Keyboard focus: after a click, a script's `focus()` does not count as one (no :focus-visible).
-    const tabTo = async (locator: Locator) => {
-      await locator.focus();
-      await page.keyboard.press("Shift+Tab");
-      await page.keyboard.press("Tab");
-      await expect(locator).toBeFocused();
-    };
-
     const remove = page.getByRole("button", { name: /^Remove / });
-    await tabTo(remove);
+    await focusByKeyboard(page, remove);
     await expect.poll(() => ring(remove)).toEqual({ style: "solid", width: "3px", color: foreground });
 
     await page.goto(`/recipes/${id}`);
     await page.locator("summary", { hasText: /^Delete$/ }).click();
     const confirm = page.getByRole("button", { name: "Delete recipe", exact: true });
-    await tabTo(confirm);
+    await focusByKeyboard(page, confirm);
     await expect.poll(() => ring(confirm)).toEqual({ style: "solid", width: "3px", color: foreground });
   });
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    test.describe(`in ${colorScheme} mode`, () => {
+      test.use({ colorScheme });
+
+      test("every kind of control shows the same solid 3 px ring, at least 3:1 against its surface", async ({
+        page,
+      }, testInfo) => {
+        const { id } = await setUp(page);
+        const foreground = await textColor(page.locator("body"));
+        const controls: [string, string, () => Locator][] = [
+          ["primary button", "/recipes/new", () => page.getByRole("button", { name: "Create recipe" })],
+          ["text field", "/recipes/new", () => page.getByRole("textbox", { name: "Name", exact: true })],
+          ["summary", `/recipes/${id}`, () => page.locator("summary", { hasText: /^Delete$/ })],
+          ["link", `/?week=${WEEK}`, () => page.getByRole("link", { name: "Grocery list for this week" })],
+          ["dinner field", `/?week=${WEEK}`, () => dinnerField(page, "Monday")],
+          ["quiet button", `/?week=${WEEK}`, () => page.getByRole("button", { name: "Clear day" }).first()],
+          ["✕ button", `/groceries?week=${WEEK}`, () => page.getByRole("button", { name: /^Remove / })],
+        ];
+
+        const ratios: string[] = [];
+        for (const [label, path, find] of controls) {
+          await page.goto(path);
+          const control = find();
+          await focusByKeyboard(page, control);
+          await expect.poll(() => ring(control), label).toEqual({ style: "solid", width: "3px", color: foreground });
+          const ratio = contrastRatio(parseColor(foreground), await surfaceColor(control));
+          ratios.push(`${label} ${ratio.toFixed(1)}`);
+          expect(ratio, `${label}: ring against its surface`).toBeGreaterThanOrEqual(3);
+        }
+        testInfo.annotations.push({ type: `ring contrast (${colorScheme})`, description: ratios.join(", ") });
+        console.log(`ring contrast, ${colorScheme}: ${ratios.join(", ")}`);
+      });
+
+      test("the accent ring around a focused grocery row is a 2 px inset ring, at least 3:1 against the row", async ({
+        page,
+      }, testInfo) => {
+        await setUp(page);
+        const row = groceryRow(page, "Rice");
+        const tick = row.getByRole("checkbox", { name: "Tick off Rice", exact: true });
+        await expect(tick).toBeEnabled(); // enabled once the page is interactive
+        await focusByKeyboard(page, tick);
+        const label = row.locator("label");
+
+        // The ring is a box-shadow: one entry with a spread and a colour (Tailwind adds empty ones).
+        const shadow = await label.evaluate((element) => getComputedStyle(element).boxShadow);
+        const rings = [...shadow.matchAll(/(rgba?\([^)]*\))\s+(-?\d+)px\s+(-?\d+)px\s+(-?\d+)px\s+(\d+)px(\s+inset)?/g)]
+          .map((m) => ({ colour: parseColor(m[1]), spread: Number(m[5]), inset: m[6] !== undefined }))
+          .filter((entry) => entry.spread > 0);
+        expect(rings, shadow).toHaveLength(1);
+        expect(rings[0]).toMatchObject({ spread: 2, inset: true });
+        expect(rings[0].colour.a).toBe(1);
+
+        const ratio = contrastRatio(rings[0].colour, await surfaceColor(label, "self"));
+        testInfo.annotations.push({ type: `grocery row ring contrast (${colorScheme})`, description: ratio.toFixed(2) });
+        console.log(`grocery row ring contrast, ${colorScheme}: ${ratio.toFixed(2)}`);
+        expect(ratio).toBeGreaterThanOrEqual(3);
+      });
+    });
+  }
 });
 
 test.describe("on a mouse", () => {

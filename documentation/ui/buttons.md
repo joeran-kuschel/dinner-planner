@@ -36,6 +36,16 @@ The week arrows ← and → have no visible words, as people know them; a screen
 Every button, link and field shows the same solid ring when reached with the keyboard: 3 px in the text colour, 2 px away,
 at least 3:1 against every background ([Look and layout](design.md)).
 
+A focused row of the grocery list gets one more ring on top: 2 px, inset, in the accent colour, around the whole row, so
+the line you are on is easy to find. It is 5.4:1 against the row in light mode and 6.1:1 in dark mode, so it stays.
+
+`tests/e2e/buttons.spec.ts` ("keyboard focus") checks this in a real browser, reaching each control with the keyboard
+(so `:focus-visible` applies), in light and dark mode: a primary button, a quiet button, a ✕ button, the destructive
+buttons, a text field, a `<summary>`, a link and the dinner field must all show the solid 3 px outline in the text
+colour. The test also computes the WCAG contrast ratio of that ring against the first non-transparent background it sits on and
+requires 3:1 (WCAG 1.4.11); measured, it is 14:1 or more. The grocery row's accent ring is measured the same way and must stay at
+least 3:1. The helpers (`focusByKeyboard`, `parseColor`, `contrastRatio`, `surfaceColor`) are in `tests/e2e/support/helpers.ts`.
+
 ## Not covered here
 
 The tick boxes of the grocery list and the tag filter's checkboxes are small controls that are not buttons; their size is

@@ -126,6 +126,58 @@ export async function tabTo(page: Page, target: Locator, maxTabs = 40): Promise<
   throw new Error(`Tab never reached ${target}`);
 }
 
+/**
+ * Give `target` the keyboard focus the way a keyboard user gets it, so `:focus-visible` applies: after a
+ * click, or a script's `focus()` on its own, the browser does not count the focus as the keyboard's.
+ */
+export async function focusByKeyboard(page: Page, target: Locator): Promise<void> {
+  await target.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(target).toBeFocused();
+}
+
+export type Rgb = { r: number; g: number; b: number; a: number };
+
+/** Parse a computed `rgb()` / `rgba()` colour; throws on any other notation, so a change of format is noticed. */
+export function parseColor(css: string): Rgb {
+  const match = css.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/);
+  if (!match) throw new Error(`Not an rgb colour: ${css}`);
+  const alpha = match[4] === undefined ? 1 : match[4].endsWith("%") ? parseFloat(match[4]) / 100 : parseFloat(match[4]);
+  return { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]), a: alpha };
+}
+
+const luminance = ({ r, g, b }: Rgb) => {
+  const [lr, lg, lb] = [r, g, b].map((channel) => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+};
+
+/** The WCAG contrast ratio of two opaque colours, 1 to 21. */
+export function contrastRatio(a: Rgb, b: Rgb): number {
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/**
+ * The colour a focus ring sits on: the first background that is not transparent, starting at the
+ * element itself, or at its parent for an outline, which is drawn outside the element.
+ */
+export async function surfaceColor(target: Locator, from: "self" | "parent" = "parent"): Promise<Rgb> {
+  const css = await target.evaluate((element, start) => {
+    for (let node = start === "self" ? element : element.parentElement; node; node = node.parentElement) {
+      const background = getComputedStyle(node).backgroundColor;
+      if (!/^rgba\(.*,\s*0\)$/.test(background) && background !== "transparent") return background;
+    }
+    return "rgb(255, 255, 255)";
+  }, from);
+  const colour = parseColor(css);
+  if (colour.a !== 1) throw new Error(`The surface is translucent: ${css}`);
+  return colour;
+}
+
 /** The row (a form) for one line on the grocery list. */
 export function groceryRow(page: Page, label: string): Locator {
   return page
