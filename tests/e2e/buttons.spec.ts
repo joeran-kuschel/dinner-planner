@@ -133,6 +133,8 @@ test.describe("keyboard focus", () => {
       }, testInfo) => {
         const { id } = await setUp(page);
         const foreground = await textColor(page.locator("body"));
+        // The ratio below ignores transparency, so the ring colour itself must be opaque.
+        expect(parseColor(foreground).a).toBe(1);
         const controls: [string, string, () => Locator][] = [
           ["primary button", "/recipes/new", () => page.getByRole("button", { name: "Create recipe" })],
           ["text field", "/recipes/new", () => page.getByRole("textbox", { name: "Name", exact: true })],

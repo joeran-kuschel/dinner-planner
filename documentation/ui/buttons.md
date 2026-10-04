@@ -40,11 +40,13 @@ A focused row of the grocery list gets one more ring on top: 2 px, inset, in the
 the line you are on is easy to find. It is 5.4:1 against the row in light mode and 6.1:1 in dark mode, so it stays.
 
 `tests/e2e/buttons.spec.ts` ("keyboard focus") checks this in a real browser, reaching each control with the keyboard
-(so `:focus-visible` applies), in light and dark mode: a primary button, a quiet button, a ✕ button, the destructive
-buttons, a text field, a `<summary>`, a link and the dinner field must all show the solid 3 px outline in the text
-colour. The test also computes the WCAG contrast ratio of that ring against the first non-transparent background it sits on and
-requires 3:1 (WCAG 1.4.11); measured, it is 14:1 or more. The grocery row's accent ring is measured the same way and must stay at
-least 3:1. The helpers (`focusByKeyboard`, `parseColor`, `contrastRatio`, `surfaceColor`) are in `tests/e2e/support/helpers.ts`.
+(so `:focus-visible` applies): the destructive buttons and the ✕ buttons in the default colour scheme, and, in light and
+dark mode, a primary button, a quiet button, a ✕ button, a text field, a `<summary>`, a link and the dinner field. All must
+show the solid 3 px outline in the text colour. The test also computes the WCAG contrast ratio of that ring against the first non-transparent background it sits on and
+requires 3:1 (WCAG 1.4.11); measured, it is about 14:1 or more (13.9 at the lowest). The grocery row's accent ring is measured the same way and must stay at
+least 3:1. The helpers (`focusByKeyboard`, `parseColor`, `contrastRatio`, `surfaceColor`) are in `tests/e2e/support/helpers.ts`; the colour maths is in `tests/support/color.ts`
+and has a test of its own (`tests/infra/color.test.ts`). `surfaceColor` throws on a background image or when no ancestor has a
+background colour, so a gradient is noticed instead of measured wrongly.
 
 ## Not covered here
 
