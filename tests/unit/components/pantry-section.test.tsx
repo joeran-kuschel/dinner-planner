@@ -67,7 +67,7 @@ describe("PantrySection", () => {
     expect(screen.queryByRole("list", { name: "Pantry staples" })).not.toBeInTheDocument();
   });
 
-  it("moves the focus to the next chip after a removal, then to the add field", async () => {
+  it("puts the focus in the add field after a removal, so Enter removes no other staple", async () => {
     const { user, rerender } = renderSection();
     await user.click(screen.getByRole("button", { name: "Remove olive oil from the pantry staples" }));
     // The server has removed it: the section is rendered again with the remaining staple.
@@ -80,13 +80,16 @@ describe("PantrySection", () => {
         suggestions={[]}
       />,
     );
-    expect(screen.getByRole("button", { name: "Remove salt from the pantry staples" })).toHaveFocus();
-
-    await user.click(screen.getByRole("button", { name: "Remove salt from the pantry staples" }));
-    rerender(
-      <PantrySection staples={[]} hiddenCount={0} showHidden={false} toggleHref="/groceries" suggestions={[]} />,
-    );
     expect(screen.getByRole("combobox", { name: "Add a staple" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(actions.removePantryStaple).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Remove salt from the pantry staples" })).toBeInTheDocument();
+  });
+
+  it("announces a removal to screen readers", async () => {
+    const { user } = renderSection();
+    await user.click(screen.getByRole("button", { name: "Remove salt from the pantry staples" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Removed salt from the pantry staples");
   });
 
   it("says the list is full and switches adding off at the limit, instead of ignoring the name silently", () => {
@@ -161,6 +164,12 @@ describe("PantrySection", () => {
     withStaples.unmount();
     const empty = renderSection({ staples: [] });
     await expectNoAxeViolations(empty.container);
+  });
+
+  it("announces a removal in German", async () => {
+    const { user } = renderSection({}, "de");
+    await user.click(screen.getByRole("button", { name: "salt aus den Vorratsartikeln entfernen" }));
+    expect(screen.getByRole("status")).toHaveTextContent("salt aus den Vorratsartikeln entfernt");
   });
 
   it("speaks German", () => {

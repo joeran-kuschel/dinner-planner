@@ -3,7 +3,7 @@
 import { plural, t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { addPantryStaple, removePantryStaple } from "@/app/actions/pantry";
 import { MAX_STAPLE_LENGTH, MAX_STAPLES } from "@/lib/pantry";
 
@@ -29,18 +29,16 @@ export function PantrySection({ staples, hiddenCount, showHidden, toggleHref, su
   const chosen = new Set(staples.map((staple) => staple.name));
   const full = staples.length >= MAX_STAPLES;
 
-  // After a staple is removed its button is gone, and the focus would fall back to the top of the
-  // page: it moves to the chip now in its place, or to the add field when none is left.
-  const chips = useRef<HTMLUListElement>(null);
   const field = useRef<HTMLInputElement>(null);
-  const focusAfterRemoval = useRef<number | null>(null);
-  useEffect(() => {
-    const index = focusAfterRemoval.current;
-    if (index === null) return;
-    focusAfterRemoval.current = null;
-    const buttons = chips.current?.querySelectorAll("button") ?? [];
-    (buttons[Math.min(index, buttons.length - 1)] ?? field.current)?.focus();
-  }, [staples]);
+  const [announcement, setAnnouncement] = useState("");
+
+  // Not on another chip: Enter on another chip's ✕ would remove that staple as well. The focus
+  // moves before the server answers, so the button that goes away never holds it (it would fall to the
+  // top of the page); the field is the same element after the page renders again, so it keeps the focus.
+  const onRemove = (name: string) => {
+    field.current?.focus();
+    setAnnouncement(t(i18n)`Removed ${name} from the pantry staples`);
+  };
 
   return (
     <details open={showHidden} className="card p-4">
@@ -98,15 +96,11 @@ export function PantrySection({ staples, hiddenCount, showHidden, toggleHref, su
         {staples.length === 0 ? (
           <p className="text-sm text-muted">{t(i18n)`No staples yet.`}</p>
         ) : (
-          <ul ref={chips} aria-label={t(i18n)`Pantry staples`} className="flex flex-wrap gap-2">
-            {staples.map(({ id, name }, index) => (
+          <ul aria-label={t(i18n)`Pantry staples`} className="flex flex-wrap gap-2">
+            {staples.map(({ id, name }) => (
               <li key={id} className="pill">
                 {name}
-                <form
-                  action={removePantryStaple}
-                  onSubmit={() => (focusAfterRemoval.current = index)}
-                  className="flex"
-                >
+                <form action={removePantryStaple} onSubmit={() => onRemove(name)} className="flex">
                   <input type="hidden" name="id" value={id} />
                   <button
                     type="submit"
@@ -120,6 +114,10 @@ export function PantrySection({ staples, hiddenCount, showHidden, toggleHref, su
             ))}
           </ul>
         )}
+
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
 
         {hiddenCount > 0 && (
           <Link href={toggleHref} scroll={false} className="self-start text-sm font-medium text-accent-text underline">

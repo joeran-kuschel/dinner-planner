@@ -65,7 +65,9 @@ page is closed until wanted; its summary says how many lines it hides this week 
 - Lines you added by hand are never hidden, also when one has the same name and unit as a line from the plan (the page
   shows those as one line).
 - At 200 staples the field and **Add** are switched off, with the note "The list is full: 200 staples. Remove one to add
-  another." After a ✕ removes a staple, the focus moves to the next chip, or to the add field when none is left.
+  another." After a ✕ removes a staple, the focus moves to the add field (not to a neighbouring chip, whose ✕ a
+  following Enter would press), and a status line says "Removed salt from the pantry staples" for screen readers. A
+  full list is the exception: the field is switched off and cannot take the focus, so it falls back to the top of the page.
 - **Show the 2 hidden items** (a link in the fold-out) puts the hidden lines back into their sections, marked "in the
   pantry", so they can still be ticked. The fold-out stays open while they are shown, with **Hide the pantry items again**.
   The address of that view is `/groceries?week=2027-01-04&pantry=show`.
