@@ -5,15 +5,21 @@ import { testI18n } from "@/tests/support/i18n";
 
 const en = testI18n("en");
 const de = testI18n("de");
-const COMMON = ["g", "kg", "ml", "l", "tbsp", "tsp", "cup", "piece", "pinch", "clove"];
+const COMMON = ["g", "kg", "ml", "l", "EL", "TL", "tbsp", "tsp", "cup", "piece", "pinch", "clove"];
 
 describe("commonUnits", () => {
-  it("are the ten units of a kitchen in English", () => {
+  it("are the twelve units of a kitchen in English, with EL and TL untranslated", () => {
     expect(commonUnits(en)).toEqual(COMMON);
   });
 
-  it("are translated into German", () => {
+  it("are translated into German, listing EL and TL once", () => {
     expect(commonUnits(de)).toEqual(["g", "kg", "ml", "l", "EL", "TL", "Tasse", "Stück", "Prise", "Zehe"]);
+  });
+
+  it("have no repeats ignoring case in either language", () => {
+    for (const units of [commonUnits(en), commonUnits(de)]) {
+      expect(new Set(units.map((unit) => unit.toLowerCase())).size).toBe(units.length);
+    }
   });
 });
 

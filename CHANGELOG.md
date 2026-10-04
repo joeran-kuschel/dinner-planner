@@ -30,6 +30,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- The recipe form suggests the units "EL" and "TL" on the English page too, next to g, kg, ml and l ([#44](https://github.com/joeran-kuschel/dinner-planner/issues/44)).
 - "Back to the plan" on a recipe opened from a day card returns to that card's week instead of the current one ([#23](https://github.com/joeran-kuschel/dinner-planner/issues/23)).
 - Undo after "Clear day" no longer overwrites a dinner planned for that day in another tab in the meantime ([#24](https://github.com/joeran-kuschel/dinner-planner/issues/24)).
 
