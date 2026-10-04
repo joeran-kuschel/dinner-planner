@@ -46,6 +46,10 @@ Weeks start on Monday in both languages. Amounts have no thousands separator in 
   navigation is a tab bar at the bottom of the screen, so nothing needs sideways scrolling at 320 px, even with the
   longer German labels. The keyboard follows the same order on every screen size: app name, switcher, then the links.
   The current language has an outline as well as darker text.
+- At 320 px (WCAG 1.4.10, reflow) nothing sticks out and the page never scrolls sideways in German either: the week
+  buttons (`flex-wrap`, with "Einkaufsliste dieser Woche" and "Einkaufsliste für diese Woche" as the longest labels)
+  and the questions of "Ganze Woche leeren" and "Löschen" stay inside the screen. Only a browser lays text out, so
+  `tests/e2e/language.spec.ts` ("at 320 px in German") measures them in Playwright.
 - The header stays at the top while scrolling. The page keeps room for it, so a field that gets the keyboard focus is
   never hidden underneath (WCAG 2.4.11).
 - The German pages are checked with axe (WCAG 2.2 AA, including contrast) like the English ones.
