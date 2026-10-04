@@ -115,14 +115,20 @@ describe("TagInput", () => {
       expect(status()).toBe("Removed tag vegan");
     });
 
-    it("keeps the focus in the list: on the next chip's button, then the previous one, then the field", async () => {
+    it("moves the focus to the field, so Enter afterwards does not remove another tag", async () => {
       const { user } = renderTags({ initial: ["a", "b", "c"] });
       await user.click(screen.getByRole("button", { name: "Remove tag b" }));
-      expect(screen.getByRole("button", { name: "Remove tag c" })).toHaveFocus();
-      await user.keyboard("{Enter}");
-      expect(screen.getByRole("button", { name: "Remove tag a" })).toHaveFocus();
-      await user.keyboard("{Enter}");
       expect(field()).toHaveFocus();
+      await user.keyboard("{Enter}");
+      expect(chips()).toEqual(["a", "c"]);
+    });
+
+    it("keeps the tags when a freshly added tag is removed and Enter is pressed", async () => {
+      const { user } = renderTags({ initial: ["a", "b"] });
+      await user.type(field(), "new{Enter}");
+      await user.click(screen.getByRole("button", { name: "Remove tag new" }));
+      await user.keyboard("{Enter}");
+      expect(chips()).toEqual(["a", "b"]);
     });
 
     it("can be done with the keyboard", async () => {

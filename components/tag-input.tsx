@@ -2,7 +2,7 @@
 
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
-import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
 import { MAX_TAG_LENGTH, MAX_TAGS, normalizeTag, splitTags } from "@/lib/tags";
 
 /**
@@ -20,18 +20,7 @@ export function TagInput({ initial, suggestions }: { initial: string[]; suggesti
   const [tags, setTags] = useState(initial);
   const [draft, setDraft] = useState("");
   const [announcement, setAnnouncement] = useState("");
-  const chipList = useRef<HTMLUListElement>(null);
   const field = useRef<HTMLInputElement>(null);
-  // Where the focus goes once the removed chip is gone: the button now in its place, or the field.
-  const focusAfterRemoval = useRef<number | null>(null);
-
-  useEffect(() => {
-    const index = focusAfterRemoval.current;
-    if (index === null) return;
-    focusAfterRemoval.current = null;
-    const buttons = chipList.current?.querySelectorAll("button") ?? [];
-    (buttons[Math.min(index, buttons.length - 1)] ?? field.current)?.focus();
-  }, [tags]);
 
   const add = (typed: string[]) => {
     const fresh = [...new Set(typed)].filter((tag) => !tags.includes(tag));
@@ -62,7 +51,8 @@ export function TagInput({ initial, suggestions }: { initial: string[]; suggesti
   };
 
   const remove = (tag: string) => {
-    focusAfterRemoval.current = tags.indexOf(tag);
+    // Not on a neighbouring chip's button: Enter there would remove that tag as well.
+    field.current?.focus();
     setTags((current) => current.filter((other) => other !== tag));
     setAnnouncement(t(i18n)`Removed tag ${tag}`);
   };
@@ -99,7 +89,7 @@ export function TagInput({ initial, suggestions }: { initial: string[]; suggesti
         </p>
       </div>
 
-      <TagChips ref={chipList} tags={tags} onRemove={remove} />
+      <TagChips tags={tags} onRemove={remove} />
 
       <p role="status" className="sr-only">
         {announcement}
@@ -110,18 +100,16 @@ export function TagInput({ initial, suggestions }: { initial: string[]; suggesti
 
 /** The chosen tags, each with its own remove button. */
 function TagChips({
-  ref,
   tags,
   onRemove,
 }: {
-  ref: React.Ref<HTMLUListElement>;
   tags: string[];
   onRemove: (tag: string) => void;
 }) {
   const { i18n } = useLingui();
   if (tags.length === 0) return null;
   return (
-    <ul ref={ref} aria-label={t(i18n)`Tags of this recipe`} className="flex flex-wrap gap-2">
+    <ul aria-label={t(i18n)`Tags of this recipe`} className="flex flex-wrap gap-2">
       {tags.map((tag) => (
         <li key={tag} className="pill">
           <input type="hidden" name="tag" value={tag} />

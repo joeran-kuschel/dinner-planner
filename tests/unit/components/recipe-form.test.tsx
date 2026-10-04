@@ -256,6 +256,47 @@ describe("RecipeForm", () => {
       const list = screen.getByRole("list", { name: "Tags of this recipe" });
       expect(within(list).getAllByRole("listitem").map((item) => item.textContent?.replace("✕", ""))).toEqual(["soup", "quick"]);
     });
+
+    describe("Enter in the empty tag field", () => {
+      // A real action echoes the submission; build the echo from the FormData.
+      const echo = (data: FormData): RecipeFormValues => ({
+        name: String(data.get("name")),
+        description: String(data.get("description")),
+        servings: String(data.get("servings")),
+        prepMinutes: String(data.get("prepMinutes")),
+        sourceUrl: String(data.get("sourceUrl")),
+        instructions: String(data.get("instructions")),
+        photoAlt: String(data.get("photoAlt")),
+        tags: data.getAll("tag").map(String),
+        ingredients: [],
+      });
+      const addTags = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.type(screen.getByRole("combobox", { name: "Tags" }), "quick{Enter}vegan{Enter}{Enter}");
+      };
+
+      it("sends the chips along when the form is valid", async () => {
+        const action = vi.fn<Action>(async (prev) => prev);
+        const { user } = renderForm(action);
+        await user.type(field("Name"), "Soup");
+        await addTags(user);
+        await waitFor(() => expect(action).toHaveBeenCalled());
+        expect(submittedData(action).getAll("tag")).toEqual(["quick", "vegan"]);
+        expect(chips()).toEqual(["quick", "vegan"]);
+      });
+
+      it("brings the chips back when the form is refused", async () => {
+        const action = vi.fn<Action>(async (prev, data) => ({
+          error: SOURCE_INVALID,
+          attempt: prev.attempt + 1,
+          values: echo(data),
+        }));
+        const { user } = renderForm(action);
+        await user.type(field("Name"), "Soup");
+        await addTags(user);
+        await screen.findByRole("alert");
+        expect(chips()).toEqual(["quick", "vegan"]);
+      });
+    });
   });
 
   describe("ingredient categories", () => {
