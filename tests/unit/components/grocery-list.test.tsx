@@ -1,7 +1,10 @@
+import { I18nProvider } from "@lingui/react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { testI18n } from "@/tests/support/i18n";
 import { renderWithI18n } from "@/tests/support/render";
 import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
 
@@ -232,6 +235,34 @@ describe("GroceryList", () => {
   });
 
   describe("tick-off", () => {
+    it("is disabled in the server-rendered HTML, so a tap before hydration cannot be lost", () => {
+      const html = renderToString(
+        <I18nProvider i18n={testI18n("en")}>
+          <GroceryList weekStart="2026-09-28" lines={[RICE, SALT]} />
+        </I18nProvider>,
+      );
+      expect(html.match(/<input[^>]*type="checkbox"[^>]*>/g)).toHaveLength(2);
+      for (const box of html.match(/<input[^>]*type="checkbox"[^>]*>/g)!) expect(box).toContain("disabled");
+    });
+
+    it("is enabled once the page is interactive", () => {
+      renderList([RICE]);
+      expect(screen.getByRole("checkbox", { name: "Tick off Arborio rice" })).toBeEnabled();
+    });
+
+    it("keeps the box as saved after the save ends, and does not let a form reset undo it", async () => {
+      const { user, rerender } = renderList([RICE]);
+      const box = screen.getByRole("checkbox", { name: "Tick off Arborio rice" });
+      await user.click(box);
+      await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
+      // The server answers with the line ticked.
+      rerender(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, checked: true }]} />);
+      await waitFor(() => expect(box).toBeChecked());
+      await user.click(box);
+      rerender(<GroceryList weekStart="2026-09-28" lines={[{ ...RICE, checked: false }]} />);
+      await waitFor(() => expect(box).not.toBeChecked());
+    });
+
     it("ticks a line when its name is tapped, not only its box", async () => {
       const { user } = renderList([RICE]);
       await user.click(screen.getByText("Arborio rice"));

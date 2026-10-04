@@ -44,7 +44,7 @@ field of the form below.
   line read "to taste".
 - **Tick a line** by tapping anywhere on its row, not only the box: the whole row is the target, at least 56 px high
   (44 px is the size of a fingertip), with a larger box. The box flips at once while the server saves; if the save fails it
-  goes back and a message under the line says "Could not save the tick. Try again." (shown as an alert). A ticked line **stays where it is**, struck through and muted, so the list does not move under your thumb;
+  goes back and a message under the line says "Could not save the tick. Try again." (shown as an alert). The boxes are disabled in the page as the server sends it and become usable as soon as the page is interactive (a moment, normally too short to notice), because a tap before that would not be saved. Behind the scenes the row submits its form by hand instead of through the form's `action`: React 19 resets a form when its action ends, which put the box back to the value it was rendered with and made it show the opposite of what was saved. A ticked line **stays where it is**, struck through and muted, so the list does not move under your thumb;
   tap it again to untick it. The ticks are saved, so they are still there after a reload, and changing an ingredient's
   section never unticks it.
 - Under the title, a line says how far you are: "7 of 12 ticked off" ("7 von 12 abgehakt"). It is a status region, so a
