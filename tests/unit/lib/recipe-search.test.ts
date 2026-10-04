@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { readRecipeSearch, recipeSearchWhere, searchTerms, tagNames, type RecipeSearch } from "@/lib/recipe-search";
+import {
+  readRecipeSearch,
+  recipeSearchWhere,
+  searchTerms,
+  searchWords,
+  tagNames,
+  type RecipeSearch,
+} from "@/lib/recipe-search";
 
 describe("readRecipeSearch", () => {
   it("reads the word and the tags from the address parameters", () => {
@@ -113,6 +120,71 @@ describe("recipeSearchWhere", () => {
     expect(await find({ tags: ["sushi"] })).toEqual([]);
   });
 
+  it("finds a recipe by two words that are both its tags", async () => {
+    expect(await find({ text: "vegetarian quick" })).toEqual(["Shakshuka"]);
+    expect(await find({ text: "quick, vegan" })).toEqual(["Red Lentil Dal"]);
+  });
+
+  it("needs every word, so one that matches nothing finds nothing", async () => {
+    expect(await find({ text: "quick sushi" })).toEqual([]);
+  });
+
+  it("finds a multi-word title, tag or ingredient typed in full", async () => {
+    await seed(
+      "Spring onion soup",
+      ["one pot"],
+      ["Spring onions", "Stock cube"],
+    );
+    expect(await find({ text: "spring onion soup" })).toEqual([
+      "Spring onion soup",
+    ]);
+    expect(await find({ text: "one pot" })).toEqual(["Spring onion soup"]);
+    expect(await find({ text: "stock cube" })).toEqual(["Spring onion soup"]);
+  });
+
+  it("finds a recipe with two multi-word tags by the words of both", async () => {
+    await seed("Chilli", ["one pot", "slow cooker"]);
+    await seed("Stew", ["one pot"]);
+    expect(await find({ text: "one pot slow cooker" })).toEqual(["Chilli"]);
+  });
+
+  it("keeps a quoted phrase as one word", async () => {
+    await seed("Chilli", ["one pot", "quick"]);
+    await seed("Pot roast", ["one"]);
+    expect(await find({ text: '"one pot" quick' })).toEqual(["Chilli"]);
+    expect(await find({ text: '"one pot"' })).toEqual(["Chilli"]);
+  });
+
+  it("lets the words match different fields", async () => {
+    expect(await find({ text: "dal quick" })).toEqual(["Red Lentil Dal"]);
+    expect(await find({ text: "eggs vegetarian shakshuka" })).toEqual([
+      "Shakshuka",
+    ]);
+    expect(await find({ text: "lemon meat" })).toEqual(["Roast Chicken"]);
+  });
+
+  it("escapes wildcard characters in every word", async () => {
+    await seed("100% oat porridge", ["sweet"]);
+    expect(await find({ text: "100% sweet" })).toEqual(["100% oat porridge"]);
+    expect(await find({ text: "% sweet" })).toEqual(["100% oat porridge"]);
+    expect(await find({ text: "_ sweet" })).toEqual([]);
+    expect(await find({ text: "quick _" })).toEqual([]);
+  });
+
+  it("does not match everything for quotes or commas alone", async () => {
+    expect(await find({ text: '""' })).toEqual([]);
+    expect(await find({ text: "," })).toEqual([]);
+  });
+
+  it("combines several words with the tag filter", async () => {
+    expect(await find({ text: "dal lentils", tags: ["quick"] })).toEqual([
+      "Red Lentil Dal",
+    ]);
+    expect(await find({ text: "dal lentils", tags: ["vegetarian"] })).toEqual(
+      [],
+    );
+  });
+
   it("finds a wildcard character where it is really in a name", async () => {
     await seed("100% oat porridge", []);
     await seed("snake_case stew", []);
@@ -126,6 +198,28 @@ describe("recipeSearchWhere", () => {
     expect(await find({ text: "r_d" })).toEqual([]);
     expect(await find({ text: "\\" })).toEqual([]);
     expect(await find({ text: "'; drop table \"Recipe\"; --" })).toEqual([]);
+  });
+});
+
+describe("searchWords", () => {
+  it("splits on spaces and commas and keeps a quoted phrase whole", () => {
+    expect(searchWords('one  pot,quick "slow cooker"')).toEqual([
+      "one",
+      "pot",
+      "quick",
+      "slow cooker",
+    ]);
+  });
+
+  it("drops blanks and repeats, and an unclosed quote is plain text", () => {
+    expect(searchWords(' a, ,A a "" "b')).toEqual(["a", "A", "b"]);
+  });
+
+  it("reads at most ten words, each at most a hundred characters", () => {
+    expect(
+      searchWords(Array.from({ length: 15 }, (_, i) => `w${i}`).join(" ")),
+    ).toHaveLength(10);
+    expect(searchWords("x".repeat(300))[0]).toHaveLength(100);
   });
 });
 

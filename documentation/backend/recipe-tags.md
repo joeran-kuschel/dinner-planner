@@ -45,6 +45,12 @@ form reset does not empty them.
 - `recipeSearchWhere(search)` builds the Prisma filter: the text must be **contained** (case-insensitive) in the name, in
   a tag name or in an ingredient name; each chosen tag must be on the recipe (AND) and is matched **exactly**. `%`, `_` and
   `\` in the text are escaped, because `contains` hands them on as `LIKE` wildcards.
+- Several words (`vegetarian quick`): the text is also split by `searchWords(text)` on spaces and commas, a phrase in
+  double quotes kept whole, at most `MAX_TAGS` different words of at most `MAX_SEARCH_LENGTH` characters. A recipe
+  matches when the whole text matches (as above, so multi-word names, tags and ingredients and every earlier search keep
+  working) **or** when every word matches its name, a tag or an ingredient; different words may match different fields.
+  Each word is escaped like the text. The words rule is looser than the whole-text rule on purpose; ranking exact matches
+  first is not done.
 - `searchTerms()` lists every recipe name, tag and ingredient name once, for the search box's suggestions. A word that is
   more than one thing (a recipe called "Lemon" and an ingredient "lemon") is listed as the first kind, in the order
   recipe, tag, ingredient. The page reads this list on every visit and passes it to the box as a prop, which is fine for

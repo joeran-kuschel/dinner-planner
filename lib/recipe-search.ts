@@ -33,24 +33,39 @@ export function readRecipeSearch(params: { q?: string | string[]; tag?: string |
   };
 }
 
+/**
+ * The words of a search text: split on spaces and commas, a phrase in double quotes kept whole.
+ * At most `MAX_TAGS` different words, each cut at `MAX_SEARCH_LENGTH`.
+ */
+export function searchWords(text: string): string[] {
+  const words = [...text.matchAll(/"([^"]*)"|[^\s,"]+/g)]
+    .map((match) => (match[1] ?? match[0]).trim().replace(/\s+/g, " ").slice(0, MAX_SEARCH_LENGTH))
+    .filter(Boolean);
+  return [...new Set(words)].slice(0, MAX_TAGS);
+}
+
 export function recipeSearchWhere({ text, tags }: RecipeSearch): Prisma.RecipeWhereInput {
-  // `contains` hands `%` and `_` on as LIKE wildcards; a search for them means the characters.
-  const contains = { contains: text.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" } as const;
+  // The text, or one word of it, matches a recipe's name, one of its tags or one of its ingredients.
+  const matches = (word: string): Prisma.RecipeWhereInput => {
+    // `contains` hands `%` and `_` on as LIKE wildcards; a search for them means the characters.
+    const contains = { contains: word.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" } as const;
+    return {
+      OR: [
+        { name: contains },
+        { tags: { some: { name: contains } } },
+        { ingredients: { some: { name: contains } } },
+      ],
+    };
+  };
+  const words = searchWords(text);
+  // The whole text keeps every search that worked before; with several words, every word may
+  // instead match somewhere (not necessarily in the same field).
+  const wholeOrWords: Prisma.RecipeWhereInput =
+    !words.length || (words.length === 1 && words[0] === text)
+      ? matches(text)
+      : { OR: [matches(text), { AND: words.map(matches) }] };
   return {
-    AND: [
-      ...(text
-        ? [
-            {
-              OR: [
-                { name: contains },
-                { tags: { some: { name: contains } } },
-                { ingredients: { some: { name: contains } } },
-              ],
-            },
-          ]
-        : []),
-      ...tags.map((name) => ({ tags: { some: { name } } })),
-    ],
+    AND: [...(text ? [wholeOrWords] : []), ...tags.map((name) => ({ tags: { some: { name } } }))],
   };
 }
 
