@@ -166,6 +166,12 @@ describe("PantrySection", () => {
     await expectNoAxeViolations(empty.container);
   });
 
+  it("announces a removal in German", async () => {
+    const { user } = renderSection({}, "de");
+    await user.click(screen.getByRole("button", { name: "salt aus den Vorratsartikeln entfernen" }));
+    expect(screen.getByRole("status")).toHaveTextContent("salt aus den Vorratsartikeln entfernt");
+  });
+
   it("speaks German", () => {
     renderSection({ hiddenCount: 2 }, "de");
     expect(screen.getByText("Vorratsartikel", { selector: "summary" })).toHaveTextContent("2 Artikel ausgeblendet");

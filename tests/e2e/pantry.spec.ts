@@ -148,8 +148,10 @@ test.describe("pantry staples", () => {
     await page.getByRole("button", { name: "Remove pepper from the pantry staples" }).click();
     await expect(page.getByRole("button", { name: "Remove pepper from the pantry staples" })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Add a staple" })).toBeFocused();
-    // Enter in the field removes nothing else.
+    // Enter in the field removes nothing else: the saved list still has salt after a reload.
     await page.keyboard.press("Enter");
+    await page.reload();
+    await openPantry(page);
     await expect(page.getByRole("button", { name: "Remove salt from the pantry staples" })).toBeVisible();
   });
 
