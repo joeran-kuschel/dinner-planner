@@ -23,6 +23,8 @@ Check passed in 56.1 s
 The exit code is 0 only when every stage passed. The code is in `scripts/check.ts` (the command) and
 `scripts/check-lib.ts` (running the stages); `tests/infra/check.test.ts` tests it with small fake stages.
 
+The same command runs on GitHub for every pull request: [github-actions.md](github-actions.md).
+
 ## Order
 
 1. **i18n**: compiles the translation catalogs once. `npm run typecheck` is not used, because it compiles them again

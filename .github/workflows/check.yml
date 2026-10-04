@@ -1,0 +1,68 @@
+# The same check as `npm run check` on a developer's machine: typecheck, lint, Vitest and
+# Playwright against a throwaway Postgres. See documentation/backend/github-actions.md.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only token, no secrets: a pull request from a fork gets nothing it could leak or misuse.
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # The same image and login as compose.yaml, on the same host port as `npm run db:up`.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dinner
+          POSTGRES_PASSWORD: dinner
+          POSTGRES_DB: dinner_planner
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dinner -d dinner_planner"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://dinner:dinner@localhost:5433/dinner_planner?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # generated/prisma is not committed.
+      - run: npm run db:generate
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run check
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
