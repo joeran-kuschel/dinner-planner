@@ -37,7 +37,7 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
   return (
     <div className="flex flex-col gap-6">
       {/* A polite status, so ticking a line is answered in words too. */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 print:hidden">
         <p role="status" className="font-display text-2xl font-semibold">
           {ticked === total ? t(i18n)`Everything ticked off.` : t(i18n)`${ticked} of ${total} ticked off`}
           {/* Not read out: a screen reader would say "party popper" every time. */}
@@ -50,16 +50,22 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
       </div>
 
       {/* A ticked line stays where it is, struck through, so the list does not move under the thumb. */}
-      <div className="md:columns-2 md:gap-6 [&>*]:mb-6 [&>*]:break-inside-avoid">
+      <div className="md:columns-2 md:gap-6 print:columns-2 print:gap-6 [&>*]:mb-6 [&>*]:break-inside-avoid">
       {groupByCategory(lines).map(({ category, lines: group }) => {
         const name = categoryLabel(category, i18n);
         const headingId = `category-${category}`;
         return (
-          <section key={category} aria-labelledby={headingId} className="flex flex-col gap-2">
+          // On paper only what is still to buy: a section with nothing left is left out whole.
+          <section
+            key={category}
+            aria-labelledby={headingId}
+            className={`flex flex-col gap-2 print:gap-1 ${group.every((line) => line.checked || line.pantry) ? "print:hidden" : ""}`}
+          >
             <h2 id={headingId} className="section-title">
-              {name} ({group.length})
+              {name}{" "}
+              <span className="print:hidden">({group.length})</span>
             </h2>
-            <div className="card divide-y divide-border">
+            <div className="card divide-y divide-border print:divide-y-0">
               {group.map((line) => (
                 <GroceryRow key={line.key} weekStart={weekStart} line={line} />
               ))}
@@ -125,7 +131,8 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   ].filter((note) => note !== null);
 
   return (
-    <div className="flex items-center">
+    // Ticked lines and pantry lines are not printed: the paper list is what is still to buy.
+    <div className={`flex items-center ${checked || line.pantry ? "print:hidden" : ""}`}>
       <form ref={formRef} action={toggleGroceryLine} onSubmit={toggle} className="flex-1">
         <input type="hidden" name="weekStart" value={weekStart} />
         <input type="hidden" name="key" value={line.key} />
@@ -134,7 +141,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
             state shown now. */}
         <input type="hidden" name="checked" value={String(!checked)} />
 
-        <label className="flex min-h-14 cursor-pointer items-center gap-3 p-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-accent">
+        <label className="flex min-h-14 cursor-pointer items-center gap-3 p-3 print:min-h-0 print:p-0 print:py-0.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-accent">
           <input
             type="checkbox"
             checked={checked}
@@ -162,7 +169,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
 
       {/* Only hand-added lines can be deleted; derived ones come back from the plan. */}
       {line.manual && line.entryId && (
-        <form action={removeGroceryExtra} className="pr-2">
+        <form action={removeGroceryExtra} className="pr-2 print:hidden">
           <input type="hidden" name="id" value={line.entryId} />
           <RemoveButton label={line.label} />
         </form>

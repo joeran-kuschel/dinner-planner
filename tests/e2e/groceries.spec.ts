@@ -1,4 +1,4 @@
-import { type Locator } from "@playwright/test";
+import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
   createRecipe,
@@ -344,5 +344,74 @@ test.describe("on a touch screen", () => {
     await page.getByText("Corn", { exact: true }).tap();
     await expect(page.getByRole("checkbox", { name: "Tick off Corn" })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "Tick off Beans" })).not.toBeChecked();
+  });
+});
+
+test.describe("copy and print", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  async function planRisotto(page: Page, week: string) {
+    const name = unique("Risotto");
+    await createRecipe(page, {
+      name,
+      ingredients: [
+        { quantity: "300", unit: "g", name: "Rice", category: "Pantry" },
+        { quantity: "2", name: "Onion", category: "Fruit and vegetables" },
+      ],
+    });
+    await page.goto(`/?week=${week}`);
+    await planRecipe(page, "Monday", name);
+    await page.goto(`/groceries?week=${week}`);
+  }
+
+  test("Copy list puts the open items on the clipboard and says so", async ({ page }) => {
+    await planRisotto(page, "2027-11-01");
+    await page.getByRole("checkbox", { name: "Tick off Onion", exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "Tick off Onion", exact: true })).toBeChecked();
+
+    await page.getByRole("button", { name: "Copy list" }).click();
+
+    await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe("Grocery list · 1 Nov – 7 Nov 2027\n\nPantry\n- 300 g Rice");
+    await expectAccessible(page);
+  });
+
+  test("the print view hides the page chrome and shows the list", async ({ page }) => {
+    await planRisotto(page, "2027-11-08");
+    await page.emulateMedia({ media: "print" });
+
+    await expect(page.getByRole("heading", { level: 1, name: "Grocery list" })).toBeVisible();
+    await expect(page.getByText("8 Nov – 14 Nov 2027")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Tick off Rice", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Copy list" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
+    await expect(page.getByText("Add something else")).toBeHidden();
+    await expect(page.getByText("Pantry staples")).toBeHidden();
+  });
+
+  test("the print view leaves out ticked lines and frames the list in nothing", async ({ page }) => {
+    await planRisotto(page, "2027-11-15");
+    await page.getByRole("checkbox", { name: "Tick off Rice", exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "Tick off Rice", exact: true })).toBeChecked();
+    await page.emulateMedia({ media: "print" });
+
+    await expect(page.getByRole("checkbox", { name: "Tick off Rice", exact: true })).toBeHidden();
+    const card = page.locator(".card").first();
+    await expect(card).toHaveCSS("border-top-width", "0px");
+    await expect(card).toHaveCSS("box-shadow", "none");
+  });
+
+  test("Print opens the browser's print dialog", async ({ page }) => {
+    await planRisotto(page, "2027-11-15");
+    await page.evaluate(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => {
+        (window as unknown as { printed: number }).printed++;
+      };
+    });
+    await page.getByRole("button", { name: "Print" }).click();
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
   });
 });

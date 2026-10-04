@@ -2,13 +2,14 @@ import { plural, t } from "@lingui/core/macro";
 import Link from "next/link";
 import { addGroceryExtra } from "@/app/actions/groceries";
 import { GroceryList, type GroceryListLine } from "@/components/grocery-list";
+import { GroceryShare } from "@/components/grocery-share";
 import { PantrySection } from "@/components/pantry-section";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
-import { aggregateIngredients, type GroceryLine, mealSources } from "@/lib/grocery";
+import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
@@ -90,6 +91,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   );
   const lines: GroceryListLine[] = pantryView.lines;
   const suggestions = [...new Set(ingredientNames.map(({ name }) => normalizeStaple(name)).filter(Boolean))];
+  const weekRange = formatWeekRange(weekStart, locale);
   const { recipes: recipeCount, typed: typedCount } = mealSources(meals);
 
   return (
@@ -97,8 +99,8 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title">{t(i18n)`Grocery list`}</h1>
-          <p className="mt-1 text-sm text-muted">
-            {formatWeekRange(weekStart, locale)} ·{" "}
+          <p className="mt-1 text-sm text-muted print:text-base">
+            {weekRange} ·{" "}
             {t(i18n)`from ${plural(recipeCount, { one: "# recipe", other: "# recipes" })}`}
             {typedCount > 0 &&
               ` · ${t(i18n)`${plural(typedCount, {
@@ -107,7 +109,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
               })}`}`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Link href={`/?week=${weekKey}`} className="btn-secondary">
             {t(i18n)`Edit the plan`}
           </Link>
@@ -122,7 +124,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
 
       {/* Closed, so the list stays the first thing on the page. It stays open while the visitor keeps adding
           items (the page re-renders without touching `open`) and starts closed again for another week. */}
-      <details key={weekKey} className="card p-4">
+      <details key={weekKey} className="card p-4 print:hidden">
         <summary className="disclosure-summary">{t(i18n)`Add something else`}</summary>
         <form action={addGroceryExtra} className="mt-3 flex flex-wrap items-end gap-2">
           <input type="hidden" name="weekStart" value={weekKey} />
@@ -165,15 +167,19 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         </form>
       </details>
 
+      {lines.length > 0 && <GroceryShare text={groceryListText({ weekRange, lines }, i18n) || null} />}
+
       <GroceryList weekStart={weekKey} lines={lines} allInPantry={pantryView.allInPantry} />
 
-      <PantrySection
-        staples={staples}
-        hiddenCount={pantryView.hiddenCount}
-        showHidden={showPantry}
-        toggleHref={`/groceries?week=${weekKey}${showPantry ? "" : "&pantry=show"}`}
-        suggestions={suggestions}
-      />
+      <div className="print:hidden">
+        <PantrySection
+          staples={staples}
+          hiddenCount={pantryView.hiddenCount}
+          showHidden={showPantry}
+          toggleHref={`/groceries?week=${weekKey}${showPantry ? "" : "&pantry=show"}`}
+          suggestions={suggestions}
+        />
+      </div>
     </div>
   );
 }

@@ -58,7 +58,7 @@ export function SiteNav() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-surface">
+    <header className="sticky top-0 z-10 print:hidden border-b border-border bg-surface">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:h-[4.5rem] sm:flex-nowrap sm:px-8 sm:py-0">
         <Link href="/" className="mr-auto flex items-center gap-3">
           <span

@@ -69,7 +69,7 @@ test.describe("grocery progress bar", () => {
 
     await page.getByRole("checkbox", { name: "Tick off Rice", exact: true }).click();
     await expect.poll(ratio).toBeCloseTo(1, 1);
-    await expect(page.getByRole("status")).toContainText("Everything ticked off.");
+    await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();
   });
 });
 

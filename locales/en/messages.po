@@ -166,9 +166,25 @@ msgstr "Clear week"
 msgid "clove"
 msgstr "clove"
 
+#: components/grocery-share.tsx
+msgid "Copied"
+msgstr "Copied"
+
+#: components/grocery-share.tsx
+msgid "Copy list"
+msgstr "Copy list"
+
+#: components/grocery-share.tsx
+msgid "Copying isn't available here. Select the text below instead."
+msgstr "Copying isn't available here. Select the text below instead."
+
 #: components/grocery-list.tsx
 msgid "Could not save the tick. Try again."
 msgstr "Could not save the tick. Try again."
+
+#: components/grocery-share.tsx
+msgid "Couldn't copy. Select the text below instead."
+msgstr "Couldn't copy. Select the text below instead."
 
 #: components/recipe-form.tsx
 msgid "Create recipe"
@@ -286,6 +302,7 @@ msgid "Groceries"
 msgstr "Groceries"
 
 #: app/groceries/page.tsx
+#: lib/grocery.ts
 msgid "Grocery list"
 msgstr "Grocery list"
 
@@ -538,6 +555,10 @@ msgstr "Press Enter or type a comma to add a tag. Up to {MAX_TAGS} tags of {MAX_
 msgid "Previous week"
 msgstr "Previous week"
 
+#: components/grocery-share.tsx
+msgid "Print"
+msgstr "Print"
+
 #: components/recipe-form.tsx
 msgid "Quantities below are for this many people."
 msgstr "Quantities below are for this many people."
@@ -699,6 +720,10 @@ msgstr "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} chara
 #: lib/recipe-import/messages.ts
 msgid "The import was cancelled."
 msgstr "The import was cancelled."
+
+#: components/grocery-share.tsx
+msgid "The list as text"
+msgstr "The list as text"
 
 #: components/pantry-section.tsx
 msgid "The list is full: {MAX_STAPLES} staples. Remove one to add another."
