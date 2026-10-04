@@ -16,11 +16,13 @@ describe("the GitHub Actions check", () => {
     expect(workflow.on.push.branches).toEqual(["main"]);
   });
 
-  it("runs the same `npm run check` as the developer's machine, after generating the Prisma client", () => {
+  it("runs the same `npm run check` as the developer's machine, after generating the Prisma client and the route types", () => {
     const runs = steps.map((step) => step.run);
     expect(runs).toContain("npm run check");
-    expect(runs.indexOf("npm run db:generate")).toBeGreaterThan(runs.indexOf("npm ci"));
-    expect(runs.indexOf("npm run db:generate")).toBeLessThan(runs.indexOf("npm run check"));
+    for (const generate of ["npm run db:generate", "npx next typegen"]) {
+      expect(runs.indexOf(generate)).toBeGreaterThan(runs.indexOf("npm ci"));
+      expect(runs.indexOf(generate)).toBeLessThan(runs.indexOf("npm run check"));
+    }
   });
 
   it("gets a read-only token and no secrets, and never runs fork code with write access", () => {
