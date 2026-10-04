@@ -289,6 +289,10 @@ msgstr "Grocery list"
 msgid "Grocery list for this week"
 msgstr "Grocery list for this week"
 
+#: lib/grocery-category.ts
+msgid "Herbs & spices"
+msgstr "Herbs & spices"
+
 #: components/pantry-section.tsx
 msgid "Hide the pantry items again"
 msgstr "Hide the pantry items again"
@@ -473,6 +477,10 @@ msgstr "Pantry"
 #: components/pantry-section.tsx
 msgid "Pantry staples"
 msgstr "Pantry staples"
+
+#: lib/grocery-category.ts
+msgid "Pasta, rice, etc."
+msgstr "Pasta, rice, etc."
 
 #: components/import-recipe-dialog.tsx
 msgid "Paste the address of a recipe page. The recipe is filled in for you to check; nothing is saved until you save it."

@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- Two new shop sections on the grocery list: "Pasta, rice, etc." (before Pantry) and "Herbs & spices" (after Pantry), offered by the recipe form and the add-entry form; existing ingredients keep their section ([#43](https://github.com/joeran-kuschel/dinner-planner/issues/43), [#39](https://github.com/joeran-kuschel/dinner-planner/issues/39)).
 - The source is open under the MIT license (the `LICENSE` file).
 - "Add from a link" also brings the recipe's photo along, when the page has one: it lands in the photo field for you to check, described with the recipe's name until you change it ([#5](https://github.com/joeran-kuschel/dinner-planner/issues/5)).
 - A recipe can be added from a link: "Add from a link" in the New recipe menu fetches the page and fills the recipe form for you to check, with a clear message when a page has no recipe ([#5](https://github.com/joeran-kuschel/dinner-planner/issues/5)).

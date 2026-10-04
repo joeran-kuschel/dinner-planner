@@ -9,7 +9,9 @@ describe("GROCERY_CATEGORIES", () => {
       "BAKERY",
       "MEAT_FISH",
       "DAIRY_EGGS",
+      "PASTA_RICE",
       "PANTRY",
+      "HERBS_SPICES",
       "FROZEN",
       "DRINKS",
       "OTHER",
@@ -24,6 +26,22 @@ describe("categoryLabel", () => {
     expect(en).not.toBe(category);
     expect(de).toBeTruthy();
     if (category !== "OTHER") expect(de).not.toBe(en);
+  });
+});
+
+describe("the added sections", () => {
+  it("names Pasta, rice and Herbs & spices in English and German", () => {
+    const en = testI18n("en");
+    const de = testI18n("de");
+    expect(categoryLabel("PASTA_RICE", en)).toBe("Pasta, rice, etc.");
+    expect(categoryLabel("PASTA_RICE", de)).toBe("Nudeln, Reis usw.");
+    expect(categoryLabel("HERBS_SPICES", en)).toBe("Herbs & spices");
+    expect(categoryLabel("HERBS_SPICES", de)).toBe("Kräuter & Gewürze");
+  });
+
+  it("parses the new values from a form", () => {
+    expect(parseGroceryCategory("PASTA_RICE")).toBe("PASTA_RICE");
+    expect(parseGroceryCategory("HERBS_SPICES")).toBe("HERBS_SPICES");
   });
 });
 

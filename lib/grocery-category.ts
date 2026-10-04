@@ -27,8 +27,12 @@ export function categoryLabel(category: GroceryCategory, i18n: I18n): string {
       return t(i18n)`Meat and fish`;
     case GroceryCategory.DAIRY_EGGS:
       return t(i18n)`Dairy and eggs`;
+    case GroceryCategory.PASTA_RICE:
+      return t(i18n)`Pasta, rice, etc.`;
     case GroceryCategory.PANTRY:
       return t(i18n)`Pantry`;
+    case GroceryCategory.HERBS_SPICES:
+      return t(i18n)`Herbs & spices`;
     case GroceryCategory.FROZEN:
       return t(i18n)`Frozen`;
     case GroceryCategory.DRINKS:
