@@ -146,9 +146,11 @@ test.describe("pantry staples", () => {
     await addStaple(page, "salt");
     await addStaple(page, "pepper");
     await page.getByRole("button", { name: "Remove pepper from the pantry staples" }).click();
-    await expect(page.getByRole("button", { name: "Remove salt from the pantry staples" })).toBeFocused();
-    await page.getByRole("button", { name: "Remove salt from the pantry staples" }).click();
+    await expect(page.getByRole("button", { name: "Remove pepper from the pantry staples" })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Add a staple" })).toBeFocused();
+    // Enter in the field removes nothing else.
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Remove salt from the pantry staples" })).toBeVisible();
   });
 
   test("says so when the pantry covers everything the dinners need", async ({ page }) => {

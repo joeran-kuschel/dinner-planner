@@ -577,6 +577,10 @@ msgstr "Remove photo"
 msgid "Remove tag {tag}"
 msgstr "Remove tag {tag}"
 
+#: components/pantry-section.tsx
+msgid "Removed {name} from the pantry staples"
+msgstr "Removed {name} from the pantry staples"
+
 #: components/tag-input.tsx
 msgid "Removed tag {tag}"
 msgstr "Removed tag {tag}"
