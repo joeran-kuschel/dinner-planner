@@ -73,7 +73,7 @@ page returns to that week (see [Recipes](recipes.md)).
 There is no save button, so the card says when a save is done. While a save is in flight it reads "Saving…" (next to
 **Serves**); when the save has gone through this turns into "Saved ✓" and goes away after three seconds. A later save
 replaces it with "Saving…" and restarts the three seconds when it is done. A failed save shows no "Saved" but the
-message below.
+message below, and "Saving…" gives way to it at once (never both at the same time).
 
 - The words appear on the card only while a dinner is planned, since **Serves** and **Note** are shown then too. Screen
   readers hear them either way (see Accessibility).

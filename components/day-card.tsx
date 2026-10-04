@@ -68,7 +68,8 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   // Text and number fields save on blur rather than on change, so a save never
   // lands in the middle of typing.
   const save = () => formRef.current?.requestSubmit();
-  const saveStatus = pending
+  // `failed` is set before the transition ends, so "Saving…" must give way to the alert at once.
+  const saveStatus = pending && !failed
     ? t(i18n)`Saving…`
     : undo
       ? t(i18n)`Day cleared`
