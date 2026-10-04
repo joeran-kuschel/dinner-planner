@@ -4,6 +4,8 @@ import {
   afterServerAction,
   createRecipe,
   expectAccessible,
+  expectInsideViewport,
+  expectNoSidewaysScroll,
   unique,
 } from "@/tests/e2e/support/helpers";
 
@@ -214,6 +216,62 @@ test.describe("language", () => {
       expect(overflow, path).toBeLessThanOrEqual(0);
       await expectAccessible(page);
     }
+  });
+
+  // WCAG 1.4.10 (reflow) at 320 px with the longest German labels. jsdom does no layout, so this needs a browser.
+  test.describe("at 320 px in German", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 640 });
+    });
+
+    test("the questions of Clear the whole week and Delete fit the screen", async ({ page }) => {
+      const name = unique("Linsen");
+      const id = await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Linsen" }] });
+      await useGerman(page); // the helpers above speak English: switch only now
+      await page.goto("/?week=2028-02-07");
+      await page.getByRole("combobox", { name: "Abendessen am Montag" }).fill(name);
+      await afterServerAction(page, () => page.getByRole("option", { name, exact: true }).click());
+
+      await page.locator("summary", { hasText: /^Ganze Woche leeren$/ }).click();
+      const week = page.getByRole("group", { name: "1 geplantes Abendessen aus dieser Woche entfernen?" });
+      await expect(week).toBeVisible();
+      await expect(week.getByRole("button", { name: "Woche leeren", exact: true })).toBeVisible();
+      await expectInsideViewport(week, "week question");
+      await expectNoSidewaysScroll(page);
+      await expectAccessible(page);
+
+      await page.goto(`/recipes/${id}`);
+      await page.locator("summary", { hasText: /^Löschen$/ }).click();
+      const recipe = page.getByRole("group", {
+        name: `„${name}“ löschen? Tage, an denen nur dieses Rezept geplant ist, werden ebenfalls geleert.`,
+      });
+      await expect(recipe).toBeVisible();
+      await expect(recipe.getByRole("button", { name: "Rezept löschen", exact: true })).toBeVisible();
+      await expectInsideViewport(recipe, "recipe question");
+      await expectNoSidewaysScroll(page);
+      await expectAccessible(page);
+    });
+
+    test("the week buttons wrap inside the screen on the plan and on the grocery list", async ({ page }) => {
+      await useGerman(page);
+      const buttons = {
+        "/": ["Vorige Woche", "Diese Woche", "Nächste Woche", "Einkaufsliste für diese Woche"],
+        "/groceries": ["Plan bearbeiten", "Vorige Woche", "Einkaufsliste dieser Woche", "Nächste Woche"],
+      };
+      for (const [path, names] of Object.entries(buttons)) {
+        await page.goto(`${path}?week=2028-02-07`);
+        for (const name of names) {
+          const button = page.getByRole("main").getByRole("link", { name, exact: true });
+          await button.scrollIntoViewIfNeeded();
+          const box = (await button.boundingBox())!;
+          expect(box.x, `${path} ${name} left edge`).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width, `${path} ${name} right edge`).toBeLessThanOrEqual(320);
+          expect(await button.evaluate((el) => el.scrollWidth > el.clientWidth), `${path} ${name} is clipped`).toBe(false);
+        }
+        await expectNoSidewaysScroll(page);
+        await expectAccessible(page);
+      }
+    });
   });
 
   test("the page for a missing recipe is in German too", async ({ page }) => {

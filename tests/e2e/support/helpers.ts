@@ -147,3 +147,21 @@ export async function openAddForm(page: Page): Promise<void> {
   }
   await expect(details.getByRole("textbox", { name: "Item", exact: true })).toBeVisible();
 }
+
+/** WCAG 1.4.10 (reflow): the page does not scroll sideways. */
+export async function expectNoSidewaysScroll(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+}
+
+/** `target` lies completely inside the viewport (as sized with setViewportSize) and is not clipped by its text. */
+export async function expectInsideViewport(target: Locator, label = "element"): Promise<void> {
+  const size = target.page().viewportSize()!;
+  const box = (await target.boundingBox())!;
+  expect(box.x, `${label} left edge`).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width, `${label} right edge`).toBeLessThanOrEqual(size.width);
+  expect(box.y + box.height, `${label} bottom edge`).toBeLessThanOrEqual(size.height);
+  // A label wider than its box is cut off or overflows it.
+  const clipped = await target.evaluate((el) => el.scrollWidth > el.clientWidth);
+  expect(clipped, `${label} is clipped`).toBe(false);
+}

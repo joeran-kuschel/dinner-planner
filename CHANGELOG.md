@@ -18,6 +18,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- Tooling: browser tests check the week buttons and the questions of "Clear the whole week" and "Delete" at 320 px in German ([#25](https://github.com/joeran-kuschel/dinner-planner/issues/25)).
 - Tooling: Vitest drops the test schemas that a cut-off run left behind in the development database.
 - The database password is no longer in the source: `npm run db:up` creates a random one in your own `.env`, and the Kubernetes setup creates its own on the first deploy. `npm run k8s:rotate-db-password` changes the cluster's password later, after a backup.
 - On the grocery list, "Add something else" moved above the list as a closed fold-out, so a forgotten item no longer needs a scroll past everything ([#21](https://github.com/joeran-kuschel/dinner-planner/issues/21)).
