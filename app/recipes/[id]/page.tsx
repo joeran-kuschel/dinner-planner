@@ -9,13 +9,17 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { formatQuantity } from "@/lib/grocery";
 import { recipeFacts } from "@/lib/recipe-facts";
 import { isWebUrl } from "@/lib/recipe-form";
+import { readRecipeSearch, recipeListHref } from "@/lib/recipe-search";
 import { dayKey, formatWeekday, formatDayMonth, resolveWeekStart, startOfWeek, today } from "@/lib/week";
 
 export default async function RecipePage({ params, searchParams }: PageProps<"/recipes/[id]">) {
   const { id } = await params;
   // The week the visitor came from (a day card's link carries it); anything else means the current week.
-  const { week } = await searchParams;
+  const query = await searchParams;
+  const { week } = query;
   const planWeek = dayKey(resolveWeekStart(typeof week === "string" ? week : null));
+  // The list's search and tag filter the visitor came from (a recipe card's link carries it).
+  const backToRecipes = recipeListHref(readRecipeSearch(query));
   const { i18n, locale } = await getServerI18n();
 
   const recipe = await prisma.recipe.findUnique({
@@ -45,7 +49,7 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <Link href="/recipes" className="text-sm text-muted hover:text-foreground">
+        <Link href={backToRecipes} className="btn-secondary self-start">
           ← {t(i18n)`Recipes`}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -147,7 +151,10 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
         </section>
       </div>
 
-      <footer className="border-t border-border pt-4">
+      <footer className="flex flex-wrap gap-2 border-t border-border pt-4">
+        <Link href={backToRecipes} className="btn-secondary">
+          {t(i18n)`Back to recipes`}
+        </Link>
         <Link href={`/?week=${planWeek}`} className="btn-secondary">
           {t(i18n)`Back to the plan`}
         </Link>

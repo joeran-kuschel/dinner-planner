@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import {
   readRecipeSearch,
+  recipeHref,
+  recipeListHref,
   recipeSearchWhere,
   searchTerms,
   searchWords,
@@ -259,5 +261,24 @@ describe("searchTerms", () => {
 
   it("is empty without recipes", async () => {
     expect(await searchTerms()).toEqual([]);
+  });
+});
+
+describe("recipeListHref and recipeHref", () => {
+  it("build plain addresses when nothing filters", () => {
+    expect(recipeListHref({ text: "", tags: [] })).toBe("/recipes");
+    expect(recipeHref("abc", { text: "", tags: [] })).toBe("/recipes/abc");
+  });
+
+  it("carry the word and every tag, encoded", () => {
+    const search = { text: "mac & cheese", tags: ["quick", "tex mex"] };
+    expect(recipeListHref(search)).toBe("/recipes?q=mac+%26+cheese&tag=quick&tag=tex+mex");
+    expect(recipeHref("abc", search)).toBe("/recipes/abc?q=mac+%26+cheese&tag=quick&tag=tex+mex");
+  });
+
+  it("round-trip through readRecipeSearch", () => {
+    const search = { text: "ü & %", tags: ["quick", "tex mex"] };
+    const params = new URLSearchParams(recipeListHref(search).split("?")[1]);
+    expect(readRecipeSearch({ q: params.get("q") ?? undefined, tag: params.getAll("tag") })).toEqual(search);
   });
 });

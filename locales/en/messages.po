@@ -118,6 +118,10 @@ msgstr "Amount"
 msgid "Amount for ingredient {number}"
 msgstr "Amount for ingredient {number}"
 
+#: app/recipes/[id]/page.tsx
+msgid "Back to recipes"
+msgstr "Back to recipes"
+
 #: app/not-found.tsx
 #: app/recipes/[id]/page.tsx
 msgid "Back to the plan"

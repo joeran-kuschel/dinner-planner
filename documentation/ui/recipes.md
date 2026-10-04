@@ -65,6 +65,12 @@ returns to the week the recipe was opened from: the day card's **View recipe** l
 from the list. The week is not carried through **Edit** and **Save**: a recipe page reached that way leads back to the
 current week. Its tags are links to the list filtered by that tag.
 
+**Back to recipes** is there twice: as a button (**← Recipes**) above the title and beside **Back to the plan** at the
+bottom, both with the 44 px touch target and the contrast of the other secondary buttons. A recipe card's link carries the
+list's search and tag filter (`/recipes/<id>?q=lentil&tag=quick`, built by `recipeHref()` in `lib/recipe-search.ts`); the
+recipe page reads it with `readRecipeSearch()`, so a malformed value is cleaned or dropped, and both buttons lead to the list
+with that filter (`recipeListHref()`). The filter, like the week, is not carried through **Edit** and **Save**.
+
 ## The form
 
 Creating and editing use the same form.

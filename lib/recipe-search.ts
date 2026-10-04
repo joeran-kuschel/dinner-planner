@@ -33,6 +33,21 @@ export function readRecipeSearch(params: { q?: string | string[]; tag?: string |
   };
 }
 
+/** The search as address parameters (`?q=…&tag=…`), empty when nothing filters. Encoded, so safe in an `href`. */
+function searchQuery({ text, tags }: RecipeSearch): string {
+  const params = new URLSearchParams();
+  if (text) params.set("q", text);
+  for (const tag of tags) params.append("tag", tag);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+/** The recipe list filtered by a search: where "Back to recipes" leads. */
+export const recipeListHref = (search: RecipeSearch) => `/recipes${searchQuery(search)}`;
+
+/** A recipe's page, carrying the search it was opened from, so the way back keeps the filter. */
+export const recipeHref = (id: string, search: RecipeSearch) => `/recipes/${id}${searchQuery(search)}`;
+
 /**
  * The words of a search text: split on spaces and commas, a phrase in double quotes kept whole.
  * At most `MAX_TAGS` different words, each cut at `MAX_SEARCH_LENGTH`.
