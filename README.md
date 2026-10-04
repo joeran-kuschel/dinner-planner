@@ -29,6 +29,10 @@ npm run dev
 
 Then open http://localhost:3000.
 
+> **About the `dinner:dinner` login.** The database user and password in `.env.example`,
+> `compose.yaml` and `k8s/postgres.yaml` are throwaway values for a database that runs on your
+> own machine only. They are not a leaked credential. Never reuse them anywhere that others can reach.
+
 ### In Kubernetes
 
 Deploys to Docker Desktop's Kubernetes (turn it on in Docker Desktop under

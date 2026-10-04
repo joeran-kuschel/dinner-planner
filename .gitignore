@@ -48,6 +48,9 @@ next-env.d.ts
 # keep the template so a fresh clone knows what to set
 !.env.example
 
+# Claude Code: personal, per-machine permissions
+/.claude/settings.local.json
+
 # tests
 /test-results
 /playwright-report
