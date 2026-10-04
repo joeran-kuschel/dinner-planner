@@ -5,10 +5,10 @@ order of a walk through the shop ([Grocery list](../ui/groceries.md)).
 
 ## The enum
 
-`GroceryCategory` is a Prisma enum (`prisma/schema.prisma`): `PRODUCE`, `BAKERY`, `MEAT_FISH`, `DAIRY_EGGS`, `PANTRY`,
-`FROZEN`, `DRINKS`, `OTHER`. The declaration order is the order of the groups on the list, so `OTHER` stays last. Both
-`Ingredient.category` and `GroceryEntry.category` are required and default to `OTHER`; the migration therefore needs no
-backfill, and every existing row lands in **Other**.
+`GroceryCategory` is a Prisma enum (`prisma/schema.prisma`): `PRODUCE`, `BAKERY`, `MEAT_FISH`, `DAIRY_EGGS`,
+`PASTA_RICE`, `PANTRY`, `HERBS_SPICES`, `FROZEN`, `DRINKS`, `OTHER`. The declaration order is the order of the groups
+on the list, so `OTHER` stays last. Both `Ingredient.category` and `GroceryEntry.category` are required and default to
+`OTHER`; the migration therefore needs no backfill, and every existing row lands in **Other**.
 
 `lib/grocery-category.ts` is the one place that knows the set on the TypeScript side. It is safe for client code (it
 imports only the generated enum constants):
@@ -34,6 +34,10 @@ recipes, so editing a recipe corrects the list at once, like everything else on 
 
 A hand-added extra with the same name and unit as a line from the plan is not listed separately, exactly as for its
 amount, so the line keeps the category of the recipes and the extra's category is ignored.
+
+`PASTA_RICE` and `HERBS_SPICES` came later (issues #43 and #39) in one migration of two `ALTER TYPE ... ADD VALUE ...
+BEFORE` statements, so the database enum keeps the schema order. They touch no row: existing ingredients and entries stay
+in the section they had.
 
 ## Adding a category
 

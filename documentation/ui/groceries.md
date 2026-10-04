@@ -30,9 +30,10 @@ group they are in alphabetical order.
 
 Each section has a heading with the number of lines in it, for example "Dairy and eggs (2)". The sections come in the
 order of a walk through the shop: **Fruit and vegetables**, **Bakery**, **Meat and fish**, **Dairy and eggs**,
-**Pantry**, **Frozen**, **Drinks** and **Other**. A section with no line is not shown. The set is fixed; the
-German names are "Obst und Gemüse", "Backwaren", "Fleisch und Fisch", "Milchprodukte und Eier", "Vorräte",
-"Tiefkühlware", "Getränke" and "Sonstiges".
+**Pasta, rice, etc.**, **Pantry**, **Herbs & spices**, **Frozen**, **Drinks** and **Other**. A section with no line is
+not shown. The set is fixed; the German names are "Obst und Gemüse", "Backwaren", "Fleisch und Fisch",
+"Milchprodukte und Eier", "Nudeln, Reis usw.", "Vorräte", "Kräuter & Gewürze", "Tiefkühlware", "Getränke" and
+"Sonstiges".
 
 The section of a recipe's ingredient is chosen in the [recipe form](recipes.md); a new ingredient starts in **Other**,
 and so does everything that existed before sections were introduced. When recipes file the same merged ingredient
