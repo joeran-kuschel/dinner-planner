@@ -30,6 +30,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- On a day card, "Saving…" no longer shows for a moment next to the message that a save failed ([#53](https://github.com/joeran-kuschel/dinner-planner/issues/53)).
 - The recipe form suggests the units "EL" and "TL" on the English page too, next to g, kg, ml and l ([#44](https://github.com/joeran-kuschel/dinner-planner/issues/44)).
 - Typing several words into the recipe search, such as two tags (`vegetarian quick`), now finds the recipes that match all of them; a quoted phrase ("one pot") stays together ([#46](https://github.com/joeran-kuschel/dinner-planner/issues/46)).
 - Removing a tag in the recipe form puts the cursor back in the tag field, so pressing Enter afterwards no longer removes the next tag as well ([#41](https://github.com/joeran-kuschel/dinner-planner/issues/41)).

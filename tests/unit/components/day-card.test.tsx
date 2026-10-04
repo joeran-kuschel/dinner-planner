@@ -877,6 +877,32 @@ describe("DayCard", () => {
           expect(screen.queryByText("Saved ✓")).not.toBeInTheDocument();
         });
 
+        it("never reads 'Saving…' while the alert is showing", async () => {
+          const first = deferred();
+          const second = deferred();
+          actions.setPlannedMeal.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+          const { user } = renderCard({ meal: PLANNED });
+          await saveNote(user);
+          await saveNote(user);
+          await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+
+          // Look at the status in every DOM change, so a render in between cannot slip past.
+          const beside: string[] = [];
+          const observer = new MutationObserver(() => {
+            if (screen.queryByRole("alert")) beside.push(status().textContent ?? "");
+          });
+          observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+          try {
+            first.resolve();
+            second.reject(new Error("boom"));
+            await screen.findByRole("alert");
+            await waitFor(() => expect(status()).toBeEmptyDOMElement());
+          } finally {
+            observer.disconnect();
+          }
+          expect(beside).not.toContain("Saving…");
+        });
+
         it("ignores an older save's failure once a newer save is under way", async () => {
           const first = deferred();
           const second = deferred();
