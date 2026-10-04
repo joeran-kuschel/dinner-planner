@@ -11,10 +11,11 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch makes the older run pointless.
+# A newer push to the same pull request makes the older run pointless. Runs on main are never cancelled,
+# so every merged commit gets a result.
 concurrency:
   group: check-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -41,9 +42,13 @@ jobs:
       DATABASE_URL: postgresql://dinner:dinner@localhost:5433/dinner_planner?schema=public
 
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to a commit, not a tag that can move; Dependabot proposes updates
+      # (.github/dependabot.yml).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -57,12 +62,12 @@ jobs:
 
       - run: npm run check
 
-      - uses: actions/upload-artifact@v4
+      # Traces and screenshots of a failed Playwright test (the stage reports with the line reporter,
+      # so there is no HTML report).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
-          name: playwright-report
-          path: |
-            playwright-report
-            test-results
+          name: test-results
+          path: test-results
           if-no-files-found: ignore
           retention-days: 7

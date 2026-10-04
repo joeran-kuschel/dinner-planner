@@ -11,10 +11,15 @@ agent runs on the developer's machine, so a green run there and a green run here
 2. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
 3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed), installs Chromium for
    Playwright and runs `npm run check`.
-4. When the check fails, uploads `playwright-report/` and `test-results/` (traces, screenshots) as the artifact
-   `playwright-report`, kept for 7 days.
+4. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
+   `test-results`, kept for 7 days. The check runs Playwright with the line reporter, so there is no HTML report; the
+   last lines of any failing stage are in the job log.
 
-A newer push to the same branch cancels the run in progress, and a run stops after 20 minutes.
+A newer push to the same pull request cancels the run in progress; runs on `main` are never cancelled. A run stops
+after 20 minutes.
+
+The actions are pinned to a commit (`uses: …@<sha> # v4`), not to a tag that can move, and checkout does not keep the
+token in `.git/config`. `.github/dependabot.yml` opens a pull request weekly when an action has a new version.
 
 ## Safe for pull requests from forks
 
@@ -23,8 +28,9 @@ The workflow runs on `pull_request`, never `pull_request_target`, so a fork's co
 `tests/infra/github-actions.test.ts` checks these properties, and that the service container and the Node version
 still match `compose.yaml`, `.env.example` and the `Dockerfile`.
 
-In the repository's settings (Settings → Actions → General), "Require approval for first-time contributors" keeps
-a stranger's first pull request from running before you have looked at it.
+In the repository's settings (Settings → Actions → General), choose "Require approval for all external contributors":
+the weaker options only cover people new to GitHub or to the repository, and a run on GitHub's runners is
+still a free machine for whoever can start one.
 
 ## Making it a gate
 

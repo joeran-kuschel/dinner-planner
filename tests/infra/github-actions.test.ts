@@ -29,6 +29,22 @@ describe("the GitHub Actions check", () => {
     expect(fs.readFileSync(WORKFLOW, "utf-8")).not.toContain("secrets.");
   });
 
+  it("pins every action to a commit, keeps Dependabot watching them and leaves the token out of the checkout", () => {
+    for (const step of steps.filter((step) => step.uses)) expect(step.uses).toMatch(/^[\w-]+\/[\w-]+@[0-9a-f]{40}$/);
+
+    const dependabot = parse(fs.readFileSync(path.join(process.cwd(), ".github/dependabot.yml"), "utf-8"));
+    expect(dependabot.updates.map((update: { "package-ecosystem": string }) => update["package-ecosystem"])).toContain(
+      "github-actions",
+    );
+
+    const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout"));
+    expect(checkout?.with?.["persist-credentials"]).toBe(false);
+  });
+
+  it("does not cancel runs on main", () => {
+    expect(workflow.concurrency["cancel-in-progress"]).toContain("pull_request");
+  });
+
   it("uses the database of compose.yaml and the URL of .env.example", () => {
     const compose = parse(fs.readFileSync(path.join(process.cwd(), "compose.yaml"), "utf-8")).services.db;
     const service = workflow.jobs.check.services.postgres;
