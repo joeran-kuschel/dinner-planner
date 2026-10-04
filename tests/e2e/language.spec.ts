@@ -212,8 +212,7 @@ test.describe("language", () => {
     await page.setViewportSize({ width: 320, height: 640 });
     for (const path of ["/", "/groceries"]) {
       await page.goto(path);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, path).toBeLessThanOrEqual(0);
+      await expectNoSidewaysScroll(page, path);
       await expectAccessible(page);
     }
   });
@@ -263,12 +262,9 @@ test.describe("language", () => {
         for (const name of names) {
           const button = page.getByRole("main").getByRole("link", { name, exact: true });
           await button.scrollIntoViewIfNeeded();
-          const box = (await button.boundingBox())!;
-          expect(box.x, `${path} ${name} left edge`).toBeGreaterThanOrEqual(0);
-          expect(box.x + box.width, `${path} ${name} right edge`).toBeLessThanOrEqual(320);
-          expect(await button.evaluate((el) => el.scrollWidth > el.clientWidth), `${path} ${name} is clipped`).toBe(false);
+          await expectInsideViewport(button, `${path} ${name}`);
         }
-        await expectNoSidewaysScroll(page);
+        await expectNoSidewaysScroll(page, path);
         await expectAccessible(page);
       }
     });
