@@ -2,8 +2,8 @@
 
 `npm run check` is the whole check that has to pass before every push and every merge: typecheck, lint, the Vitest
 suite and the Playwright specs. It is what the `test-engineer` agent runs (`.claude/agents/test-engineer.md`), and you can
-run it yourself. On the developer's Mac it takes about a minute (56 s when this was written), most of it Playwright's
-build and run.
+run it yourself. On the developer's Mac it takes about two minutes (115 to 127 s with 182 Playwright specs; it was 56 s when this was
+written), most of it Playwright's build and run.
 
 ```bash
 npm run check
@@ -75,8 +75,14 @@ touched, whatever their age. The cleanup is best effort: the setup also runs for
 | typecheck | 2 minutes |
 | lint | 2 minutes |
 | vitest | 3 minutes |
-| playwright (build and all specs) | 5 minutes |
-| the whole check | 8 minutes |
+| playwright (build and all specs) | 8 minutes |
+| the whole check | 11 minutes |
+
+The limits are set for GitHub's runners, which need about 2.3 times as long as a Mac: the Playwright stage took about 105 s on
+the Mac and 220 to 300 s on the runner when 182 tests ran, and the earlier 5 minutes failed the check when the stage reached
+300.7 s (the test that was running then was only the one cut off). A slow test is still a failing test: the 10 s per test and
+the stop at the first failure did not change. If the stage passes about 6 minutes on the runner again, the next step is to split
+Playwright over several CI jobs with `--shard` (each job has a database of its own) and not to raise the limit again.
 
 A stage that reaches its limit counts as failed. It first gets SIGINT, as if Ctrl+C was pressed, because Playwright stops
 the web server it started (which runs in a process group of its own) on SIGINT and on nothing else. Two seconds later

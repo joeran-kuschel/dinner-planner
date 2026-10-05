@@ -33,12 +33,12 @@ export const PHASES: Stage[][] = [
     {
       name: "playwright",
       command: "npx playwright test --timeout=10000 --max-failures=1 --reporter=line",
-      limitMs: 5 * MINUTE,
+      limitMs: 8 * MINUTE,
     },
   ],
 ];
 
-export const TOTAL_LIMIT_MS = 8 * MINUTE;
+export const TOTAL_LIMIT_MS = 11 * MINUTE;
 
 /** The phases run the compile themselves, so Vitest must not start a second one next to the typecheck. */
 export const CHILD_ENV = { CHECK_CATALOGS_COMPILED: "1" };
