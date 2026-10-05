@@ -37,7 +37,7 @@ npm run k8s:logs     # follow the app's logs
 npm run k8s:delete   # tear the namespace down
 
 npm test             # Vitest: lib helpers, server actions, components
-npm run check        # the pre-push/pre-merge check: typecheck, lint, Vitest, Playwright — ~1 min, time-limited, no retries
+npm run check        # the pre-push/pre-merge check: typecheck, lint, Vitest, Playwright — about 2 min, time-limited, no retries
 npm run test:e2e     # Playwright: builds and starts its own server on :3100
 npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test during development
 ```
