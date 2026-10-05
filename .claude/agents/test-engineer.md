@@ -77,14 +77,14 @@ need a test, write the tests, and run only them and the tests affected by the ch
    plus any uncommitted changes that are part of it. Never only the last commit of the branch.
    Run the suite on the branch being merged, since that is the code the merge brings in.
 2. Run `npm run check`: typecheck, lint, the entire Vitest suite and the Playwright specs, with time limits and
-   no retries (see "Time and retry limits"). It takes about a minute. Don't assemble the stages yourself.
+   no retries (see "Time and retry limits"). It takes about two minutes on a Mac, longer on CI. Don't assemble the stages yourself.
 3. Check that every changed behavior in step 1 is covered by a test. Write the missing tests, then run them.
 4. The push or merge is ready only if everything passes and nothing is untested. A flaky test is a failure: report it, don't
    rerun until it passes.
 
 ## Time and retry limits
 
-`npm run check` enforces the limits: 2 minutes for typecheck, 2 for lint, 3 for Vitest, 5 for Playwright and 8 for the
+`npm run check` enforces the limits: 2 minutes for typecheck, 2 for lint, 3 for Vitest, 8 for Playwright and 11 for the
 whole check; Playwright gives each test 10 seconds and stops at the first failure. Details:
 `documentation/backend/testing-check.md`.
 

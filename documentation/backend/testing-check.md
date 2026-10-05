@@ -78,11 +78,14 @@ touched, whatever their age. The cleanup is best effort: the setup also runs for
 | playwright (build and all specs) | 8 minutes |
 | the whole check | 11 minutes |
 
-The limits are set for GitHub's runners, which need about 2.3 times as long as a Mac: the Playwright stage took about 105 s on
-the Mac and 220 to 300 s on the runner when 182 tests ran, and the earlier 5 minutes failed the check when the stage reached
-300.7 s (the test that was running then was only the one cut off). A slow test is still a failing test: the 10 s per test and
-the stop at the first failure did not change. If the stage passes about 6 minutes on the runner again, the next step is to split
-Playwright over several CI jobs with `--shard` (each job has a database of its own) and not to raise the limit again.
+The limits are set for GitHub's runners, which need roughly two to three times as long as a Mac: with 182 specs the Playwright
+stage took 105 to 130 s on the Mac and 220 to 300 s on the runner, and the earlier 5 minutes failed the check when the stage
+reached 300.7 s (the spec that was running then was only the one cut off). A slow test is still a failing test: the 10 s per
+test and the stop at the first failure did not change. The limits do not nest exactly (1 + 3 + 8 minutes is more than 11), so
+the whole-check limit can end a slow run first; the table then says "whole-check limit". If the Playwright stage passes about
+6 minutes on the runner again, the next step is to split it over several CI jobs with `--shard` and not to raise the limit
+again. That is a change to `scripts/check-lib.ts` and the workflow, not just a flag: each job has a database of its own, but
+each would repeat the build, and `--max-failures=1` would then apply per job.
 
 A stage that reaches its limit counts as failed. It first gets SIGINT, as if Ctrl+C was pressed, because Playwright stops
 the web server it started (which runs in a process group of its own) on SIGINT and on nothing else. Two seconds later
