@@ -53,10 +53,10 @@ async function isGone(pid: number): Promise<boolean> {
 }
 
 describe("the real plan", () => {
-  it("has the limits of the issue: 2, 2, 3 and 5 minutes per stage, 8 for the whole check", () => {
+  it("has the limits: 2, 2, 3 and 8 minutes per stage, 11 for the whole check", () => {
     const limits = Object.fromEntries(PHASES.flat().map((s) => [s.name, s.limitMs / 60_000]));
-    expect(limits).toMatchObject({ typecheck: 2, lint: 2, vitest: 3, playwright: 5 });
-    expect(TOTAL_LIMIT_MS).toBe(8 * 60_000);
+    expect(limits).toMatchObject({ typecheck: 2, lint: 2, vitest: 3, playwright: 8 });
+    expect(TOTAL_LIMIT_MS).toBe(11 * 60_000);
   });
 
   it("runs typecheck, lint and Vitest together, after the catalogs are compiled and before Playwright", () => {

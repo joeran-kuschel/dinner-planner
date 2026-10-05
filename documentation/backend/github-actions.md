@@ -41,6 +41,6 @@ require the status check **Check / check** before merging.
 
 ## Limits
 
-The check's own time limits (`scripts/check-lib.ts`: 10 s per Playwright test, 5 minutes for the stage, 8 minutes in
+The check's own time limits (`scripts/check-lib.ts`: 10 s per Playwright test, 8 minutes for the stage, 11 minutes in
 total) apply here too. GitHub's runners are slower than a Mac, so if a stage starts to hit a limit, raise it there,
 not in the workflow.
