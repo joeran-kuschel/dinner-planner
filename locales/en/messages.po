@@ -56,6 +56,10 @@ msgstr "{ticked} of {total} ticked off"
 msgid "{typedCount, plural, one {# dinner without a recipe adds nothing} other {# dinners without a recipe add nothing}}"
 msgstr "{typedCount, plural, one {# dinner without a recipe adds nothing} other {# dinners without a recipe add nothing}}"
 
+#: components/day-card.tsx
+msgid "{weekdayLabel}: leftovers from {weekday}"
+msgstr "{weekdayLabel}: leftovers from {weekday}"
+
 #: components/recipe-form.tsx
 msgid "A bowl of red lentil dal with coriander"
 msgstr "A bowl of red lentil dal with coriander"
@@ -133,6 +137,7 @@ msgstr "Bakery"
 
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
+#: components/leftovers-dialog.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -202,6 +207,10 @@ msgstr "Dairy and eggs"
 msgid "Day cleared"
 msgstr "Day cleared"
 
+#: components/day-card.tsx
+msgid "Day cleared, and {leftovers, plural, one {# leftovers day} other {# leftovers days}} with it"
+msgstr "Day cleared, and {leftovers, plural, one {# leftovers day} other {# leftovers days}} with it"
+
 #: app/recipes/[id]/page.tsx
 msgid "Delete"
 msgstr "Delete"
@@ -242,6 +251,10 @@ msgstr "Dinner Planner"
 #: lib/grocery-category.ts
 msgid "Drinks"
 msgstr "Drinks"
+
+#: components/leftovers-dialog.tsx
+msgid "Eat the rest of"
+msgstr "Eat the rest of"
 
 #: app/recipes/[id]/page.tsx
 msgid "Edit"
@@ -295,6 +308,10 @@ msgstr "g"
 #: app/actions/recipes.ts
 msgid "Give the recipe a name."
 msgstr "Give the recipe a name."
+
+#: components/day-card.tsx
+msgid "Go to {title} on {weekday}"
+msgstr "Go to {title} on {weekday}"
 
 #: app/groceries/page.tsx
 #: components/site-nav.tsx
@@ -368,6 +385,18 @@ msgstr "Language"
 msgid "Leave the amount blank for “to taste”."
 msgstr "Leave the amount blank for “to taste”."
 
+#: components/leftovers-dialog.tsx
+msgid "Leftovers"
+msgstr "Leftovers"
+
+#: components/day-card.tsx
+msgid "Leftovers from {weekday}"
+msgstr "Leftovers from {weekday}"
+
+#: components/leftovers-dialog.tsx
+msgid "Leftovers on {weekday}"
+msgstr "Leftovers on {weekday}"
+
 #: app/recipes/new/page.tsx
 #: components/import-recipe-dialog.tsx
 msgid "Link to the recipe"
@@ -426,6 +455,10 @@ msgstr "next {nextPlanned}"
 #: components/week-nav.tsx
 msgid "Next week"
 msgstr "Next week"
+
+#: components/leftovers-dialog.tsx
+msgid "No dinner is planned in the six days before this one."
+msgstr "No dinner is planned in the six days before this one."
 
 #: app/recipes/page.tsx
 msgid "No recipe matches. Try fewer tags or another word."
@@ -518,6 +551,10 @@ msgstr "Photo file"
 #: components/day-card.tsx
 msgid "Pick a recipe or type a dinner…"
 msgstr "Pick a recipe or type a dinner…"
+
+#: components/leftovers-dialog.tsx
+msgid "Pick the dinner this day eats the rest of. The grocery list stays as it is: raise “Serves” on that dinner to cook enough."
+msgstr "Pick the dinner this day eats the rest of. The grocery list stays as it is: raise “Serves” on that dinner to cook enough."
 
 #: lib/units.ts
 msgid "piece"
@@ -636,6 +673,10 @@ msgstr "Required"
 msgid "Salt"
 msgstr "Salt"
 
+#: components/leftovers-dialog.tsx
+msgid "Save"
+msgstr "Save"
+
 #: components/recipe-form.tsx
 msgid "Save changes"
 msgstr "Save changes"
@@ -721,6 +762,10 @@ msgstr "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} chara
 msgid "The import was cancelled."
 msgstr "The import was cancelled."
 
+#: components/leftovers-dialog.tsx
+msgid "The leftovers could not be saved. Please try again."
+msgstr "The leftovers could not be saved. Please try again."
+
 #: components/grocery-share.tsx
 msgid "The list as text"
 msgstr "The list as text"
@@ -757,6 +802,10 @@ msgstr "The photo has too many pixels. Choose a smaller image."
 #: lib/recipe-photo.ts
 msgid "The photo is too large: {MAX_PHOTO_MEGABYTES} MB at most."
 msgstr "The photo is too large: {MAX_PHOTO_MEGABYTES} MB at most."
+
+#: components/leftovers-dialog.tsx
+msgid "The plan changed in the meantime, so nothing was saved. The list shows what is planned now."
+msgstr "The plan changed in the meantime, so nothing was saved. The list shows what is planned now."
 
 #: app/actions/recipes.ts
 msgid "The source has to be a web address starting with http:// or https://."

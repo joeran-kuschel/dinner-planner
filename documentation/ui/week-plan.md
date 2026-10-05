@@ -82,6 +82,29 @@ message below, and "Saving…" gives way to it at once (never both at the same t
 - Saves can overlap, for example a note left while the servings are still saving. Only the latest save reports back;
   an older one that finishes late neither confirms nor blames what the user has since changed.
 
+## Leftovers
+
+A day can be the rest of an earlier dinner. On an **empty** day, **Leftovers** sits below the dinner field. (A day that
+already has a dinner does not offer it: leftovers never replace one. Clear the day first.) It opens a dialog "Leftovers
+on Wednesday" with the dinners planned in the six days before, nearest first, each with its day, as radio buttons: "Eat
+the rest of". The days may fall in the previous week. Pick one and press **Save**; **Save** stays off until one is
+picked. **Cancel** and Escape close the dialog unchanged and the focus returns to the button. When no dinner is planned in those six days, the dialog says so.
+
+- A leftovers day shows "Leftovers from Tuesday" and a link with the dinner's name that goes to the dinner (to the
+  other week when it is in one), and **Clear day**. It has no dinner field, servings or note of its own. For a screen
+  reader the card is a form named "Wednesday: leftovers from Tuesday". The "n of 7 planned" counter counts it.
+- Several days can eat the rest of one dinner. Only a dinner of its own can be eaten again, never another leftovers day.
+- **A leftovers day adds nothing to the grocery list**, so the recipe is counted once. Raise **Serves** on the dinner to
+  cook enough for those meals; the dialog says so ([Grocery list](groceries.md)).
+- **Clearing the dinner clears its leftovers days with it** (so does deleting its recipe or clearing the week): leftovers
+  of a dinner that is no longer planned would be ingredients nobody bought. The card says so, "Day cleared, and 2
+  leftovers days with it". **Undo** puts the dinner back and not the leftovers days; they are chosen again in the
+  dialog. Changing the dinner (another recipe) keeps its leftovers days, which then show the new dinner.
+- If the plan changes while the dialog is open (the day was planned elsewhere, or the dinner cleared), nothing is saved
+  and the dialog says so.
+- To plan a real dinner on a leftovers day, clear it first. The dialog needs JavaScript; without it the **Leftovers**
+  button does nothing.
+
 ## Clearing
 
 **Clear day** (red, like the other destructive actions, see [Buttons](buttons.md)) empties one day at once, without asking, because it can be undone. Afterwards the card says "Day cleared"
@@ -138,3 +161,4 @@ week** asks first without JavaScript too; **Undo** for a cleared day needs it.
 - [Planned meals](../backend/planned-meals.md): how the server stores what the card sends.
 - [Grocery list](groceries.md): the shopping list worked out from the week, with the same week buttons.
 - [Recipes](recipes.md): the recipe pages, including deleting a recipe.
+- [Planned meals](../backend/planned-meals.md) (leftovers): how a leftovers day is stored.

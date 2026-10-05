@@ -16,6 +16,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearPlannedMeal, restorePlannedMeal, setPlannedMeal } from "@/app/actions/meals";
+import { LeftoversButton, takeLeftoversFocus } from "@/components/leftovers-dialog";
+import type { LeftoverSource } from "@/lib/leftovers";
 import { isSameDinner, matchingTag, MAX_SERVINGS, SERVINGS_HINT_ID, suggestsRecipe } from "@/lib/planner";
 
 export type DayCardMeal = {
@@ -38,6 +40,10 @@ export type DayCardProps = {
   /** `tags` are what the dinner field can also find a recipe by. */
   recipes: { id: string; name: string; tags: string[] }[];
   meal: DayCardMeal | null;
+  /** The dinners of the six days before that this day could eat the rest of. */
+  leftoverSources?: LeftoverSource[];
+  /** How many days eat the rest of this day's dinner; they are cleared with it. */
+  leftoverCount?: number;
 };
 
 /** The day a field belongs to, for ids and screen-reader labels. */
@@ -49,13 +55,13 @@ const SAVED_VISIBLE_MS = 3000;
 /** The dinner the day's form submits: see `setPlannedMeal` for how the server reads it. */
 type Choice = { dinner: string; recipeId: string; newRecipe: boolean };
 
-export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, meal }: DayCardProps) {
+export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, meal, leftoverSources = [], leftoverCount = 0 }: DayCardProps) {
   const day: Day = { key: dayKey, weekday: weekdayLabel };
   const { i18n } = useLingui();
   const [choice, setChoice, resyncChoice] = useChoice(meal, recipes);
   const formRef = useServerSync(meal);
   const router = useRouter();
-  const [pending, failed, saved, undo, submit] = useAutoSave(meal, () => {
+  const [pending, failed, saved, undo, submit, clearedLeftovers] = useAutoSave(meal, leftoverCount, () => {
     // E.g. the picked recipe was deleted in another tab. Show what is saved
     // (as of the latest render, not the one the save started in), and fetch
     // the current recipes so the stale one is no longer suggested.
@@ -72,7 +78,7 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
   const saveStatus = pending && !failed
     ? t(i18n)`Saving…`
     : undo
-      ? t(i18n)`Day cleared`
+      ? clearedText(clearedLeftovers, i18n)
       : saved
         ? t(i18n)`Saved`
         : "";
@@ -124,8 +130,12 @@ export function DayCard({ dayKey, weekdayLabel, dateLabel, isToday, recipes, mea
           }}
         />
 
+        {/* Only an empty day can be leftovers: it never replaces a dinner. */}
+        {choice.dinner === "" && <LeftoversButton dayKey={dayKey} weekday={weekdayLabel} sources={leftoverSources} />}
+
         {undo && (
           <ClearedNotice
+            text={clearedText(clearedLeftovers, i18n)}
             weekday={weekdayLabel}
             focusId={`dinner-${dayKey}`}
             onUndo={() => {
@@ -184,7 +194,7 @@ function useChoice(meal: DayCardMeal | null, recipes: DayCardProps["recipes"]) {
  * the server action from `onSubmit` skips that reset. The `action` props stay
  * for browsers without JavaScript, where the form posts normally.
  */
-function useAutoSave(meal: DayCardMeal | null, onFailure: () => void) {
+function useAutoSave(meal: DayCardMeal | null, leftoverCount: number, onFailure: () => void) {
   const [pending, startTransition] = useTransition();
   // "error": the save failed. "changed": an Undo found the day planned again and put nothing back.
   const [failed, setFailed] = useState<"error" | "changed" | null>(null);
@@ -195,6 +205,8 @@ function useAutoSave(meal: DayCardMeal | null, onFailure: () => void) {
   // that undoing it is saving it again. It stays until the next save, or until the day is
   // planned again elsewhere.
   const [cleared, setCleared] = useState<FormData | null>(null);
+  // How many leftovers days the last "Clear day" took with it, for the notice.
+  const [clearedLeftovers, setClearedLeftovers] = useState(0);
   // Saves can overlap (a blur while an earlier save is in flight). Only the
   // latest one reports: an older one finishing late must not confirm, or
   // blame, a write the user has since replaced.
@@ -239,7 +251,10 @@ function useAutoSave(meal: DayCardMeal | null, onFailure: () => void) {
         }
         // Clearing has nothing left on the card to say "Saved" next to; it
         // offers the undo instead.
-        if (clearing) setCleared(data);
+        if (clearing) {
+          setCleared(data);
+          setClearedLeftovers(leftoverCount);
+        }
         else setSaved(save);
       } catch {
         if (save !== latest.current) return;
@@ -257,7 +272,7 @@ function useAutoSave(meal: DayCardMeal | null, onFailure: () => void) {
     run(clearing ? clearPlannedMeal : setPlannedMeal, new FormData(event.currentTarget), clearing);
   };
   const undo = cleared && (() => run(restorePlannedMeal, cleared));
-  return [pending, failed, saved > 0, undo, submit] as const;
+  return [pending, failed, saved > 0, undo, submit, clearedLeftovers] as const;
 }
 
 /**
@@ -285,7 +300,7 @@ function showSavedValues(form: HTMLFormElement) {
   }
 }
 
-function DayHeading({
+export function DayHeading({
   weekdayLabel,
   dateLabel,
   isToday,
@@ -513,12 +528,29 @@ function SuggestionList({
   );
 }
 
+/** What "Clear day" says it did: the day, and the leftovers days that went with it. */
+function clearedText(leftovers: number, i18n: I18n): string {
+  return leftovers > 0
+    ? t(i18n)`Day cleared, and ${plural(leftovers, { one: "# leftovers day", other: "# leftovers days" })} with it`
+    : t(i18n)`Day cleared`;
+}
+
 /**
  * Offered after "Clear day". The words are hidden from assistive technology,
  * since the card's status region already announces them. It stays until the
  * next save rather than timing out, so there is no clock to beat.
  */
-function ClearedNotice({ weekday, focusId, onUndo }: { weekday: string; focusId: string; onUndo: () => void }) {
+function ClearedNotice({
+  text,
+  weekday,
+  focusId,
+  onUndo,
+}: {
+  text: string;
+  weekday: string;
+  focusId: string;
+  onUndo: () => void;
+}) {
   const { i18n } = useLingui();
   const undoButton = useRef<HTMLButtonElement>(null);
   // "Clear day" had the focus and goes with the rest of the details, which drops the focus on the
@@ -538,7 +570,7 @@ function ClearedNotice({ weekday, focusId, onUndo }: { weekday: string; focusId:
   );
   return (
     <div className="flex items-center gap-2 text-xs text-muted">
-      <span aria-hidden>{t(i18n)`Day cleared`}</span>
+      <span aria-hidden>{text}</span>
       <button
         ref={undoButton}
         type="button"
@@ -627,5 +659,51 @@ function PlannedDetails({
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * A day that is the leftovers of an earlier dinner. It says so (and for a screen reader, which dinner),
+ * links to that dinner and has "Clear day"; the dinner and "Serves" are those of the source. It is a form
+ * like the other cards, so the list's rounded corners and dividers treat it alike.
+ */
+export function LeftoversCard({
+  dayKey,
+  weekdayLabel,
+  dateLabel,
+  isToday,
+  from,
+}: Pick<DayCardProps, "dayKey" | "weekdayLabel" | "dateLabel" | "isToday"> & {
+  from: { weekday: string; title: string; href: string };
+}) {
+  const { i18n } = useLingui();
+  const { weekday, title, href } = from;
+  // The empty card whose dialog made this one is gone, and the focus with it.
+  const heading = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (takeLeftoversFocus(dayKey)) heading.current?.focus();
+  }, [dayKey]);
+  return (
+    <form
+      action={clearPlannedMeal}
+      aria-label={t(i18n)`${weekdayLabel}: leftovers from ${weekday}`}
+      className={`grid gap-x-6 gap-y-2 p-4 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:p-6 ${isToday ? "bg-accent-soft" : ""}`}
+    >
+      <input type="hidden" name="day" value={dayKey} />
+      <DayHeading weekdayLabel={weekdayLabel} dateLabel={dateLabel} isToday={isToday} />
+      <div className="flex min-w-0 flex-col gap-2">
+        <p ref={heading} tabIndex={-1} className="font-semibold">
+          {t(i18n)`Leftovers from ${weekday}`}
+        </p>
+        <Link href={href} className="text-sm font-semibold text-accent-text underline" aria-label={t(i18n)`Go to ${title} on ${weekday}`}>
+          {title}
+        </Link>
+        <div>
+          <button type="submit" className="btn-danger-quiet -ml-3 px-3 text-xs">
+            {t(i18n)`Clear day`}
+          </button>
+        </div>
+      </div>
+    </form>
   );
 }
