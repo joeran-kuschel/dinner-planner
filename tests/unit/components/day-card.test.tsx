@@ -1,15 +1,18 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { polyfillDialog } from "@/tests/support/dialog";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
 import { SERVINGS_HINT_ID } from "@/lib/planner";
-import { DayCard, type DayCardMeal, type DayCardProps } from "@/components/day-card";
+import { DayCard, LeftoversCard, type DayCardMeal, type DayCardProps } from "@/components/day-card";
+import type { LeftoverSource } from "@/lib/leftovers";
 
 const actions = vi.hoisted(() => ({
   setPlannedMeal: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   clearPlannedMeal: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   restorePlannedMeal: vi.fn<(formData: FormData) => Promise<"restored" | "occupied">>(async () => "restored"),
+  setLeftovers: vi.fn<(formData: FormData) => Promise<"saved" | "changed">>(async () => "saved"),
 }));
 vi.mock("@/app/actions/meals", () => actions);
 
@@ -1349,5 +1352,96 @@ describe("DayCard", () => {
       await user.type(germanField(), "x");
       await expectNoAxeViolations(container);
     });
+  });
+});
+
+describe("leftovers on the day card", () => {
+  beforeAll(() => polyfillDialog());
+
+  const SOURCES: LeftoverSource[] = [{ key: "2026-09-27", weekday: "Sunday", dateLabel: "27 Sep", title: "Stew" }];
+
+  it("offers Leftovers on an empty day, and the dinners before it", async () => {
+    const { user } = renderCard({ leftoverSources: SOURCES });
+
+    await user.click(screen.getByRole("button", { name: "Leftovers on Monday" }));
+
+    expect(screen.getByRole("radio", { name: /Stew/ })).toBeInTheDocument();
+  });
+
+  it("does not offer it on a day with a dinner: leftovers never replace one", () => {
+    renderCard({ meal: PLANNED, leftoverSources: SOURCES });
+    expect(screen.queryByRole("button", { name: /Leftovers/ })).not.toBeInTheDocument();
+  });
+
+  it("says the leftovers days went with the dinner when it is cleared", async () => {
+    const { user } = renderCard({ meal: PLANNED, leftoverCount: 2 });
+
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+
+    await waitFor(() => expect(status()).toHaveTextContent("Day cleared, and 2 leftovers days with it"));
+  });
+
+  it("keeps the plain 'Day cleared' for a dinner nobody eats again", async () => {
+    const { user } = renderCard({ meal: PLANNED, leftoverCount: 0 });
+
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+
+    await waitFor(() => expect(status()).toHaveTextContent(/^Day cleared$/));
+  });
+});
+
+describe("LeftoversCard", () => {
+  const from = { weekday: "Monday", title: "Mushroom risotto", href: "/?week=2026-09-28#dinner-2026-09-28" };
+
+  function renderLeftovers(locale: "en" | "de" = "en") {
+    const user = userEvent.setup();
+    const result = renderWithI18n(
+      <LeftoversCard
+        dayKey="2026-09-29"
+        weekdayLabel={locale === "en" ? "Tuesday" : "Dienstag"}
+        dateLabel="29 Sep"
+        isToday={false}
+        from={locale === "en" ? from : { ...from, weekday: "Montag" }}
+      />,
+      { locale },
+    );
+    return { user, ...result };
+  }
+
+  it("says whose leftovers it is, links to the dinner and has no dinner field", () => {
+    renderLeftovers();
+
+    expect(screen.getByRole("form", { name: "Tuesday: leftovers from Monday" })).toBeInTheDocument();
+    expect(screen.getByText("Leftovers from Monday")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Go to Mushroom risotto on Monday" });
+    expect(link).toHaveAttribute("href", from.href);
+    expect(link).toHaveTextContent("Mushroom risotto");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Serves")).not.toBeInTheDocument();
+  });
+
+  it("clears the day through a form that posts the day", () => {
+    const { container } = renderLeftovers();
+
+    expect(screen.getByRole("button", { name: "Clear day" })).toHaveAttribute("type", "submit");
+    expect(container.querySelector("input[name=day]")).toHaveValue("2026-09-29");
+  });
+
+  it("takes the focus when it replaces the card whose dialog made it, and only then", () => {
+    // Nothing asked for the focus: a card that is merely there does not steal it.
+    renderLeftovers();
+    expect(document.body).toHaveFocus();
+  });
+
+  it("has no accessibility violations", async () => {
+    const { container } = renderLeftovers();
+    await expectNoAxeViolations(container);
+  });
+
+  it("speaks German", () => {
+    renderLeftovers("de");
+
+    expect(screen.getByRole("form", { name: "Dienstag: Reste von Montag" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zu Mushroom risotto am Montag" })).toBeInTheDocument();
   });
 });

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, readText } from "@/lib/form-data";
+import { isDinner, LEFTOVERS_DAYS } from "@/lib/leftovers";
 import { isSameDinner, MAX_SERVINGS } from "@/lib/planner";
-import { parseDayKey, startOfWeek } from "@/lib/week";
+import { addDays, parseDayKey, startOfWeek } from "@/lib/week";
 
 /**
  * Assign, change or clear the dinner for one day.
@@ -54,7 +55,8 @@ export async function setPlannedMeal(formData: FormData) {
       return;
     }
 
-    const data = { recipeId: recipe?.id ?? null, customTitle: recipe ? null : dinner, servings, notes };
+    // A dinner replaces leftovers on the same day.
+    const data = { recipeId: recipe?.id ?? null, customTitle: recipe ? null : dinner, servings, notes, leftoversOf: null };
     await tx.plannedMeal.upsert({ where: { date: day }, update: data, create: { date: day, ...data } });
   });
 
@@ -71,9 +73,9 @@ export async function restorePlannedMeal(formData: FormData): Promise<"restored"
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("restorePlannedMeal: missing or malformed `day`");
 
-  // A row naming neither a recipe nor a title shows as an empty day, so it does not count.
+  // A row naming neither a recipe, a title nor a dinner it is the leftovers of shows as an empty day, so it does not count.
   const planned = await prisma.plannedMeal.findFirst({
-    where: { date: day, OR: [{ recipeId: { not: null } }, { customTitle: { not: null } }] },
+    where: { date: day, OR: [{ recipeId: { not: null } }, { customTitle: { not: null } }, { leftoversOf: { not: null } }] },
     select: { date: true },
   });
   if (planned) {
@@ -83,6 +85,40 @@ export async function restorePlannedMeal(formData: FormData): Promise<"restored"
   }
   await setPlannedMeal(formData);
   return "restored";
+}
+
+/**
+ * Make `day` the leftovers of an earlier dinner, `from`. The dinner must be one of its own (not leftovers
+ * itself) and fall one to `LEFTOVERS_DAYS` days before `day`; anything else throws. The day must be empty (or
+ * already leftovers, which then point to the new dinner): another dinner is never replaced. Returns
+ * "changed" and writes nothing when the plan moved in the meantime (the day was planned, or the dinner
+ * cleared). See documentation/backend/planned-meals.md.
+ */
+export async function setLeftovers(formData: FormData): Promise<"saved" | "changed"> {
+  const day = parseDayKey(readText(formData, "day"));
+  if (!day) throw new Error("setLeftovers: missing or malformed `day`");
+  const from = parseDayKey(readText(formData, "from"));
+  if (!from) throw new Error("setLeftovers: missing or malformed `from`");
+  if (from >= day || from < addDays(day, -LEFTOVERS_DAYS)) throw new Error("setLeftovers: `from` is not within reach of `day`");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const [source, target] = await Promise.all([
+      tx.plannedMeal.findUnique({ where: { date: from } }),
+      tx.plannedMeal.findUnique({ where: { date: day } }),
+    ]);
+    // A dinner of its own is what leftovers come from, so leftovers of leftovers never happen.
+    if (!isDinner(source)) return "changed" as const;
+    if (isDinner(target)) return "changed" as const;
+    await tx.plannedMeal.upsert({
+      where: { date: day },
+      update: { leftoversOf: from, recipeId: null, customTitle: null },
+      create: { date: day, leftoversOf: from },
+    });
+    return "saved" as const;
+  });
+
+  revalidateMealViews();
+  return result;
 }
 
 /**

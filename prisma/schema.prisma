@@ -107,9 +107,17 @@ model PlannedMeal {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  /// Set on a day that is the leftovers of an earlier dinner: the day it comes from. Such a day names no
+  /// recipe and no title of its own, and adds nothing to the grocery list. The source is always a real dinner.
+  leftoversOf DateTime?
+
+  recipe    Recipe?       @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  /// Clearing or deleting the source day clears its leftovers days with it.
+  source    PlannedMeal?  @relation("Leftovers", fields: [leftoversOf], references: [date], onDelete: Cascade)
+  leftovers PlannedMeal[] @relation("Leftovers")
 
   @@index([recipeId])
+  @@index([leftoversOf])
 }
 
 /// An ingredient the household always has (salt, oil). Grocery lines from the plan that carry

@@ -69,6 +69,26 @@ action instead of to `setPlannedMeal`. It looks at the day first:
 The check and the write are two steps, not one transaction, so two Undos landing in the same few milliseconds could
 still collide; for one person with two tabs that window is accepted.
 
+## Leftovers
+
+`PlannedMeal.leftoversOf` is set on a day that is the leftovers of an earlier dinner: it holds the source day's date, a
+self-relation to `PlannedMeal.date` with `onDelete: Cascade`. Such a row names no recipe and no title, and the grocery
+list ignores it, because `aggregateIngredients` and `mealSources` only look at recipes and typed names: the recipe is
+counted once, at the source's servings. `lib/leftovers.ts` has the shared rules: `LEFTOVERS_DAYS` (6), `isDinner()` (a
+recipe or a title, and not leftovers) and `isPlanned()` (a dinner or leftovers, which is what the "n of 7 planned"
+counter and Undo's occupied check count).
+
+`setLeftovers` takes `day` (the leftovers day) and `from` (the dinner it eats the rest of) and answers `"saved"` or
+`"changed"`. `from` must lie one to six days before `day`, otherwise it throws. In one transaction it checks that `from`
+is a dinner of its own (leftovers of leftovers are refused, so a source is never itself a leftovers day) and that `day`
+holds no dinner of its own; if either no longer holds, because the plan moved while the dialog was open, it answers
+`"changed"` and writes nothing, so a plan made in the meantime is never replaced. Otherwise the day becomes the
+leftovers of `from` (a day that already was leftovers just points to the new dinner, its note stays).
+
+Removing the source removes its leftovers days: the cascade covers `clearPlannedMeal`, `clearWeek`, an emptied dinner
+field in `setPlannedMeal` and `deleteRecipe` alike, with no code of its own. `restorePlannedMeal` (Undo) brings back the
+dinner only. `setPlannedMeal` on a leftovers day sets `leftoversOf` back to null: a dinner replaces the leftovers.
+
 ## Deleting a recipe
 
 `deleteRecipe` removes the days that only pointed at the recipe in the same transaction. The schema's
@@ -78,5 +98,6 @@ still collide; for one person with two tabs that window is accepted.
 
 - `tests/unit/app/actions/meals.test.ts`: every rule above, against a real Postgres schema.
 - `tests/unit/lib/planner.test.ts`: the name matching.
+- `tests/unit/lib/leftovers.test.ts`, `tests/unit/components/leftovers-dialog.test.tsx`, `tests/e2e/leftovers.spec.ts`: leftovers.
 - `tests/e2e/week-plan.spec.ts`: planning, adding a recipe from the day card, and leaving the field without picking, in
   a real browser.

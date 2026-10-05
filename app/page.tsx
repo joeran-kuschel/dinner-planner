@@ -3,10 +3,11 @@ import { Trans } from "@lingui/react/macro";
 import Link from "next/link";
 import { clearWeek } from "@/app/actions/meals";
 import { ConfirmAction } from "@/components/confirm-action";
-import { DayCard } from "@/components/day-card";
+import { DayCard, LeftoversCard } from "@/components/day-card";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
+import { isPlanned, LEFTOVERS_DAYS, leftoverCountFor, leftoverSourcesFor } from "@/lib/leftovers";
 import { SERVINGS_HINT_ID } from "@/lib/planner";
 import {
   addDays,
@@ -16,6 +17,7 @@ import {
   formatWeekday,
   isSameDay,
   resolveWeekStart,
+  startOfWeek,
   today,
   weekDays,
 } from "@/lib/week";
@@ -29,7 +31,9 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
 
   const [meals, recipes] = await Promise.all([
     prisma.plannedMeal.findMany({
-      where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
+      // Beyond the week on both sides: leftovers come from up to six days before, and the leftovers of a
+      // dinner on the week's last days fall up to six days after.
+      where: { date: { gte: addDays(weekStart, -LEFTOVERS_DAYS), lt: addDays(weekStart, 7 + LEFTOVERS_DAYS) } },
     }),
     prisma.recipe.findMany({
       select: { id: true, name: true, tags: { select: { name: true }, orderBy: { name: "asc" } } },
@@ -38,9 +42,10 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
   ]);
 
   const mealsByDay = new Map(meals.map((meal) => [dayKey(meal.date), meal]));
-  // A row that names neither a recipe nor a title shows as an empty day, so it
-  // must not be counted as planned either.
-  const plannedCount = meals.filter((meal) => meal.recipeId || meal.customTitle).length;
+  const recipeNames = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
+  // A row that names neither a recipe, a title nor a dinner it is the leftovers of shows as an empty day,
+  // so it must not be counted as planned either.
+  const plannedCount = days.filter((day) => isPlanned(mealsByDay.get(dayKey(day)))).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,6 +85,23 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
         {days.map((day) => {
           const key = dayKey(day);
           const meal = mealsByDay.get(key) ?? null;
+          const source = meal?.leftoversOf ? mealsByDay.get(dayKey(meal.leftoversOf)) : undefined;
+          if (meal?.leftoversOf && source) {
+            return (
+              <LeftoversCard
+                key={key}
+                dayKey={key}
+                weekdayLabel={formatWeekday(day, locale)}
+                dateLabel={formatDayMonth(day, locale)}
+                isToday={isSameDay(day, currentDay)}
+                from={{
+                  weekday: formatWeekday(source.date, locale),
+                  title: (source.recipeId ? recipeNames.get(source.recipeId) : null) ?? source.customTitle ?? "",
+                  href: `/?week=${dayKey(startOfWeek(source.date))}#dinner-${dayKey(source.date)}`,
+                }}
+              />
+            );
+          }
           return (
             <DayCard
               key={key}
@@ -88,6 +110,8 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
               dateLabel={formatDayMonth(day, locale)}
               isToday={isSameDay(day, currentDay)}
               recipes={recipes.map(({ id, name, tags }) => ({ id, name, tags: tags.map((tag) => tag.name) }))}
+              leftoverSources={leftoverSourcesFor(day, mealsByDay, recipeNames, locale)}
+              leftoverCount={leftoverCountFor(day, meals)}
               meal={
                 meal && {
                   recipeId: meal.recipeId,

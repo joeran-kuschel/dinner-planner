@@ -4,7 +4,9 @@ import { prisma } from "@/lib/db";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { addDays, dayKey, parseDayKey, startOfWeek, weekDays } from "@/lib/week";
 import { formData } from "@/tests/support/db";
-import { clearPlannedMeal, clearWeek, restorePlannedMeal, setPlannedMeal } from "@/app/actions/meals";
+import { expectRedirect } from "@/tests/support/next";
+import { deleteRecipe } from "@/app/actions/recipes";
+import { clearPlannedMeal, clearWeek, restorePlannedMeal, setLeftovers, setPlannedMeal } from "@/app/actions/meals";
 
 // A fixed Monday, so the tests never depend on the real clock.
 const MONDAY = parseDayKey("2026-09-28")!;
@@ -492,5 +494,171 @@ describe("clearWeek", () => {
 
     expect(await prisma.plannedMeal.count({ where: { date: { lt: addDays(MONDAY, 7) } } })).toBe(0);
     expect(await prisma.plannedMeal.count({ where: { date: { gte: addDays(MONDAY, 7) } } })).toBe(7);
+  });
+});
+
+describe("leftovers", () => {
+  const TUESDAY = addDays(MONDAY, 1);
+  const THURSDAY = addDays(MONDAY, 3);
+
+  async function dinnerOn(day: Date, title = "Soup") {
+    return prisma.plannedMeal.create({ data: { date: day, customTitle: title } });
+  }
+
+  const leftoverDays = async (from: Date) =>
+    (await prisma.plannedMeal.findMany({ where: { leftoversOf: from }, orderBy: { date: "asc" } })).map((row) => dayKey(row.date));
+
+  describe("setLeftovers", () => {
+    it("makes the day the leftovers of the earlier dinner, with no dinner of its own", async () => {
+      await dinnerOn(MONDAY);
+
+      const result = await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+      expect(result).toBe("saved");
+      expect(await mealOn(TUESDAY)).toMatchObject({ recipeId: null, customTitle: null, leftoversOf: MONDAY });
+      expectMealViewsRevalidated();
+    });
+
+    it("reaches six days back, across a week's end, and several days can eat one dinner", async () => {
+      const sunday = addDays(MONDAY, 6);
+      await dinnerOn(sunday);
+
+      await setLeftovers(formData({ day: dayKey(addDays(sunday, 1)), from: dayKey(sunday) }));
+      await setLeftovers(formData({ day: dayKey(addDays(sunday, 6)), from: dayKey(sunday) }));
+
+      expect(await leftoverDays(sunday)).toEqual([dayKey(addDays(sunday, 1)), dayKey(addDays(sunday, 6))]);
+    });
+
+    it("works for a recipe dinner too", async () => {
+      const recipe = await createRecipe();
+      await prisma.plannedMeal.create({ data: { date: MONDAY, recipeId: recipe.id } });
+
+      expect(await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }))).toBe("saved");
+    });
+
+    it("moves a leftovers day to another dinner and keeps its note", async () => {
+      await dinnerOn(MONDAY);
+      await dinnerOn(TUESDAY, "Pizza");
+      await setLeftovers(formData({ day: dayKey(THURSDAY), from: dayKey(MONDAY) }));
+      await prisma.plannedMeal.update({ where: { date: THURSDAY }, data: { notes: "Reheat" } });
+
+      await setLeftovers(formData({ day: dayKey(THURSDAY), from: dayKey(TUESDAY) }));
+
+      expect(await mealOn(THURSDAY)).toMatchObject({ leftoversOf: TUESDAY, notes: "Reheat" });
+    });
+
+    it("never replaces a dinner: it answers changed and writes nothing", async () => {
+      await dinnerOn(MONDAY);
+      await dinnerOn(TUESDAY, "Pizza");
+
+      const result = await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+      expect(result).toBe("changed");
+      expect((await mealOn(TUESDAY))?.customTitle).toBe("Pizza");
+    });
+
+    it("answers changed when the dinner was cleared in the meantime", async () => {
+      const result = await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+      expect(result).toBe("changed");
+      expect(await prisma.plannedMeal.count()).toBe(0);
+    });
+
+    it("refuses leftovers of leftovers, so a source is always a dinner", async () => {
+      await dinnerOn(MONDAY);
+      await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+      const result = await setLeftovers(formData({ day: dayKey(WEDNESDAY), from: dayKey(TUESDAY) }));
+
+      expect(result).toBe("changed");
+      expect(await mealOn(WEDNESDAY)).toBeNull();
+    });
+
+    it.each([
+      ["the day itself", 0],
+      ["a later day", 1],
+      ["a day more than six days back", -7],
+    ])("throws for a dinner on %s", async (_label, offset) => {
+      await dinnerOn(addDays(WEDNESDAY, offset));
+
+      await expect(setLeftovers(formData({ day: dayKey(WEDNESDAY), from: dayKey(addDays(WEDNESDAY, offset)) }))).rejects.toThrow(/within reach/);
+    });
+
+    it.each([
+      ["day", { from: "2026-09-28" }],
+      ["from", { day: "2026-09-29" }],
+      ["day", { day: "2026-13-01", from: "2026-09-28" }],
+    ])("throws when `%s` is missing or malformed", async (field, fields) => {
+      await expect(setLeftovers(formData(fields))).rejects.toThrow(new RegExp(`\`${field}\``));
+    });
+  });
+
+  describe("when the dinner goes", () => {
+    beforeEach(async () => {
+      await dinnerOn(MONDAY);
+      await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+      await setLeftovers(formData({ day: dayKey(WEDNESDAY), from: dayKey(MONDAY) }));
+    });
+
+    it("clearing it clears its leftovers days with it", async () => {
+      await clearPlannedMeal(formData({ day: dayKey(MONDAY) }));
+
+      expect(await prisma.plannedMeal.count()).toBe(0);
+    });
+
+    it("emptying the dinner field does too", async () => {
+      await setPlannedMeal(formData({ day: dayKey(MONDAY), dinner: "" }));
+
+      expect(await prisma.plannedMeal.count()).toBe(0);
+    });
+
+    it("clearing the week does", async () => {
+      await clearWeek(formData({ weekStart: dayKey(MONDAY) }));
+
+      expect(await prisma.plannedMeal.count()).toBe(0);
+    });
+
+    it("clearing one leftovers day leaves the dinner and the other day", async () => {
+      await clearPlannedMeal(formData({ day: dayKey(TUESDAY) }));
+
+      expect(await mealOn(MONDAY)).not.toBeNull();
+      expect(await leftoverDays(MONDAY)).toEqual([dayKey(WEDNESDAY)]);
+    });
+
+    it("changing the dinner keeps its leftovers days", async () => {
+      await setPlannedMeal(formData({ day: dayKey(MONDAY), dinner: "Curry" }));
+
+      expect(await leftoverDays(MONDAY)).toEqual([dayKey(TUESDAY), dayKey(WEDNESDAY)]);
+    });
+  });
+
+  it("planning a dinner on a leftovers day replaces the leftovers", async () => {
+    await dinnerOn(MONDAY);
+    await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+    await setPlannedMeal(formData({ day: dayKey(TUESDAY), dinner: "Pizza" }));
+
+    expect(await mealOn(TUESDAY)).toMatchObject({ customTitle: "Pizza", leftoversOf: null });
+    expect(await leftoverDays(MONDAY)).toEqual([]);
+  });
+
+  it("deleting the recipe of a dinner clears the dinner and its leftovers days", async () => {
+    const recipe = await createRecipe();
+    await prisma.plannedMeal.create({ data: { date: MONDAY, recipeId: recipe.id } });
+    await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+    await expectRedirect(deleteRecipe(formData({ id: recipe.id })), "/recipes");
+
+    expect(await prisma.plannedMeal.count()).toBe(0);
+  });
+
+  it("an Undo does not overwrite a leftovers day: it counts as planned", async () => {
+    await dinnerOn(MONDAY);
+    await setLeftovers(formData({ day: dayKey(TUESDAY), from: dayKey(MONDAY) }));
+
+    const result = await restorePlannedMeal(formData({ day: dayKey(TUESDAY), dinner: "Pizza" }));
+
+    expect(result).toBe("occupied");
+    expect(await mealOn(TUESDAY)).toMatchObject({ customTitle: null, leftoversOf: MONDAY });
   });
 });
