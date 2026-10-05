@@ -11,7 +11,9 @@ import { parseDayKey, startOfWeek } from "@/lib/week";
  * Tick or untick a line.
  *
  * Derived lines have no row until they are first ticked, so this upserts by
- * (weekStart, key) and stores the label to keep the row readable on its own.
+ * (weekStart, key) and stores the label to keep the row readable on its own. A hand-added entry carried over
+ * from an earlier week (`carried=1`) has no row in this week either: ticking it writes one for this week with
+ * the entry's amount, unit and section, so it stays here, ticked, and is not carried on.
  */
 export async function toggleGroceryLine(formData: FormData) {
   const weekStart = requireWeekStart(formData);
@@ -20,11 +22,23 @@ export async function toggleGroceryLine(formData: FormData) {
   if (!key) throw new Error("toggleGroceryLine: missing `key`");
 
   const checked = readText(formData, "checked") === "true";
+  // The entry's own details travel with the form, since an earlier week's row is the only other place they are.
+  const carried =
+    readText(formData, "carried") === "1"
+      ? {
+          label: label || key,
+          manual: true,
+          dismissed: false,
+          quantity: parseQuantity(readText(formData, "quantity")),
+          unit: readText(formData, "unit") || null,
+          category: parseGroceryCategory(formData.get("category")),
+        }
+      : {};
 
   await prisma.groceryEntry.upsert({
     where: { weekStart_key: { weekStart, key } },
-    update: { checked },
-    create: { weekStart, key, label: label || key, checked },
+    update: { checked, ...carried },
+    create: { weekStart, key, label: label || key, checked, ...carried },
   });
 
   revalidatePath("/groceries");
@@ -46,18 +60,35 @@ export async function addGroceryExtra(formData: FormData) {
   // (weekStart, key) unique constraint.
   await prisma.groceryEntry.upsert({
     where: { weekStart_key: { weekStart, key } },
-    update: { label, quantity, unit, category, manual: true },
+    // Adding an item that was deleted from this week (and from the weeks after it) brings it back.
+    update: { label, quantity, unit, category, manual: true, dismissed: false },
     create: { weekStart, key, label, quantity, unit, category, manual: true },
   });
 
   revalidatePath("/groceries");
 }
 
+/**
+ * Delete a hand-added entry. One added in this week is deleted. One carried over from an earlier week
+ * (`carried=1`) is deleted from this week on: the earlier weeks keep it, so a row marks it "dismissed"
+ * here, which hides it and ends the carrying.
+ */
 export async function removeGroceryExtra(formData: FormData) {
-  const id = readText(formData, "id");
-  if (!id) throw new Error("removeGroceryExtra: missing `id`");
-
-  await prisma.groceryEntry.delete({ where: { id } });
+  if (readText(formData, "carried") === "1") {
+    const weekStart = requireWeekStart(formData);
+    const key = readText(formData, "key");
+    const label = readText(formData, "label");
+    if (!key) throw new Error("removeGroceryExtra: missing `key`");
+    await prisma.groceryEntry.upsert({
+      where: { weekStart_key: { weekStart, key } },
+      update: { dismissed: true, manual: true, checked: false },
+      create: { weekStart, key, label: label || key, manual: true, dismissed: true },
+    });
+  } else {
+    const id = readText(formData, "id");
+    if (!id) throw new Error("removeGroceryExtra: missing `id`");
+    await prisma.groceryEntry.delete({ where: { id } });
+  }
   revalidatePath("/groceries");
 }
 

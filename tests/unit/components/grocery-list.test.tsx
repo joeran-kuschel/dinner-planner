@@ -452,3 +452,91 @@ describe("GroceryList", () => {
     });
   });
 });
+
+describe("GroceryList: entries carried over from an earlier week", () => {
+  const CARRIED = line({ label: "Soap", manual: true, quantity: 2, unit: "bars", category: "OTHER", carriedWeeks: 1 });
+  const OLD = line({ label: "Wine", manual: true, entryId: "e-wine", carriedWeeks: 3 });
+
+  it("says where a carried line comes from, in words a screen reader reads with the checkbox", () => {
+    renderList([CARRIED, OLD]);
+
+    const soap = screen.getByRole("checkbox", { name: "Tick off Soap" });
+    expect(soap).toHaveAccessibleDescription("Added last week");
+    expect(screen.getByRole("checkbox", { name: "Tick off Wine" })).toHaveAccessibleDescription("Added 3 weeks ago");
+  });
+
+  it("keeps saying 'added by hand' for a line added in this week, and not 'Added … ago'", () => {
+    renderList([NAPKINS]);
+
+    expect(screen.getByText("added by hand")).toBeInTheDocument();
+    expect(screen.queryByText(/^Added /)).not.toBeInTheDocument();
+  });
+
+  it("says 'Added … ago' instead of 'added by hand' on a carried line", () => {
+    renderList([CARRIED]);
+
+    expect(screen.queryByText(/added by hand/)).not.toBeInTheDocument();
+  });
+
+  it("posts the entry's details with a tick, since this week has no row of its own yet", async () => {
+    const { user } = renderList([CARRIED]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Tick off Soap" }));
+
+    await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
+    expect(Object.fromEntries(lastFormData(actions.toggleGroceryLine))).toMatchObject({
+      carried: "1",
+      key: "soap|bars",
+      label: "Soap",
+      quantity: "2",
+      unit: "bars",
+      category: "OTHER",
+      checked: "true",
+    });
+  });
+
+  it("does not post carried details for an ordinary line", async () => {
+    const { user } = renderList([NAPKINS]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Tick off Napkins" }));
+
+    await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
+    expect(lastFormData(actions.toggleGroceryLine).has("carried")).toBe(false);
+  });
+
+  it("can be deleted without a row: the delete says which week and item", async () => {
+    const { user } = renderList([CARRIED]);
+
+    await user.click(screen.getByRole("button", { name: "Remove Soap" }));
+
+    await waitFor(() => expect(actions.removeGroceryExtra).toHaveBeenCalled());
+    expect(Object.fromEntries(lastFormData(actions.removeGroceryExtra))).toEqual({
+      carried: "1",
+      weekStart: "2026-09-28",
+      key: "soap|bars",
+      label: "Soap",
+    });
+  });
+
+  it("can be deleted when this week already has a row for it (ticked here)", async () => {
+    const { user } = renderList([OLD]);
+
+    await user.click(screen.getByRole("button", { name: "Remove Wine" }));
+
+    await waitFor(() => expect(actions.removeGroceryExtra).toHaveBeenCalled());
+    expect(Object.fromEntries(lastFormData(actions.removeGroceryExtra))).toMatchObject({ carried: "1", key: "wine|" });
+    expect(lastFormData(actions.removeGroceryExtra).has("id")).toBe(false);
+  });
+
+  it("has no axe violations", async () => {
+    const { container } = renderList([CARRIED, OLD]);
+    await expectNoAxeViolations(container);
+  });
+
+  it("says it in German", () => {
+    renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[CARRIED, OLD]} />, { locale: "de" });
+
+    expect(screen.getByRole("checkbox", { name: "Soap abhaken" })).toHaveAccessibleDescription("Letzte Woche hinzugefügt");
+    expect(screen.getByRole("checkbox", { name: "Wine abhaken" })).toHaveAccessibleDescription("Hinzugefügt vor 3 Wochen");
+  });
+});

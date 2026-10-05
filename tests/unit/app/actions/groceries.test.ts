@@ -316,3 +316,64 @@ describe("removeGroceryExtra", () => {
     },
   );
 });
+
+describe("entries carried over from an earlier week", () => {
+  const wine = { weekStart: dayKey(NEXT_WEEK), key: "wine|bottles", label: "Wine" };
+
+  beforeEach(async () => {
+    await prisma.groceryEntry.create({
+      data: { weekStart: WEEK, key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", category: "DRINKS", manual: true },
+    });
+  });
+
+  it("ticking one writes a hand-added row for this week with its details, and leaves the earlier week alone", async () => {
+    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([
+      { key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", category: "DRINKS", manual: true, checked: true, dismissed: false },
+    ]);
+    expect(await entries()).toMatchObject([{ checked: false, manual: true }]);
+  });
+
+  it("ticking it again after unticking updates the same row", async () => {
+    const fields = { ...wine, carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" };
+    await toggleGroceryLine(formData({ ...fields, checked: "true" }));
+    await toggleGroceryLine(formData({ ...fields, checked: "false" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([{ checked: false, manual: true }]);
+  });
+
+  it("a tick without `carried` still writes a plain tick row", async () => {
+    await toggleGroceryLine(formData({ ...wine, checked: "true" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([{ manual: false, quantity: null, checked: true }]);
+  });
+
+  it("deleting one in this week writes a dismissed row and leaves the earlier week's entry", async () => {
+    await removeGroceryExtra(formData({ ...wine, carried: "1" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([{ key: "wine|bottles", manual: true, dismissed: true, checked: false }]);
+    expect(await entries()).toHaveLength(1);
+    expectGroceriesRevalidated();
+  });
+
+  it("deleting one that was ticked in this week dismisses it, unticked", async () => {
+    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" }));
+
+    await removeGroceryExtra(formData({ ...wine, carried: "1" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([{ dismissed: true, checked: false }]);
+  });
+
+  it("throws for a carried deletion without a key", async () => {
+    await expect(removeGroceryExtra(formData({ weekStart: dayKey(NEXT_WEEK), carried: "1" }))).rejects.toThrow(/`key`/);
+  });
+
+  it("adding the same item again in this week brings back a dismissed one", async () => {
+    await removeGroceryExtra(formData({ ...wine, carried: "1" }));
+
+    await addGroceryExtra(formData({ weekStart: dayKey(NEXT_WEEK), label: "Wine", unit: "bottles", quantity: "1" }));
+
+    expect(await entries(NEXT_WEEK)).toMatchObject([{ manual: true, dismissed: false, quantity: 1 }]);
+  });
+});

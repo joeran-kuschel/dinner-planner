@@ -105,9 +105,18 @@ msgstr "Zutat hinzufügen"
 msgid "Add something else"
 msgstr "Etwas anderes hinzufügen"
 
+#. placeholder {0}: line.carriedWeeks
+#: components/grocery-list.tsx
+msgid "Added {0} weeks ago"
+msgstr "Hinzugefügt vor {0} Wochen"
+
 #: components/grocery-list.tsx
 msgid "added by hand"
 msgstr "von Hand hinzugefügt"
+
+#: components/grocery-list.tsx
+msgid "Added last week"
+msgstr "Letzte Woche hinzugefügt"
 
 #: components/tag-input.tsx
 msgid "Added tag {added}"
