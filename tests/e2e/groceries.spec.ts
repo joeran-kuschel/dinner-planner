@@ -415,3 +415,86 @@ test.describe("copy and print", () => {
     expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
   });
 });
+
+test.describe("hand-added entries carried over", () => {
+  // Three Mondays far from today; the entry is added in the first one.
+  const [W1, W2, W3] = ["2027-06-07", "2027-06-14", "2027-06-21"];
+
+  async function addItem(page: Page, week: string, item: string) {
+    await page.goto(`/groceries?week=${week}`);
+    await openAddForm(page);
+    await page.getByRole("textbox", { name: "Item", exact: true }).fill(item);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(groceryRow(page, item)).toBeVisible();
+  }
+
+  const box = (page: Page, item: string) => page.getByRole("checkbox", { name: `Tick off ${item}`, exact: true });
+
+  test("an unticked entry follows to the next weeks, marked, until it is ticked", async ({ page }) => {
+    const item = unique("Soap");
+    await addItem(page, W1, item);
+    await expect(page.getByText(/^Added (last week|\d+ weeks ago)$/)).toHaveCount(0);
+
+    await page.goto(`/groceries?week=${W2}`);
+    await expect(box(page, item)).toBeVisible();
+    await expect(box(page, item)).toHaveAccessibleDescription("Added last week");
+    await expectAccessible(page);
+
+    await page.goto(`/groceries?week=${W3}`);
+    await expect(box(page, item)).toHaveAccessibleDescription("Added 2 weeks ago");
+
+    await box(page, item).click();
+    await expect(box(page, item)).toBeChecked();
+    await page.reload();
+    await expect(box(page, item)).toBeChecked();
+
+    await page.goto(`/groceries?week=2027-06-28`);
+    await expect(box(page, item)).toHaveCount(0);
+    // The weeks before keep what they had.
+    await page.goto(`/groceries?week=${W1}`);
+    await expect(box(page, item)).not.toBeChecked();
+    await page.goto(`/groceries?week=${W2}`);
+    await expect(box(page, item)).not.toBeChecked();
+  });
+
+  test("a week the app was not opened in loses nothing", async ({ page }) => {
+    const item = unique("Candles");
+    await addItem(page, W1, item);
+
+    await page.goto("/groceries?week=2027-08-02");
+
+    await expect(box(page, item)).toBeVisible();
+    await expect(box(page, item)).toHaveAccessibleDescription("Added 8 weeks ago");
+  });
+
+  test("deleting a carried entry removes it from this week on, and the earlier weeks keep it", async ({ page }) => {
+    const item = unique("Wine");
+    await addItem(page, W1, item);
+
+    await page.goto(`/groceries?week=${W2}`);
+    await page.getByRole("button", { name: `Remove ${item}`, exact: true }).click();
+    await expect(box(page, item)).toHaveCount(0);
+
+    await page.goto(`/groceries?week=${W3}`);
+    await expect(box(page, item)).toHaveCount(0);
+    await page.goto(`/groceries?week=${W1}`);
+    await expect(box(page, item)).toBeVisible();
+
+    // Adding it again in a later week starts over.
+    await addItem(page, W3, item);
+    await expect(box(page, item)).toBeVisible();
+    await expect(groceryRow(page, item).getByText("added by hand")).toBeVisible();
+    await expect(page.getByText("Added 2 weeks ago")).toHaveCount(0);
+  });
+
+  test("an entry ticked in its own week is not carried", async ({ page }) => {
+    const item = unique("Tape");
+    await addItem(page, W1, item);
+    await box(page, item).click();
+    await expect(box(page, item)).toBeChecked();
+
+    await page.goto(`/groceries?week=${W2}`);
+
+    await expect(box(page, item)).toHaveCount(0);
+  });
+});

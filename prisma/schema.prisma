@@ -142,6 +142,9 @@ model GroceryEntry {
   /// True for lines the user typed in; false for rows that only carry `checked`.
   manual    Boolean  @default(false)
   checked   Boolean  @default(false)
+  /// A hand-added entry carried over from an earlier week that was deleted in this one: it is hidden from this
+  /// week on and no longer carried (see lib/grocery-carry.ts). Deleting it in the week it was added deletes the row.
+  dismissed Boolean  @default(false)
 
   @@unique([weekStart, key])
   @@index([weekStart])

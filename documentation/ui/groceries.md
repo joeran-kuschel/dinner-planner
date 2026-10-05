@@ -85,11 +85,25 @@ the page header, above the list, as a disclosure that is **closed** when you arr
 see; it works with the keyboard (Enter or Space on the line opens it) and without JavaScript. With JavaScript it stays open while you add
 the next items, and the item field is empty again after each one (without JavaScript the page reloads after each item and
 the fold-out is closed again); opening the page again, or moving to another week, starts closed. Fill in the item
-and, if you like, an amount, a unit and a **Category** (**Other** unless you choose one). Lines added by hand are marked "added by hand" and are the only ones with a ✕
+and, if you like, an amount, a unit and a **Category** (**Other** unless you choose one). Lines added by hand are marked "added by hand" (or "Added last week" and the like once carried over, see below) and are the only ones with a ✕
 to remove them; lines that come from the plan cannot be deleted, since they would return with the plan.
 
 The **Item** is the only mandatory field. It carries an "*" in the accent colour in its label, and the line "* required" above
 the fields explains the mark (see "Mandatory fields" in [recipes](recipes.md)).
+
+## Carried over to the next week
+
+A line you added by hand and did not tick is not lost when the week ends: it **moves to the next week's list, and
+keeps moving every week until it is ticked**. Instead of "added by hand" its second row says "Added last week" ("Letzte Woche hinzugefügt"), or "Added 3 weeks ago"
+("Hinzugefügt vor 3 Wochen") for one added longer ago; a screen reader reads it with the checkbox. It keeps its amount, unit and section, and it can be ticked and deleted like any other hand-added line.
+
+- **Ticking it** keeps it in the week you ticked it in, struck through like every ticked line, and it does not move on
+  after that. Unticking it again lets it move on. Earlier weeks are shown as they were: it only moves forward.
+- **Deleting it** (the ✕) removes it from that week on. The earlier weeks keep it, since they are history. Adding the
+  same item again later starts it over.
+- A week the app was not opened in loses nothing: the entry is there when you get to that week, however many weeks
+  later. Lines that come from the plan are not carried: they follow each week's dinners as always.
+- The progress line, **Copy list** and **Print** count a carried line like any other.
 
 ## Copy and print
 

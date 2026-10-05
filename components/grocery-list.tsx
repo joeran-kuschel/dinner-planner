@@ -2,14 +2,19 @@
 
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
-import { type FormEvent, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { type FormEvent, useId, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
 import { categoryLabel } from "@/lib/grocery-category";
 
 /** A line of the list; `pantry` marks one that a pantry staple would hide, shown because the user asked. */
-export type GroceryListLine = GroceryLine & { entryId: string | null; pantry?: boolean };
+export type GroceryListLine = GroceryLine & {
+  entryId: string | null;
+  pantry?: boolean;
+  /** For a hand-added entry carried over from an earlier week: how many weeks ago it was added. */
+  carriedWeeks?: number;
+};
 
 export type GroceryListProps = {
   weekStart: string;
@@ -104,6 +109,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   const [checked, setChecked] = useOptimistic(line.checked);
   const [failed, setFailed] = useState(false);
   const hydrated = useHydrated();
+  const noteId = useId();
   const [, startTransition] = useTransition();
 
   // The box flips for the time of the save and shows what is stored again once it ends, so a save
@@ -127,7 +133,14 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   const notes = [
     line.sources.length > 0 ? line.sources.join(", ") : null,
     line.pantry ? t(i18n)`in the pantry` : null,
-    line.manual && line.sources.length === 0 ? t(i18n)`added by hand` : null,
+    // A carried entry says when it was added instead of "added by hand".
+    line.carriedWeeks
+      ? line.carriedWeeks === 1
+        ? t(i18n)`Added last week`
+        : t(i18n)`Added ${line.carriedWeeks} weeks ago`
+      : line.manual && line.sources.length === 0
+        ? t(i18n)`added by hand`
+        : null,
   ].filter((note) => note !== null);
 
   return (
@@ -137,6 +150,15 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
         <input type="hidden" name="weekStart" value={weekStart} />
         <input type="hidden" name="key" value={line.key} />
         <input type="hidden" name="label" value={line.label} />
+        {/* A carried entry has no row in this week yet: its details travel with the tick. */}
+        {line.carriedWeeks ? (
+          <>
+            <input type="hidden" name="carried" value="1" />
+            <input type="hidden" name="quantity" value={line.quantity ?? ""} />
+            <input type="hidden" name="unit" value={line.unit ?? ""} />
+            <input type="hidden" name="category" value={line.category} />
+          </>
+        ) : null}
         {/* The hidden field carries the value the action should persist, which is the opposite of the
             state shown now. */}
         <input type="hidden" name="checked" value={String(!checked)} />
@@ -149,13 +171,18 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
             onChange={() => formRef.current?.requestSubmit()}
             className="size-6 shrink-0 accent-[var(--herb)]"
             aria-label={t(i18n)`Tick off ${label}`}
+            aria-describedby={line.carriedWeeks ? noteId : undefined}
           />
 
           <span className="flex min-w-0 flex-1 flex-col">
             {/* Ticked lines are struck through and muted rather than faded: opacity would push the text
                 below AA contrast. */}
             <span className={`text-base ${checked ? "text-muted line-through" : ""}`}>{line.label}</span>
-            {notes.length > 0 && <span className="text-sm text-muted">{notes.join(" · ")}</span>}
+            {notes.length > 0 && (
+              <span id={noteId} className="text-sm text-muted">
+                {notes.join(" · ")}
+              </span>
+            )}
           </span>
 
           <span className="shrink-0 text-sm text-muted">{formatGroceryQuantity(line, i18n)}</span>
@@ -168,9 +195,19 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
       </form>
 
       {/* Only hand-added lines can be deleted; derived ones come back from the plan. */}
-      {line.manual && line.entryId && (
+      {line.manual && (line.entryId || line.carriedWeeks !== undefined) && (
         <form action={removeGroceryExtra} className="pr-2 print:hidden">
-          <input type="hidden" name="id" value={line.entryId} />
+          {line.carriedWeeks !== undefined ? (
+            <>
+              {/* An entry from an earlier week is hidden from this week on; the earlier weeks keep it. */}
+              <input type="hidden" name="carried" value="1" />
+              <input type="hidden" name="weekStart" value={weekStart} />
+              <input type="hidden" name="key" value={line.key} />
+              <input type="hidden" name="label" value={line.label} />
+            </>
+          ) : (
+            <input type="hidden" name="id" value={line.entryId ?? ""} />
+          )}
           <RemoveButton label={line.label} />
         </form>
       )}

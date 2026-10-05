@@ -227,6 +227,12 @@ tags no recipe uses in the same transaction. The recipe list's search is a GET f
 over `lib/recipe-search.ts`, which escapes `%` and `_` for `contains`. Details:
 `documentation/backend/recipe-tags.md`.
 
+**Hand-added grocery entries carry over to the next week, worked out when the list renders.** An entry still
+unticked at the end of its week appears in the following weeks until it is ticked (`carriedEntries()` in
+`lib/grocery-carry.ts`); nothing is stored for the weeks it passes through. A tick writes a row for that week and
+ends it; deleting a carried line writes a `dismissed` row, so the earlier weeks keep it. Details:
+`documentation/backend/grocery-carry-over.md`.
+
 **Pantry staples hide derived grocery lines at render time and store nothing on
 the lines.** `PantryStaple` is a global table of normalised names (the same
 `normalize` as tags); `splitStaples()` (`lib/pantry.ts`) runs after the aggregation,

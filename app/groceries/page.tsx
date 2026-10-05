@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
+import { carriedEntries, carryRowsWhere } from "@/lib/grocery-carry";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
@@ -25,18 +26,22 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, entries, staples, ingredientNames] = await Promise.all([
+  const [meals, entries, earlierEntries, staples, ingredientNames] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
       include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
     }),
     prisma.groceryEntry.findMany({ where: { weekStart } }),
+    // What the earlier weeks left unticked; see lib/grocery-carry.ts.
+    prisma.groceryEntry.findMany({ where: carryRowsWhere(weekStart) }),
     prisma.pantryStaple.findMany({ orderBy: { name: "asc" } }),
     // What a staple can be, offered while typing one.
     prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
   ]);
 
   const entriesByKey = new Map(entries.map((entry) => [entry.key, entry]));
+  // Hand-added entries still unticked from earlier weeks, by key: they are listed here too.
+  const carried = new Map(carriedEntries(earlierEntries, weekStart).map((entry) => [entry.key, entry]));
 
   // Derived lines come from the plan; stored entries only contribute tick state.
   const derived: (GroceryLine & { entryId: string | null })[] = aggregateIngredients(
@@ -59,7 +64,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       ...line,
       manual: false,
       // A line added by hand with this name and unit is shown as this one line; a staple must not hide it.
-      handAdded: entry?.manual ?? false,
+      handAdded: Boolean(entry?.manual && !entry.dismissed) || (carried.has(line.key) && !entry?.dismissed),
       checked: entry?.checked ?? false,
       entryId: entry?.id ?? null,
     };
@@ -67,9 +72,10 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
 
   const derivedKeys = new Set(derived.map((line) => line.key));
 
-  // Manual extras that do not collide with a derived line are listed alongside.
+  // Manual extras that do not collide with a derived line are listed alongside; one that was deleted from
+  // this week on (dismissed) is not.
   const extras = entries
-    .filter((entry) => entry.manual && !derivedKeys.has(entry.key))
+    .filter((entry) => entry.manual && !entry.dismissed && !derivedKeys.has(entry.key))
     .map((entry) => ({
       key: entry.key,
       label: entry.label,
@@ -80,9 +86,27 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       manual: true,
       checked: entry.checked,
       entryId: entry.id,
+      carriedWeeks: carried.get(entry.key)?.weeksAgo,
     }));
 
-  const allLines = [...derived, ...extras].sort((a, b) => a.label.localeCompare(b.label));
+  // A carried entry with no row of its own in this week (a row means it was ticked, deleted or added again here).
+  const rowKeys = new Set(entries.filter((entry) => entry.manual || entry.dismissed).map((entry) => entry.key));
+  const carriedLines = [...carried.values()]
+    .filter((entry) => !rowKeys.has(entry.key) && !derivedKeys.has(entry.key))
+    .map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      quantity: entry.quantity,
+      unit: entry.unit,
+      category: entry.category,
+      sources: [] as string[],
+      manual: true,
+      checked: entriesByKey.get(entry.key)?.checked ?? false,
+      entryId: null,
+      carriedWeeks: entry.weeksAgo,
+    }));
+
+  const allLines = [...derived, ...extras, ...carriedLines].sort((a, b) => a.label.localeCompare(b.label));
   // A pantry staple only decides which derived lines are shown; nothing about a line is stored for it.
   const pantryView = applyStaples(
     allLines,
