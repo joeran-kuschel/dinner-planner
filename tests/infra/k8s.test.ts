@@ -93,6 +93,7 @@ describe("Kubernetes setup for Docker Desktop", () => {
     // The Secret is not a manifest: deploy.sh creates it (k8s/db-secret.sh), so it is named there.
     expect(named("Secret")).toEqual([]);
     const secrets = [/^DB_SECRET=(\S+)$/m.exec(read("k8s/db-secret.sh"))![1]];
+    const authSecret = /^AUTH_SECRET=(\S+)$/m.exec(read("k8s/auth-secret.sh"))![1];
     const services = named("Service");
     const podLabels = all.flatMap((r: Resource) => (r.spec?.template?.metadata?.labels ? [r.spec.template.metadata.labels] : []));
 
@@ -111,6 +112,11 @@ describe("Kubernetes setup for Docker Desktop", () => {
         rule.http.paths.map((p: Resource) => p.backend.service.name),
       );
       for (const backend of backends) expect(services.map((s) => s.metadata.name)).toContain(backend);
+    }
+
+    // The Ingress asks for the login in the Secret that deploy.sh creates from k8s/auth-secret.sh.
+    for (const ingress of named("Ingress")) {
+      expect(ingress.metadata.annotations["nginx.ingress.kubernetes.io/auth-secret"]).toBe(authSecret);
     }
 
     const manifest = secretManifest("dinner", "pw", "dinner_planner");
@@ -136,6 +142,58 @@ describe("Kubernetes setup for Docker Desktop", () => {
     const files = [...fs.readdirSync(K8S).map((file) => `k8s/${file}`), "package.json"];
 
     for (const file of files) expect(read(file), file).not.toMatch(/minikube/i);
+  });
+});
+
+describe("basic auth on the Ingress", () => {
+  const annotations = () => {
+    const [ingress] = resources("ingress.yaml").filter((r) => r?.kind === "Ingress");
+    return ingress.metadata.annotations;
+  };
+
+  it("asks for a login on this app's Ingress", () => {
+    expect(annotations()).toMatchObject({
+      "nginx.ingress.kubernetes.io/auth-type": "basic",
+      "nginx.ingress.kubernetes.io/auth-secret": "dinner-planner-auth",
+      "nginx.ingress.kubernetes.io/auth-realm": "Dinner Planner",
+    });
+  });
+
+  it("renders the Secret as an htpasswd line in the key nginx reads, in the app's namespace, without the password", () => {
+    const output = execFileSync("bash", ["-c", 'source k8s/auth-secret.sh && auth_secret_manifest "$@"', "bash", "dinner", "s3cret-pw"], {
+      encoding: "utf-8",
+    });
+    const manifest = parse(output);
+
+    expect(manifest.metadata).toEqual({ name: "dinner-planner-auth", namespace: "dinner-planner" });
+    expect(manifest.stringData.auth).toMatch(/^dinner:\$apr1\$[./0-9A-Za-z]+\$[./0-9A-Za-z]{22}$/);
+    expect(output).not.toContain("s3cret-pw");
+    // The same password and user check out against the hash (what nginx does).
+    const hash = manifest.stringData.auth.slice("dinner:".length);
+    const salt = hash.split("$")[2];
+    const again = execFileSync("openssl", ["passwd", "-apr1", "-salt", salt, "-stdin"], { input: "s3cret-pw", encoding: "utf-8" });
+    expect(again.trim()).toBe(hash);
+  });
+
+  it("keeps the login hash out of the manifests, the scripts and the docs, and the Secret's name out of other scripts", () => {
+    for (const file of fs.readdirSync(K8S)) {
+      const text = read(`k8s/${file}`);
+      if (file.endsWith(".yaml")) expect(text, file).not.toMatch(/^\s*auth:\s/m);
+      expect(text, file).not.toMatch(/\$apr1\$/);
+    }
+    for (const file of ["README.md", "CLAUDE.md"]) expect(read(file), file).not.toMatch(/\$apr1\$/);
+
+    const knowsSecret = fs
+      .readdirSync(K8S)
+      .filter((file) => file.endsWith(".sh") && read(`k8s/${file}`).match(/AUTH_SECRET|dinner-planner-auth/))
+      .sort();
+    expect(knowsSecret).toEqual(["auth-secret.sh", "deploy.sh", "rotate-auth-password.sh"]);
+  });
+
+  it("is set on this Ingress only: no script annotates or patches the shared controller", () => {
+    for (const file of fs.readdirSync(K8S).filter((f) => f.endsWith(".sh"))) {
+      expect(read(`k8s/${file}`), file).not.toMatch(/ingress-nginx.*(annotate|patch|auth)/);
+    }
   });
 });
 

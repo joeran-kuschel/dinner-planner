@@ -11,6 +11,11 @@ metadata:
     # is shared with other apps and must not be changed. Above the app's own
     # 5 MB photo limit and the 6 MB server-action limit in next.config.ts.
     nginx.ingress.kubernetes.io/proxy-body-size: 8m
+    # HTTP basic auth for the whole app. The Secret is not a manifest: deploy.sh creates it once with a random
+    # password (k8s/auth-secret.sh), so no password is in the repository. Also on this Ingress only.
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: dinner-planner-auth
+    nginx.ingress.kubernetes.io/auth-realm: Dinner Planner
 spec:
   ingressClassName: nginx
   rules:

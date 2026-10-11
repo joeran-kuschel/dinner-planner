@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- `http://dinner.local` asks for a user name and password. The first `npm run k8s:deploy` after this prints the password once (the user is `dinner`); `npm run k8s:rotate-auth-password` gives you a new one if you lose it ([#57](https://github.com/joeran-kuschel/dinner-planner/issues/57)).
 - Things you added to the grocery list by hand and did not tick move on to the next week's list, marked "Added last week" or "Added 3 weeks ago", until you tick or delete them; earlier weeks stay as they were ([#38](https://github.com/joeran-kuschel/dinner-planner/issues/38)).
 - A day can be the leftovers of an earlier dinner: **Leftovers** on an empty day lets you pick one of the dinners of the six days before. The day links back to the dinner, adds nothing to the grocery list, and is cleared with the dinner ([#4](https://github.com/joeran-kuschel/dinner-planner/issues/4)).
 - Two new shop sections on the grocery list: "Pasta, rice, etc." (before Pantry) and "Herbs & spices" (after Pantry), offered by the recipe form and the add-entry form; existing ingredients keep their section ([#43](https://github.com/joeran-kuschel/dinner-planner/issues/43), [#39](https://github.com/joeran-kuschel/dinner-planner/issues/39)).
