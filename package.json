@@ -34,7 +34,6 @@
     "k8s:backup": "bash k8s/backup-db.sh",
     "k8s:restore": "bash k8s/restore-db.sh",
     "k8s:rotate-db-password": "bash k8s/rotate-db-password.sh",
-    "k8s:rotate-auth-password": "bash k8s/rotate-auth-password.sh",
     "k8s:backup:install": "bash k8s/install-backup-job.sh"
   },
   "dependencies": {

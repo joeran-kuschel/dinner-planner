@@ -11,7 +11,7 @@ const K8S = path.join(process.cwd(), "k8s");
 // Logs every call. `kustomize` prints the real app manifest (standing in for the
 // rendered kustomization), `apply -f -` stores what it is given (the last one in
 // applied.yaml, all of them in applied-all.yaml), `get secret` says the database Secret
-// does not exist unless SECRET_EXIT=0 (the login Secret: AUTH_SECRET_EXIT=0), and each command can be made to fail through FAIL_<name>.
+// does not exist unless SECRET_EXIT=0, and each command can be made to fail through FAIL_<name>.
 const FAKE_KUBECTL = `#!/bin/bash
 echo "$*" >> "$FAKE_DIR/kubectl.log"
 args="$*"
@@ -21,7 +21,6 @@ case "$args" in
   *"get ingressclass nginx"*) exit "\${FAIL_INGRESS:-0}" ;;
   *"kustomize k8s"*) cat k8s/app.yaml ;;
   *"get secret dinner-planner-db"*) exit "\${SECRET_EXIT:-1}" ;;
-  *"get secret dinner-planner-auth"*) exit "\${AUTH_SECRET_EXIT:-1}" ;;
   *"apply -f -"*) tee -a "$FAKE_DIR/applied-all.yaml" > "$FAKE_DIR/applied.yaml" ;;
   *"rollout status deployment/"*) exit "\${FAIL_ROLLOUT:-0}" ;;
   *"get deployment dinner-planner -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planner-migrator:20260928101500}" ;;
@@ -38,8 +37,7 @@ case "$1" in
   exec) cat >> "$FAKE_DIR/imported" ;;
 esac
 `;
-// Prints the status code that deploy.sh asks for with -w (200 unless CURL_CODE says otherwise, 000 like curl when it fails).
-const FAKE_CURL = '#!/bin/bash\necho "$*" >> "$FAKE_DIR/curl.log"\nif [ "${FAIL_CURL:-0}" != 0 ]; then printf 000; exit "$FAIL_CURL"; fi\nprintf "%s" "${CURL_CODE:-200}"\n';
+const FAKE_CURL = '#!/bin/bash\necho "$*" >> "$FAKE_DIR/curl.log"\nexit "${FAIL_CURL:-0}"\n';
 const FAKE_SLEEP = "#!/bin/bash\nexit 0\n";
 
 let dir: string;
@@ -108,31 +106,6 @@ describe("deploy.sh", () => {
     expect(result.stdout).toContain("exists and is kept");
   });
 
-  it("creates the login Secret the first time and prints its password once and puts it on no command line", () => {
-    const result = run("deploy.sh");
-
-    expect(result.status).toBe(0);
-    const applied = log("applied-all.yaml");
-    expect(applied).toMatch(/name: dinner-planner-auth\n[\s\S]*auth: "dinner:\$apr1\$[^"]+"/);
-    const password = /password: (\w+)/.exec(result.stdout)![1];
-    expect(password).toMatch(/^[0-9a-f]{24}$/);
-    expect(result.stdout).toContain("user:     dinner");
-    // The Secret holds a hash, never the password itself, and the password is in no command line.
-    expect(applied).not.toContain(password);
-    expect(log("kubectl.log")).not.toContain(password);
-    expect(log("docker.log")).not.toContain(password);
-    expect(result.stderr).not.toContain(password);
-  });
-
-  it("keeps an existing login Secret and prints no password", () => {
-    const result = run("deploy.sh", { AUTH_SECRET_EXIT: "0" });
-
-    expect(result.status).toBe(0);
-    expect(log("applied-all.yaml")).not.toContain("dinner-planner-auth");
-    expect(result.stdout).toContain("The dinner-planner-auth Secret exists and is kept");
-    expect(result.stdout).not.toContain("password:");
-  });
-
   it("builds both targets under one fresh timestamp tag and imports them into the node", () => {
     const result = run("deploy.sh");
 
@@ -165,21 +138,6 @@ describe("deploy.sh", () => {
     expect(log("kubectl.log")).toContain("-n dinner-planner rollout status deployment/dinner-planner");
     expect(log("curl.log")).toContain("-H Host: dinner.local http://127.0.0.1/");
     expect(result.stdout).toContain("Open http://dinner.local");
-  });
-
-  it("counts the ingress's 401 for a request without the login as an answer", () => {
-    const result = run("deploy.sh", { CURL_CODE: "401" });
-
-    expect(result.status).toBe(0);
-    expect(log("curl.log").trim().split("\n")).toHaveLength(1);
-    expect(result.stdout).toContain("Open http://dinner.local");
-  });
-
-  it("does not count an error page from the ingress as an answer", () => {
-    const result = run("deploy.sh", { CURL_CODE: "503" });
-
-    expect(result.status).not.toBe(0);
-    expect(log("curl.log").trim().split("\n")).toHaveLength(30);
   });
 
   it("stops before building when the cluster is not reachable", () => {
