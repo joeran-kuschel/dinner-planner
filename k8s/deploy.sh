@@ -20,6 +20,8 @@ MIGRATOR_IMAGE="$MIGRATOR_REPO:$TAG"
 cd "$(dirname "$0")/.."
 # shellcheck source=k8s/db-secret.sh
 source k8s/db-secret.sh
+# shellcheck source=k8s/auth-secret.sh
+source k8s/auth-secret.sh
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
@@ -53,6 +55,20 @@ if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$DB_SECRET" >/dev/null 2>&1; then
 else
   db_secret_manifest dinner "$(new_db_password)" dinner_planner | "${KUBECTL[@]}" apply -f - >/dev/null
   echo "Created the $DB_SECRET Secret with a random password."
+fi
+
+step "Checking the login"
+# Like the database Secret, the login is not in k8s/. It is created once with a random password, which is printed
+# this one time (the Secret only holds its hash) and then left alone. `npm run k8s:rotate-auth-password` replaces it.
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$AUTH_SECRET" >/dev/null 2>&1; then
+  echo "The $AUTH_SECRET Secret exists and is kept."
+else
+  AUTH_PASSWORD="$(new_auth_password)"
+  auth_secret_manifest "$AUTH_USER" "$AUTH_PASSWORD" | "${KUBECTL[@]}" apply -f - >/dev/null
+  echo "Created the $AUTH_SECRET Secret. http://${HOST} asks for this login; save it now, it is not shown again:"
+  echo
+  echo "  user:     $AUTH_USER"
+  echo "  password: $AUTH_PASSWORD"
 fi
 
 step "Building images ($TAG)"
@@ -108,9 +124,11 @@ for line in "127.0.0.1 ${HOST}" "::1 ${HOST}"; do
   fi
 done
 
-# The ingress controller takes a few seconds to pick up a new Ingress.
+# The ingress controller takes a few seconds to pick up a new Ingress. It answers 401 to a request without the
+# login, and that is the proof that it is up and asking for one.
 for _ in $(seq 1 30); do
-  if curl -s -o /dev/null --max-time 3 --fail -H "Host: ${HOST}" "http://127.0.0.1/"; then
+  code="$(curl -s -o /dev/null --max-time 3 -w '%{http_code}' -H "Host: ${HOST}" "http://127.0.0.1/" || true)"
+  if [[ "$code" == 200 || "$code" == 401 ]]; then
     echo "Open http://${HOST}"
     exit 0
   fi

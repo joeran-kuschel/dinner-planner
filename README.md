@@ -46,6 +46,9 @@ The app is then at http://dinner.local. `k8s:deploy` prints the `/etc/hosts`
 lines to add if they are missing (they need sudo, so it will not do it for
 you). `npm run k8s:delete` removes it again, including its database. The first deploy creates the
 database login with a random password; `npm run k8s:rotate-db-password` replaces it later.
+`http://dinner.local` asks for a login (user `dinner`). The first deploy prints its random password **once**, so
+save it; `npm run k8s:rotate-auth-password` gives you a new one. See
+[documentation/backend/ingress-auth.md](documentation/backend/ingress-auth.md).
 
 The cluster's database is backed up every hour to `~/DinnerPlannerBackups` once
 you run `npm run k8s:backup:install`; see
