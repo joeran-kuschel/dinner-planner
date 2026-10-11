@@ -31,7 +31,6 @@ npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal
 npm run k8s:seed     # sample data into the cluster's database (one-off Job)
 npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
 npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
-npm run k8s:rotate-auth-password   # a new random login password for http://dinner.local, printed once
 npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
 npm run k8s:status   # pods, services, ingress
 npm run k8s:logs     # follow the app's logs
@@ -314,11 +313,6 @@ change.
   migrator image installs with `--omit=dev`; moving any of them to
   `devDependencies` breaks migrations and seeding in the cluster with
   `Cannot find module 'dotenv/config'`.
-- **The Ingress asks for a login (basic auth).** The `dinner-planner-auth` Secret holds only the password's hash; like
-  the database Secret it is not a manifest: `deploy.sh` creates it once from `k8s/auth-secret.sh`, prints the random
-  password that one time and keeps it afterwards (`npm run k8s:rotate-auth-password` replaces it). The annotations are
-  on this app's Ingress only, never on the shared controller, and `deploy.sh` counts the Ingress's 401 as "up".
-  Details: `documentation/backend/ingress-auth.md`.
 - **Access is via Ingress at `http://dinner.local`.** Docker Desktop publishes
   the ingress controller's LoadBalancer on `localhost:80`, so `/etc/hosts` needs
   `127.0.0.1 dinner.local` **and** `::1 dinner.local`: without the IPv6 line,
