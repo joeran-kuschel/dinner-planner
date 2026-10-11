@@ -67,6 +67,25 @@ describe("POST /recipes/import", () => {
     expect(await response.json()).toMatchObject({ ok: false });
   });
 
+  it("refuses a request from another website with 403, though the address would import", async () => {
+    vi.stubEnv("RECIPE_IMPORT_ALLOW_PRIVATE", "1");
+    const crossSite: Record<string, string>[] = [
+      { "content-type": "application/json", "sec-fetch-site": "cross-site" },
+      { "content-type": "application/json", origin: "https://evil.example" },
+    ];
+    for (const headers of crossSite) {
+      const response = await post({ url: `${site.base}/recipe` }, headers);
+      expect(response.status, JSON.stringify(headers)).toBe(403);
+      expect(await response.json()).toEqual({ ok: false, error: "blocked" });
+    }
+  });
+
+  it("answers the import dialog's own request, which the browser marks same-origin", async () => {
+    vi.stubEnv("RECIPE_IMPORT_ALLOW_PRIVATE", "1");
+    const response = await post({ url: `${site.base}/recipe` }, { "content-type": "application/json", "sec-fetch-site": "same-origin" });
+    expect(response.status).toBe(200);
+  });
+
   it("wants a JSON body, which also keeps other websites from posting to it without asking first", async () => {
     const wrong: Record<string, string>[] = [{ "content-type": "text/plain" }, { "content-type": "application/x-www-form-urlencoded" }, {}];
     for (const headers of wrong) {

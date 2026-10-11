@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- The recipe import (the link and its photo) refuses requests that come from another website, so another website open in your browser cannot make the app fetch addresses for it by sending a request across sites ([#58](https://github.com/joeran-kuschel/dinner-planner/issues/58)).
 - Things you added to the grocery list by hand and did not tick move on to the next week's list, marked "Added last week" or "Added 3 weeks ago", until you tick or delete them; earlier weeks stay as they were ([#38](https://github.com/joeran-kuschel/dinner-planner/issues/38)).
 - A day can be the leftovers of an earlier dinner: **Leftovers** on an empty day lets you pick one of the dinners of the six days before. The day links back to the dinner, adds nothing to the grocery list, and is cleared with the dinner ([#4](https://github.com/joeran-kuschel/dinner-planner/issues/4)).
 - Two new shop sections on the grocery list: "Pasta, rice, etc." (before Pantry) and "Herbs & spices" (after Pantry), offered by the recipe form and the add-entry form; existing ingredients keep their section ([#43](https://github.com/joeran-kuschel/dinner-planner/issues/43), [#39](https://github.com/joeran-kuschel/dinner-planner/issues/39)).

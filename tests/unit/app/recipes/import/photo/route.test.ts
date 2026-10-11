@@ -16,6 +16,18 @@ describe("POST /recipes/import/photo", () => {
   // The sample website runs on this machine, which the import refuses unless the test switch is on.
   beforeEach(() => vi.stubEnv("RECIPE_IMPORT_ALLOW_PRIVATE", "1"));
 
+  it("refuses a request from another website with 403, though the picture would be handed over", async () => {
+    const crossSite: Record<string, string>[] = [
+      { "content-type": "application/json", "sec-fetch-site": "cross-site" },
+      { "content-type": "application/json", origin: "https://evil.example" },
+    ];
+    for (const headers of crossSite) {
+      const response = await post({ url: `${site.base}/photo.jpg` }, headers);
+      expect(response.status, JSON.stringify(headers)).toBe(403);
+      expect(await response.json()).toEqual({ ok: false, error: "blocked" });
+    }
+  });
+
   it.each([
     ["/photo.jpg", "image/jpeg"],
     ["/photo.png", "image/png"],

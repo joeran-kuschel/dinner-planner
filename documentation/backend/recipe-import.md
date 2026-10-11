@@ -49,6 +49,31 @@ characters count). The dialog then asks `POST /recipes/import/photo` (`app/recip
   be fetched.
 - The page without JavaScript imports the recipe only: a server cannot fill a file field.
 
+## Who may ask: only the app's own pages
+
+Both routes (`/recipes/import` and `/recipes/import/photo`) start with `readRequestedUrl()` in
+`lib/recipe-import/request.ts`, which refuses a request from another website with **403** (`{ "ok": false, "error":
+"blocked" }`, a code the dialog already translates; its own pages never trigger it). `isCrossSite()` decides:
+
+- **`Sec-Fetch-Site`** is set by the browser and cannot be changed by a page's script. Only `same-origin` (the dialog)
+  and `none` (a typed address) pass; `same-site` and `cross-site` are refused.
+- **`Origin`** is the fallback for a browser without that header: its host must equal the request's `Host` header.
+  An unparsable one, like `null`, is refused.
+- **Neither header:** the request is not from a browser (curl, the tests) and passes.
+
+This keeps other websites open in your browser from using the import through a cross-site request. It does **not**
+stop:
+
+- **Another machine:** a client that sends no `Origin` or forges one gets through.
+- **DNS rebinding:** a page whose name is re-pointed at the cluster is the same origin to the browser, so both headers
+  match. Checking `Host` against `dinner.local` would narrow that; only a login closes it.
+
+Only a login keeps those out ([#59](https://github.com/joeran-kuschel/dinner-planner/issues/59)). Only `Origin`'s host is
+compared, not its scheme. The JSON-only body (415 otherwise) stays as a
+second layer: a page cannot post JSON cross-site without the browser asking first.
+Server actions get Next.js's own `Origin` / `Host` comparison and need nothing extra. Tests:
+`tests/unit/lib/recipe-import/request.test.ts` and both route tests.
+
 ## What may be fetched
 
 The app runs inside the cluster, so a pasted link to `localhost`, a pod, the node or a cloud metadata address must not
