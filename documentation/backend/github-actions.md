@@ -42,7 +42,8 @@ forbids force-pushes and deleting `main`. It does not require the branch to be u
 can bypass the ruleset, so a direct `git push origin main` still works for them (GitHub then prints "Bypassed rule
 violations"); that is not how changes get in, and the project's rules (`CLAUDE.md`) say to open a pull request instead.
 So the flow for every change is: branch, the local pre-push check, push the branch, `gh pr create`, wait for `check` to be
-green, merge the pull request (a merge commit, with the branch deleted afterwards).
+green, merge the pull request (a merge commit, with the branch deleted afterwards; the ruleset allows squash and rebase too, the
+merge commit is the project's convention).
 
 ## Limits
 
