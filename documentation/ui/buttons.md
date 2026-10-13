@@ -10,7 +10,7 @@ them can be hit with a fingertip.
 | Primary (`.btn-primary`) | Solid tomato pill | The one main action of a page or form: **Save changes**, **Create recipe**, **Add**, **Grocery list for this week** |
 | Secondary (`.btn-secondary`) | Outlined | Other actions: **Edit**, **Cancel**, the week arrows, **This week** |
 | Ghost (`.btn-ghost`) | Plain muted text | Harmless extras such as **Clear** (the search) |
-| Icon (`.btn-icon`) | A ✕ without a frame | Taking one thing out of a list: an ingredient row, a grocery extra, a tag chip |
+| Icon (`.btn-icon`) | A ✕ or a symbol without a frame | Taking one thing out of a list: an ingredient row, a grocery extra, a tag chip; the copy symbol in the grocery list's text field (**Copy to clipboard**) |
 | Danger, quiet (`.btn-danger-quiet`) | Red text, pink on hover | The buttons that start a destructive action: **Delete**, **Clear the whole week**, **Clear day** |
 | Danger (`.btn-danger`) | Solid dark red | The button that confirms a question: **Delete recipe**, **Clear week** |
 
