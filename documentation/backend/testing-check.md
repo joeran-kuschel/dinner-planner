@@ -88,6 +88,25 @@ the whole-check limit can end a slow run first; the table then says "whole-check
 again. That is a change to `scripts/check-lib.ts` and the workflow, not just a flag: each job has a database of its own, but
 each would repeat the build, and `--max-failures=1` would then apply per job.
 
+## Keeping an eye on the time
+
+The Playwright stage grows with every feature (the time is spread over all tests, there is no slow few to fix), and
+GitHub's runners vary a lot: the same suite took 170 to 327 s there. So the check shows how close each stage is to its
+limit instead of only whether it passed:
+
+- The report has a **% of limit** column for every stage that ran.
+- From **60%** of its limit (`WARN_SHARE`) a passed stage gets a `Slow:` line under the table.
+- From **75%** (`SPLIT_SHARE`, 360 s for Playwright) the line says what to do: for Playwright, that two runs in a row
+  mean it is time to split it over several CI jobs ([#64](https://github.com/joeran-kuschel/dinner-planner/issues/64)
+  holds the plan and the trigger); for any other stage, to speed it up or raise its limit in `scripts/check-lib.ts`.
+- On GitHub Actions the same lines appear as **warning annotations** on the run, and the stage times as a table in the
+  run's **summary** (`publishToGitHub()`), so the trend is visible without opening the log. Nothing is written
+  anywhere else.
+
+A warning is not a failure: the check still passes below the limit. The decision rule is **two runs in a row on `main`
+above 75% of the Playwright limit: split it** (a single slow run is mostly the runner). To look at the history:
+`gh run list --workflow Check --limit 20`, then `gh run view <id> --log` and the table near the end.
+
 A stage that reaches its limit counts as failed. It first gets SIGINT, as if Ctrl+C was pressed, because Playwright stops
 the web server it started (which runs in a process group of its own) on SIGINT and on nothing else. Two seconds later
 everything left in the stage's own process group is killed. After a timeout, port 3100 is free again for the next run.

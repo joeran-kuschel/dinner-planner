@@ -14,6 +14,8 @@ export type StageResult = {
   /** The last lines of its output; kept for stages that did not pass. */
   tail: string;
   logFile?: string;
+  /** The stage's own limit, to show how much of it the stage used. */
+  limitSeconds?: number;
 };
 
 const MINUTE = 60_000;
@@ -39,6 +41,14 @@ export const PHASES: Stage[][] = [
 ];
 
 export const TOTAL_LIMIT_MS = 11 * MINUTE;
+
+/** A stage that used this share of its limit is slowing down: the report says so, and so does GitHub. */
+export const WARN_SHARE = 0.6;
+/**
+ * From this share on, Playwright is due to be split over several CI jobs once it happens on two runs in a row
+ * (documentation/backend/testing-check.md, "Keeping an eye on the time").
+ */
+export const SPLIT_SHARE = 0.75;
 
 /** The phases run the compile themselves, so Vitest must not start a second one next to the typecheck. */
 export const CHILD_ENV = { CHECK_CATALOGS_COMPILED: "1" };
@@ -126,6 +136,7 @@ export function runStage(stage: Stage, limitMs: number, logDir: string): Promise
           seconds: Math.round((Date.now() - started) / 100) / 10,
           tail: status === "passed" ? "" : lastLines(output),
           logFile,
+          limitSeconds: stage.limitMs / 1000,
         });
         markSettled();
       });
@@ -185,7 +196,14 @@ export async function runCheck(
       phase.map((stage): Promise<StageResult> => {
         if (failed || remaining <= 0) {
           const note = failed ? "an earlier stage did not pass" : "whole-check limit";
-          return Promise.resolve({ name: stage.name, status: "skipped", seconds: 0, note, tail: "" });
+          return Promise.resolve({
+            name: stage.name,
+            status: "skipped",
+            seconds: 0,
+            note,
+            tail: "",
+            limitSeconds: stage.limitMs / 1000,
+          });
         }
         return runStage(stage, Math.min(stage.limitMs, remaining), logDir);
       }),
@@ -221,17 +239,86 @@ export function exitCode(results: StageResult[]): number {
   return results.every((result) => result.status === "passed") ? 0 : 1;
 }
 
+/** The share of its limit a stage used, 0 to 1; undefined for a stage that did not run or has no limit. */
+function limitShare(result: StageResult): number | undefined {
+  if (result.status === "skipped" || !result.limitSeconds) return undefined;
+  return result.seconds / result.limitSeconds;
+}
+
+const percent = (share: number) => `${Math.round(share * 100)}%`;
+
+/**
+ * One line for every stage that passed but used a good part of its limit: from `WARN_SHARE` on, and from
+ * `SPLIT_SHARE` on with what to do about it. Nothing for a stage that is fast enough, or did not pass (its
+ * failure is the news then).
+ */
+export function slowStageWarnings(results: StageResult[]): string[] {
+  const warnings: string[] = [];
+  for (const result of results) {
+    const share = result.status === "passed" ? limitShare(result) : undefined;
+    if (share === undefined || share < WARN_SHARE) continue;
+    let line = `${result.name} took ${result.seconds.toFixed(1)} s, ${percent(share)} of its ${result.limitSeconds} s limit.`;
+    if (share >= SPLIT_SHARE) {
+      line +=
+        result.name === "playwright"
+          ? ` From ${percent(SPLIT_SHARE)} on, two runs in a row mean it is time to split Playwright over several CI jobs (documentation/backend/testing-check.md).`
+          : ` Speed it up or raise its limit in scripts/check-lib.ts before it times out.`;
+    }
+    warnings.push(line);
+  }
+  return warnings;
+}
+
 export function formatReport(results: StageResult[], totalSeconds: number): string {
   const width = Math.max(...results.map((r) => r.name.length), "Stage".length);
   const rows = results.map((r) => {
     const note = r.note ? ` (${r.note})` : "";
-    return `${r.name.padEnd(width)}  ${(r.status + note).padEnd(34)}  ${r.seconds.toFixed(1)}`;
+    const share = limitShare(r);
+    return `${r.name.padEnd(width)}  ${(r.status + note).padEnd(34)}  ${r.seconds.toFixed(1).padStart(7)}  ${share === undefined ? "" : percent(share)}`.trimEnd();
   });
-  const lines = [`${"Stage".padEnd(width)}  ${"Result".padEnd(34)}  Seconds`, ...rows];
+  const lines = [`${"Stage".padEnd(width)}  ${"Result".padEnd(34)}  Seconds  % of limit`, ...rows];
 
   for (const r of results.filter((r) => r.tail)) {
     lines.push("", `--- ${r.name}: last ${TAIL_LINES} lines (full log: ${r.logFile})`, r.tail);
   }
+  for (const warning of slowStageWarnings(results)) lines.push("", `Slow: ${warning}`);
   lines.push("", `Check ${exitCode(results) === 0 ? "passed" : "FAILED"} in ${totalSeconds.toFixed(1)} s`);
   return lines.join("\n");
+}
+
+/** A workflow command's message may not hold `%`, CR or LF as they are. */
+const escapeAnnotation = (message: string) => message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+/** The stage times as a Markdown table, for the summary of the run on GitHub. */
+export function stepSummary(results: StageResult[], totalSeconds: number): string {
+  const rows = results.map((r) => {
+    const share = limitShare(r);
+    return `| ${r.name} | ${r.status} | ${r.seconds.toFixed(1)} | ${share === undefined ? "" : percent(share)} |`;
+  });
+  return [
+    "## Check",
+    "",
+    "| Stage | Result | Seconds | % of limit |",
+    "|---|---|---:|---:|",
+    ...rows,
+    "",
+    `The whole check took ${totalSeconds.toFixed(1)} s (limit ${TOTAL_LIMIT_MS / 1000} s).`,
+    ...slowStageWarnings(results).map((warning) => `\n**Slow:** ${warning}`),
+    "",
+  ].join("\n");
+}
+
+/**
+ * On GitHub Actions: a warning annotation for every slow stage, and the stage times in the run's summary, so the
+ * trend is visible without opening the log. Does nothing anywhere else.
+ */
+export function publishToGitHub(
+  results: StageResult[],
+  totalSeconds: number,
+  env: Record<string, string | undefined> = process.env,
+  log: (line: string) => void = console.log,
+): void {
+  if (env.GITHUB_ACTIONS !== "true") return;
+  for (const warning of slowStageWarnings(results)) log(`::warning title=The check is getting slow::${escapeAnnotation(warning)}`);
+  if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, stepSummary(results, totalSeconds));
 }

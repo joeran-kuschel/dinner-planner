@@ -10,8 +10,13 @@ import {
   TOTAL_LIMIT_MS,
   databaseReachable,
   exitCode,
+  SPLIT_SHARE,
+  WARN_SHARE,
   formatReport,
+  publishToGitHub,
   runCheck,
+  slowStageWarnings,
+  stepSummary,
   stopAllStages,
   type Stage,
   type StageResult,
@@ -210,9 +215,9 @@ describe("the report", () => {
   it("is a table with a result and the seconds of each stage, and the verdict", async () => {
     const results = await run([[stage("typecheck", "true"), stage("lint", "echo broken; exit 1")], [stage("playwright", "true")]]);
     const report = formatReport(results, 12.34);
-    expect(report).toMatch(/^Stage\s+Result\s+Seconds$/m);
-    expect(report).toMatch(/^typecheck\s+passed\s+\d/m);
-    expect(report).toMatch(/^lint\s+failed\s+\d/m);
+    expect(report).toMatch(/^Stage\s+Result\s+Seconds\s+% of limit$/m);
+    expect(report).toMatch(/^typecheck\s+passed\s+\d+\.\d\s+\d+%$/m);
+    expect(report).toMatch(/^lint\s+failed\s+\d+\.\d\s+\d+%$/m);
     expect(report).toMatch(/^playwright\s+skipped \(an earlier stage did not pass\)\s+0\.0$/m);
     expect(report).toContain("--- lint: last 20 lines");
     expect(report).toContain("broken");
@@ -223,6 +228,100 @@ describe("the report", () => {
     const report = formatReport(await run([[stage("a", "echo noise")]]), 1);
     expect(report).toContain("Check passed in 1.0 s");
     expect(report).not.toContain("noise");
+  });
+});
+
+describe("keeping an eye on the time", () => {
+  const result = (name: string, seconds: number, limitSeconds = 480, status: StageResult["status"] = "passed"): StageResult => ({
+    name,
+    status,
+    seconds,
+    limitSeconds,
+    tail: "",
+  });
+
+  it("has the thresholds the documentation names: a warning at 60% of a limit, a decision at 75%", () => {
+    expect(WARN_SHARE).toBe(0.6);
+    expect(SPLIT_SHARE).toBe(0.75);
+  });
+
+  it("says nothing about a stage that is fast enough", () => {
+    expect(slowStageWarnings([result("playwright", 287.9)])).toEqual([]);
+  });
+
+  it("warns from 60% of the limit, with the share and the limit", () => {
+    expect(slowStageWarnings([result("playwright", 288)])).toEqual(["playwright took 288.0 s, 60% of its 480 s limit."]);
+  });
+
+  it("says what to do from 75% on: for Playwright, to split it over several CI jobs when it happens twice in a row", () => {
+    const [warning] = slowStageWarnings([result("playwright", 360)]);
+    expect(warning).toContain("75% of its 480 s limit");
+    expect(warning).toContain("two runs in a row");
+    expect(warning).toContain("split Playwright over several CI jobs");
+    expect(warning).toContain("documentation/backend/testing-check.md");
+  });
+
+  it("tells any other stage that is that slow to speed up or raise its limit", () => {
+    const [warning] = slowStageWarnings([result("vitest", 150, 180)]);
+    expect(warning).toContain("83% of its 180 s limit");
+    expect(warning).toContain("raise its limit in scripts/check-lib.ts");
+    expect(warning).not.toContain("split Playwright");
+  });
+
+  it("is silent about a stage that did not pass or did not run, whose own result is the news", () => {
+    expect(slowStageWarnings([result("playwright", 480, 480, "timeout"), result("lint", 0, 120, "skipped"), result("vitest", 170, 180, "failed")])).toEqual([]);
+  });
+
+  it("puts the warnings under the table and the share in its own column", () => {
+    const report = formatReport([result("playwright", 300)], 330);
+    expect(report).toMatch(/^playwright\s+passed\s+300\.0\s+63%$/m);
+    expect(report).toContain("Slow: playwright took 300.0 s, 63% of its 480 s limit.");
+  });
+
+  it("shows no warning in the report of a fast run", () => {
+    expect(formatReport([result("playwright", 120)], 140)).not.toContain("Slow:");
+  });
+
+  it("makes a Markdown table of the stage times for the run's summary", () => {
+    const summary = stepSummary([result("vitest", 54.5, 180), result("playwright", 300)], 361.5);
+    expect(summary).toContain("| Stage | Result | Seconds | % of limit |");
+    expect(summary).toContain("| vitest | passed | 54.5 | 30% |");
+    expect(summary).toContain("| playwright | passed | 300.0 | 63% |");
+    expect(summary).toContain("The whole check took 361.5 s (limit 660 s).");
+    expect(summary).toContain("**Slow:** playwright took 300.0 s");
+  });
+
+  describe("on GitHub Actions", () => {
+    it("annotates a slow stage with a warning, escaping the % that a workflow command cannot hold", () => {
+      const lines: string[] = [];
+      publishToGitHub([result("playwright", 300)], 330, { GITHUB_ACTIONS: "true" }, (line) => lines.push(line));
+      expect(lines).toEqual(["::warning title=The check is getting slow::playwright took 300.0 s, 63%25 of its 480 s limit."]);
+    });
+
+    it("appends the stage times to the summary file GitHub names", () => {
+      const file = path.join(dir, "summary.md");
+      fs.writeFileSync(file, "earlier step\n");
+      publishToGitHub([result("playwright", 120)], 140, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: file }, () => {});
+      const text = fs.readFileSync(file, "utf-8");
+      expect(text.startsWith("earlier step\n")).toBe(true);
+      expect(text).toContain("| playwright | passed | 120.0 | 25% |");
+    });
+
+    it("annotates nothing for a fast run, but still writes the summary", () => {
+      const lines: string[] = [];
+      const file = path.join(dir, "summary.md");
+      publishToGitHub([result("playwright", 120)], 140, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: file }, (line) => lines.push(line));
+      expect(lines).toEqual([]);
+      expect(fs.existsSync(file)).toBe(true);
+    });
+
+    it("does nothing anywhere else: no annotation, no summary file", () => {
+      const lines: string[] = [];
+      const file = path.join(dir, "summary.md");
+      publishToGitHub([result("playwright", 400)], 420, { GITHUB_STEP_SUMMARY: file }, (line) => lines.push(line));
+      expect(lines).toEqual([]);
+      expect(fs.existsSync(file)).toBe(false);
+    });
   });
 });
 
