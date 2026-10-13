@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
@@ -26,8 +28,17 @@ describe("SiteNav", () => {
     renderAt("/");
     const home = screen.getByRole("link", { name: "Dinner Planner" });
     const mark = home.querySelector("svg");
-    expect(mark).not.toBeNull();
-    expect(mark!.closest("[aria-hidden]")).not.toBeNull();
+    if (!mark) throw new Error("the logo mark is missing");
+    expect(mark.closest("[aria-hidden]")).not.toBeNull();
+  });
+
+  it("draws the same cloche as the tab icon (app/icon.svg)", () => {
+    renderAt("/");
+    const shapes = (svg: string) => [...svg.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1]).sort();
+    const header = screen.getByRole("link", { name: "Dinner Planner" }).querySelector("svg");
+    if (!header) throw new Error("the logo mark is missing");
+    const icon = readFileSync(join(process.cwd(), "app/icon.svg"), "utf8");
+    expect(shapes(header.outerHTML)).toEqual(shapes(icon));
   });
 
   it.each([

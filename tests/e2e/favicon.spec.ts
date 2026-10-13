@@ -10,7 +10,9 @@ test("the page links the logo as its icon, and the files are served", async ({ p
   const icon = await request.get(svg!);
   expect(icon.ok()).toBe(true);
   expect(icon.headers()["content-type"]).toContain("image/svg+xml");
-  expect(await icon.text()).toContain("#b8431f");
+  const source = await icon.text();
+  expect(source).toContain("#b8431f");
+  expect(source).toContain("M7.5 23.5"); // the cloche's dome, not the old plate
 
   expect((await request.get("/favicon.ico")).ok()).toBe(true);
   const touch = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
