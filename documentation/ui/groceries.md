@@ -116,7 +116,16 @@ Under the header, **Copy list** and **Print** take the list to the shop.
   sections that this empties. Nothing is left to copy when everything is ticked, so the button is then not shown.
   A status line next to the buttons says "Copied" (a screen reader announces it). When the browser refuses, or has no
   clipboard (it needs `https://` or `localhost`), the status says so and a read-only field "The list as text" appears
-  with the same text, selected when it takes the focus, to copy by hand.
+  with the same text, selected when it takes the focus, to copy by hand. The browser only offers the clipboard in a
+  secure context, so over plain `http://` (as at `http://dinner.local` today) this field is what you get every time;
+  **Copy list** works by itself once the app is served over HTTPS.
+  - The field can be closed again: with its **Close** button below it, or Escape while the cursor is in it. Focus goes
+    back to **Copy list** and the status line says "Closed the list as text."
+  - A small **Copy to clipboard** icon button (two sheets) sits in the field's top-right corner; the text has room
+    beside it. It runs the same copy as **Copy list**: if that works, the status says "Copied", the field goes away
+    and focus returns to **Copy list**. Where the clipboard is missing or refuses, it selects the whole text in the
+    field (focus moves there) so Ctrl/Cmd+C copies it, and the status keeps explaining. A **Copy list** that works
+    also removes the field.
 - **Print** opens the browser's print dialog (so does Ctrl/Cmd+P). The print view is made for paper: black on white
   whatever the colour scheme, the title and the week as heading, the sections in two columns as a plain list (no frames
   or padding, no count in the headings) and every tick box as an empty square to tick with a pen.

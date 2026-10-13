@@ -176,6 +176,14 @@ msgstr "Ganze Woche leeren"
 msgid "Clear week"
 msgstr "Woche leeren"
 
+#: components/grocery-share.tsx
+msgid "Close"
+msgstr "Schließen"
+
+#: components/grocery-share.tsx
+msgid "Closed the list as text."
+msgstr "Die Liste als Text wurde geschlossen."
+
 #: lib/units.ts
 msgid "clove"
 msgstr "Zehe"
@@ -187,6 +195,10 @@ msgstr "Kopiert"
 #: components/grocery-share.tsx
 msgid "Copy list"
 msgstr "Liste kopieren"
+
+#: components/grocery-share.tsx
+msgid "Copy to clipboard"
+msgstr "In die Zwischenablage kopieren"
 
 #: components/grocery-share.tsx
 msgid "Copying isn't available here. Select the text below instead."

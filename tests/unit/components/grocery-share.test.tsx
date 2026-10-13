@@ -111,4 +111,76 @@ describe("GroceryShare", () => {
     await screen.findByRole("textbox");
     await expectNoAxeViolations(container);
   });
+
+  describe("closing the fallback box", () => {
+    async function openBox(locale?: "de") {
+      const user = userEvent.setup();
+      setClipboard(undefined);
+      const { container } = renderWithI18n(<GroceryShare text={TEXT} />, locale ? { locale } : undefined);
+      await user.click(screen.getByRole("button", { name: locale ? "Liste kopieren" : "Copy list" }));
+      await screen.findByRole("textbox");
+      return { user, container };
+    }
+
+    it("closes with the Close button, returns the focus to Copy list and says so", async () => {
+      const { user } = await openBox();
+      await user.click(screen.getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy list" })).toHaveFocus();
+      expect(screen.getByRole("status")).toHaveTextContent("Closed the list as text.");
+    });
+
+    it("closes with Escape, also after a failed copy", async () => {
+      const user = userEvent.setup();
+      setClipboard({ writeText: vi.fn(async () => Promise.reject(new Error("denied"))) });
+      renderWithI18n(<GroceryShare text={TEXT} />);
+      await user.click(screen.getByRole("button", { name: "Copy list" }));
+      await user.click(await screen.findByRole("textbox"));
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy list" })).toHaveFocus();
+    });
+
+    it("selects the text from the icon button where there is no clipboard", async () => {
+      const { user } = await openBox();
+      const field = screen.getByRole("textbox") as HTMLTextAreaElement;
+      await user.click(screen.getByRole("button", { name: "Copy to clipboard" }));
+      expect(field).toHaveFocus();
+      expect(field.selectionStart).toBe(0);
+      expect(field.selectionEnd).toBe(TEXT.length);
+      expect(screen.getByRole("status")).toHaveTextContent("Copying isn't available here");
+    });
+
+    it("copies from the icon button, closes the box and moves the focus to Copy list", async () => {
+      const { user } = await openBox();
+      const writeText = vi.fn(async () => {});
+      setClipboard({ writeText });
+      await user.click(screen.getByRole("button", { name: "Copy to clipboard" }));
+      expect(writeText).toHaveBeenCalledWith(TEXT);
+      expect(screen.getByRole("status")).toHaveTextContent("Copied");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy list" })).toHaveFocus();
+    });
+
+    it("removes the box when a later Copy list works", async () => {
+      const { user } = await openBox();
+      setClipboard({ writeText: vi.fn(async () => {}) });
+      await user.click(screen.getByRole("button", { name: "Copy list" }));
+      expect(await screen.findByText("Copied")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+    });
+
+    it("speaks German in the box", async () => {
+      const { user } = await openBox("de");
+      expect(screen.getByRole("button", { name: "In die Zwischenablage kopieren" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Schließen" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Die Liste als Text wurde geschlossen.");
+    });
+
+    it("has no accessibility violations", async () => {
+      const { container } = await openBox();
+      await expectNoAxeViolations(container);
+    });
+  });
 });
