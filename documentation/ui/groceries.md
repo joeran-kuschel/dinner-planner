@@ -119,8 +119,9 @@ Under the header, **Copy list** and **Print** take the list to the shop.
   with the same text, selected when it takes the focus, to copy by hand. The browser only offers the clipboard in a
   secure context, so over plain `http://` (as at `http://dinner.local` today) this field is what you get every time;
   **Copy list** works by itself once the app is served over HTTPS.
-  - The field can be closed again: with its **Close** button below it, or Escape while the cursor is in it. Focus goes
-    back to **Copy list** and the status line says "Closed the list as text."
+  - The field can be closed again: with its **Close** button below it, or Escape from anywhere in the box (the text, the copy
+    icon or Close). Focus goes back to **Copy list** and the status line says "Closed the list as text.", which fades
+    after a few seconds like "Copied".
   - A small **Copy to clipboard** icon button (two sheets) sits in the field's top-right corner; the text has room
     beside it. It runs the same copy as **Copy list**: if that works, the status says "Copied", the field goes away
     and focus returns to **Copy list**. Where the clipboard is missing or refuses, it selects the whole text in the

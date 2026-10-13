@@ -28,9 +28,9 @@ export function GroceryShare({ text }: GroceryShareProps) {
   const status = answer.text === text ? answer.status : "idle";
   const setStatus = (next: Status) => setAnswer({ status: next, text });
 
-  // "Copied" fades after a moment, so copying again is announced again.
+  // "Copied" and "Closed" fade after a moment, so doing it again is announced again.
   useEffect(() => {
-    if (answer.status !== "copied") return;
+    if (answer.status !== "copied" && answer.status !== "closed") return;
     const timer = setTimeout(() => setAnswer({ status: "idle", text: answer.text }), 4000);
     return () => clearTimeout(timer);
   }, [answer]);
@@ -89,7 +89,8 @@ export function GroceryShare({ text }: GroceryShareProps) {
         </p>
       </div>
       {text !== null && (status === "failed" || status === "unavailable") && (
-        <div>
+        // Escape closes the box from anywhere in it (the text, the icon, Close), as it does for a dialog.
+        <div onKeyDown={(event) => event.key === "Escape" && close()}>
           <label className="label" htmlFor={fieldId}>
             {t(i18n)`The list as text`}
           </label>
@@ -101,7 +102,6 @@ export function GroceryShare({ text }: GroceryShareProps) {
               value={text}
               rows={Math.min(text.split("\n").length, 14)}
               onFocus={(event) => event.currentTarget.select()}
-              onKeyDown={(event) => event.key === "Escape" && close()}
               className="field pr-12 font-mono text-sm"
             />
             <button

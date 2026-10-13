@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GroceryShare } from "@/components/grocery-share";
@@ -141,6 +141,64 @@ describe("GroceryShare", () => {
       expect(screen.getByRole("button", { name: "Copy list" })).toHaveFocus();
     });
 
+    it("closes with Escape from the icon button and from Close too, not only from the text", async () => {
+      const { user } = await openBox();
+      screen.getByRole("button", { name: "Copy to clipboard" }).focus();
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy list" })).toHaveFocus();
+
+      await user.click(screen.getByRole("button", { name: "Copy list" }));
+      screen.getByRole("button", { name: "Close" }).focus();
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+
+    it("does nothing on Escape while there is no box", async () => {
+      const user = userEvent.setup();
+      setClipboard({ writeText: vi.fn(async () => {}) });
+      renderWithI18n(<GroceryShare text={TEXT} />);
+      screen.getByRole("button", { name: "Copy list" }).focus();
+      await user.keyboard("{Escape}");
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
+
+    it("drops an open box, and the closed message, when the list changes", async () => {
+      const user = userEvent.setup();
+      setClipboard(undefined);
+      const { rerender } = renderWithI18n(<GroceryShare text={TEXT} />);
+      // The box belongs to the list it shows: another list is another answer.
+      await user.click(screen.getByRole("button", { name: "Copy list" }));
+      expect(await screen.findByRole("textbox")).toBeInTheDocument();
+      rerender(<GroceryShare text={`${TEXT}\n- 1 Onion`} />);
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+      await user.click(screen.getByRole("button", { name: "Copy list" }));
+      await user.click(await screen.findByRole("button", { name: "Close" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Closed the list as text.");
+      rerender(<GroceryShare text={TEXT} />);
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
+
+    it("fades the closed message after a moment, like Copied", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        setClipboard(undefined);
+        renderWithI18n(<GroceryShare text={TEXT} />);
+        await user.click(screen.getByRole("button", { name: "Copy list" }));
+        await user.click(await screen.findByRole("button", { name: "Close" }));
+        expect(screen.getByRole("status")).toHaveTextContent("Closed the list as text.");
+        await act(async () => {
+          vi.advanceTimersByTime(4100);
+        });
+        expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("selects the text from the icon button where there is no clipboard", async () => {
       const { user } = await openBox();
       const field = screen.getByRole("textbox") as HTMLTextAreaElement;
@@ -175,6 +233,18 @@ describe("GroceryShare", () => {
       const { user } = await openBox("de");
       expect(screen.getByRole("button", { name: "In die Zwischenablage kopieren" })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Schließen" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Die Liste als Text wurde geschlossen.");
+    });
+
+    it("closes with Escape in German too, and after a failed copy says so in German", async () => {
+      const user = userEvent.setup();
+      setClipboard({ writeText: vi.fn(async () => Promise.reject(new Error("denied"))) });
+      renderWithI18n(<GroceryShare text={TEXT} />, { locale: "de" });
+      await user.click(screen.getByRole("button", { name: "Liste kopieren" }));
+      expect(await screen.findByText("Kopieren hat nicht geklappt. Markiere stattdessen den Text unten.")).toBeInTheDocument();
+      await user.click(screen.getByRole("textbox"));
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Die Liste als Text wurde geschlossen.");
     });
 
