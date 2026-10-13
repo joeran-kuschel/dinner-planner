@@ -36,8 +36,14 @@ still a free machine for whoever can start one.
 
 ## Making it a gate
 
-The workflow only reports. To keep a red run from being merged, protect `main` (Settings → Branches, or Rules) and
-require the status check **Check / check** before merging.
+The workflow only reports; `main` is what makes it a gate. The ruleset **Protect main** (Settings → Rules) applies to the
+default branch and requires a pull request (no approvals are needed) and the status check **check** to pass, and it
+forbids force-pushes and deleting `main`. It does not require the branch to be up to date with `main`. Repository admins
+can bypass the ruleset, so a direct `git push origin main` still works for them (GitHub then prints "Bypassed rule
+violations"); that is not how changes get in, and the project's rules (`CLAUDE.md`) say to open a pull request instead.
+So the flow for every change is: branch, the local pre-push check, push the branch, `gh pr create`, wait for `check` to be
+green, merge the pull request (a merge commit, with the branch deleted afterwards; the ruleset allows squash and rebase too, the
+merge commit is the project's convention).
 
 ## Limits
 
