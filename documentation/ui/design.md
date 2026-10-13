@@ -50,9 +50,11 @@ thumb reaches; the active tab is tomato. The language switch stays in the header
 
 ## Icon
 
-The browser tab, bookmarks and the phone's home screen show the logo from the header: a tomato disc with a plate. `app/icon.svg`
+The browser tab, bookmarks and the phone's home screen show the logo from the header: a tomato disc with a white serving cloche (a dome over a flat base, a knob and a tomato highlight). `app/icon.svg`
 is the source (Next.js links it by itself); `app/apple-icon.png` (180 px) and `app/favicon.ico` are rendered from it for
-browsers that do not use SVG. Change the SVG, then render the other two again.
+browsers that do not use SVG (the ICO holds 16, 32 and 48 px). Change the SVG, then render the other two again; the header
+mark in `components/site-nav.tsx` is the same drawing in `currentColor` (a test compares the shapes), so in dark mode it
+follows the theme's colours while the tab icon always stays white on tomato.
 
 ## Pages
 

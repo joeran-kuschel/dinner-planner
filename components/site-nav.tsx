@@ -65,15 +65,23 @@ export function SiteNav() {
             aria-hidden
             className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="size-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-            >
-              <circle cx="12" cy="12" r="7.5" />
-              <circle cx="12" cy="12" r="3" />
+            <svg viewBox="4 4 28 28" className="size-6">
+              <path d="M7.5 23.5a10.5 10.5 0 0 1 21 0z" fill="currentColor" />
+              <path
+                d="M5.5 27h25"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+              />
+              <circle cx="18" cy="10" r="1.8" fill="currentColor" />
+              <path
+                d="M12.5 20.5a6 6 0 0 1 3-4.5"
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
             </svg>
           </span>
           <span className="font-display text-xl font-semibold tracking-tight">{t(

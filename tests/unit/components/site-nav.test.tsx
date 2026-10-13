@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
@@ -20,6 +22,23 @@ describe("SiteNav", () => {
     expect(nav).toContainElement(screen.getByRole("link", { name: "This week" }));
     expect(screen.getByRole("link", { name: "Recipes" })).toHaveAttribute("href", "/recipes");
     expect(screen.getByRole("link", { name: "Groceries" })).toHaveAttribute("href", "/groceries");
+  });
+
+  it("draws the logo as decoration: the visible name labels the home link", () => {
+    renderAt("/");
+    const home = screen.getByRole("link", { name: "Dinner Planner" });
+    const mark = home.querySelector("svg");
+    if (!mark) throw new Error("the logo mark is missing");
+    expect(mark.closest("[aria-hidden]")).not.toBeNull();
+  });
+
+  it("draws the same cloche as the tab icon (app/icon.svg)", () => {
+    renderAt("/");
+    const shapes = (svg: string) => [...svg.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1]).sort();
+    const header = screen.getByRole("link", { name: "Dinner Planner" }).querySelector("svg");
+    if (!header) throw new Error("the logo mark is missing");
+    const icon = readFileSync(join(process.cwd(), "app/icon.svg"), "utf8");
+    expect(shapes(header.outerHTML)).toEqual(shapes(icon));
   });
 
   it.each([
