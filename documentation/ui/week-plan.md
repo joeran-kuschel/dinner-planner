@@ -45,6 +45,16 @@ elsewhere).
 Tabbing through an empty day's field after typing a few letters therefore plans that text; Escape (twice) before
 leaving, or **Clear day** afterwards, undoes it. Emptying the field never clears the day. Use **Clear day** for that.
 
+Exceptions, where nothing is planned from the half-typed text:
+
+- Clicking **Leftovers** or **Clear day** drops the text being typed (the planned dinner is shown again) and does what
+  the button says, so **Undo** after **Clear day** brings back the dinner that was planned, not the typed text. Tabbing
+  to those buttons is leaving the field and plans the text. In Safari, which does not focus a button when it is
+  clicked, the click still counts, because it is the pointer press that is looked at.
+- Switching to another window or a browser dialog (the field loses focus with the window), and a blur in the middle of
+  composing text with an input method, leave the text in the field and plan nothing; the text is planned when the
+  field is left for real.
+
 ## Keyboard
 
 | Key                   | In the dinner field                                                                  |

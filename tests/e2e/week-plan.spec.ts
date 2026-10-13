@@ -139,6 +139,19 @@ test.describe("week plan", () => {
     await expect(dinnerField(page, "Monday")).toHaveValue(other);
   });
 
+  test("Clear day after typing over the dinner discards the typed text, and Undo brings back the planned dinner", async ({ page }) => {
+    await page.goto("/?week=2027-03-29");
+    const title = unique("Risotto");
+    await planOnce(page, "Wednesday", title);
+
+    const field = dinnerField(page, "Wednesday");
+    await field.fill("Soup");
+    await afterServerAction(page, () => dayCard(page, "Wednesday").getByRole("button", { name: "Clear day" }).click());
+    await expect(field).toHaveValue("");
+    await afterServerAction(page, () => page.getByRole("button", { name: "Undo clearing Wednesday" }).click());
+    await expect(field).toHaveValue(title);
+  });
+
   test("an emptied field puts the planned dinner back and keeps the day", async ({ page }) => {
     await page.goto("/?week=2027-03-22");
     const title = unique("Stew");

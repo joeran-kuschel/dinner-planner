@@ -437,6 +437,14 @@ function DinnerCombobox({
   });
   const { isOpen, highlightedIndex, getLabelProps, getInputProps, closeMenu } = combobox;
 
+  const guard = useLeaveGuard();
+  const onBlur = () => {
+    // Not leaving for good: the window lost focus (alt-tab, a browser dialog) or a composition is under way.
+    if (guard.composing() || !document.hasFocus()) return;
+    if (guard.takeDiscard()) setText(choice.dinner);
+    else settle();
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "Enter" && highlightedIndex < 0) {
@@ -462,10 +470,12 @@ function DinnerCombobox({
         // onInputValueChange, which runs a render too late: fast typing
         // would lose characters in between.
         {...getInputProps({
-          onBlur: settle,
+          onBlur,
           onKeyDown,
           onChange: (event) => setText(event.currentTarget.value),
         })}
+        onCompositionStart={guard.startComposition}
+        onCompositionEnd={guard.endComposition}
         className="field"
         name="dinner"
         placeholder={t(i18n)`Pick a recipe or type a dinner…`}
@@ -474,6 +484,37 @@ function DinnerCombobox({
       <SuggestionList combobox={combobox} suggestions={suggestions} />
     </div>
   );
+}
+
+/**
+ * What decides whether leaving the dinner field plans its text. `composing`: an input method is
+ * mid-composition. `discarding`: the pointer went down on "Leftovers" or "Clear day" (`data-replaces-dinner`),
+ * which replace the dinner, so the half-typed text is dropped rather than planned first (that would also
+ * remove "Leftovers" before the click lands). Tabbing to those buttons is different: it leaves the field like
+ * any other key and plans the text.
+ */
+function useLeaveGuard() {
+  const [guard] = useState(() => {
+    let composing = false;
+    let discarding = false;
+    return {
+      composing: () => composing,
+      startComposition: () => void (composing = true),
+      endComposition: () => void (composing = false),
+      press: (target: EventTarget | null) => void (discarding = target instanceof Element && target.closest("[data-replaces-dinner]") !== null),
+      takeDiscard: () => {
+        const result = discarding;
+        discarding = false;
+        return result;
+      },
+    };
+  });
+  useEffect(() => {
+    const track = (event: PointerEvent) => guard.press(event.target);
+    document.addEventListener("pointerdown", track, true);
+    return () => document.removeEventListener("pointerdown", track, true);
+  }, [guard]);
+  return guard;
 }
 
 /**
@@ -645,6 +686,7 @@ function PlannedDetails({
           type="submit"
           formAction={clearPlannedMeal}
           data-intent="clear"
+          data-replaces-dinner
           className="btn-danger-quiet -ml-3 px-3 text-xs"
         >
           {t(i18n)`Clear day`}

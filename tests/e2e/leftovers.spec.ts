@@ -111,3 +111,20 @@ test.describe("leftovers", () => {
     await expect(page.getByRole("combobox", { name: "Dinner for Tuesday", exact: true })).toHaveValue("");
   });
 });
+
+test.describe("leftovers after typing into the dinner field", () => {
+  test("clicking Leftovers opens the dialog and discards the half-typed text", async ({ page }) => {
+    await page.goto(`/?week=${WEEK}`);
+    const field = page.getByRole("combobox", { name: "Dinner for Monday", exact: true });
+    await field.fill("Soup");
+    // The open suggestions cover the button; Escape closes them and keeps the text.
+    await page.keyboard.press("Escape");
+    await expect(field).toHaveValue("Soup");
+    await dayCard(page, "Monday").getByRole("button", { name: "Leftovers on Monday" }).click();
+
+    await expect(page.getByRole("dialog", { name: "Leftovers on Monday" })).toBeVisible();
+    await expect(field).toHaveValue("");
+    await page.reload();
+    await expect(page.getByText(/· 0 of 7 planned$/)).toBeVisible();
+  });
+});

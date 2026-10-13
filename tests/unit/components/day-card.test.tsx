@@ -1,6 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { polyfillDialog } from "@/tests/support/dialog";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
@@ -58,6 +58,11 @@ function deferred() {
   const promise = new Promise<void>((res, rej) => ((resolve = res), (reject = rej)));
   return { promise, resolve, reject };
 }
+
+// jsdom has no window focus of its own; a blur only settles the field while the document has it.
+beforeEach(() => {
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+});
 
 describe("DayCard", () => {
   describe("rendering", () => {
@@ -543,6 +548,37 @@ describe("DayCard", () => {
 
       expect(actions.setPlannedMeal).not.toHaveBeenCalled();
       expect(dinnerField()).toHaveValue("");
+    });
+
+    it("saves the text again on the next blur after a failed save", async () => {
+      actions.setPlannedMeal.mockRejectedValueOnce(new Error("offline"));
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      await user.tab();
+      expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
+      expect(dinnerField()).toHaveValue("");
+
+      await user.type(dinnerField(), "Soup");
+      await user.tab();
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+    });
+
+    it("plans nothing while an input method is composing, or when the window loses focus", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      act(() => dinnerField().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })));
+      await user.tab();
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("Soup");
+
+      act(() => dinnerField().dispatchEvent(new CompositionEvent("compositionend", { bubbles: true })));
+      const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+      await user.click(dinnerField());
+      await user.tab();
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("Soup");
+      hasFocus.mockRestore();
     });
 
     it("picks the recipe whose exact name is typed on Enter", async () => {
@@ -1468,6 +1504,52 @@ describe("leftovers on the day card", () => {
     await user.click(screen.getByRole("button", { name: "Leftovers on Monday" }));
 
     expect(screen.getByRole("radio", { name: /Stew/ })).toBeInTheDocument();
+  });
+
+  it("opens the dialog after typing, and plans nothing of the half-typed text", async () => {
+    const { user } = renderCard({ leftoverSources: SOURCES });
+    await user.type(dinnerField(), "Soup");
+    await user.click(screen.getByRole("button", { name: "Leftovers on Monday" }));
+
+    expect(screen.getByRole("radio", { name: /Stew/ })).toBeInTheDocument();
+    expect(dinnerField()).toHaveValue("");
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+  });
+
+  it("plans the typed text when the Leftovers button is only tabbed to", async () => {
+    const { user } = renderCard({ leftoverSources: SOURCES });
+    await user.type(dinnerField(), "Soup");
+    await user.tab();
+
+    await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+  });
+
+  it("clears the planned dinner, not the text typed over it, and undoes to the planned dinner", async () => {
+    const { user } = renderCard({ meal: PLANNED });
+    await user.clear(dinnerField());
+    await user.type(dinnerField(), "Soup");
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+    await waitFor(() => expect(actions.clearPlannedMeal).toHaveBeenCalledTimes(1));
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+    await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.restorePlannedMeal).get("dinner")).toBe("Mushroom risotto");
+  });
+
+  it("undoes Clear day with the planned dinner after Escape twice on typed text", async () => {
+    const { user } = renderCard({ meal: PLANNED });
+    await user.clear(dinnerField());
+    await user.type(dinnerField(), "Soup");
+    await user.keyboard("{Escape}{Escape}");
+    expect(dinnerField()).toHaveValue("Mushroom risotto");
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+    await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+    await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.restorePlannedMeal).get("dinner")).toBe("Mushroom risotto");
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
   });
 
   it("does not offer it on a day with a dinner: leftovers never replace one", () => {
