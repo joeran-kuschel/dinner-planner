@@ -63,7 +63,7 @@ check leaves rows in your real database, remove them again.
 
 ## Opening a pull request
 
-- Open it against `main`, with a short description of what changed and why, and link the issue.
+- Open it against `main`, with a short description of what changed and why, and link the issue (`Fixes #<number>`). Every change reaches `main` this way: `main` is protected, and the maintainer's own changes go through a pull request too.
 - The `Check` workflow has to pass before it can be merged. For a pull request from a fork, the maintainer has to
   approve the workflow run first.
 - Do not include your `.env`, backups, personal recipes or photos, or any secret in a commit. Secret scanning is on

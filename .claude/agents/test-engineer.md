@@ -69,11 +69,12 @@ fix needs a test that fails without the fix: verify that it does.
 from `git status --short`, or what you were given), read it and its callers, list the behaviors and edge cases that
 need a test, write the tests, and run only them and the tests affected by the change.
 
-**Pre-push/pre-merge check** (before every push and every merge):
+**Pre-push/pre-merge check** (before every push and every merge; changes reach `main` through pull requests, so "the merge"
+is the pull request's branch, checked before it is pushed and again before the pull request is merged):
 
 1. Find what the push or merge brings in. Before a push: `git log @{upstream}..HEAD` and
    `git diff @{upstream}...HEAD`; without an upstream, compare against `origin/main`, or `main` if there is no remote.
-   Before a merge: `git log <target>..<branch>` and `git diff <target>...<branch>` (the target is usually `main`),
+   Before a merge or a pull request: `git log <target>..<branch>` and `git diff <target>...<branch>` (the target is usually `main`; `origin/main` when your local `main` may be behind),
    plus any uncommitted changes that are part of it. Never only the last commit of the branch.
    Run the suite on the branch being merged, since that is the code the merge brings in.
 2. Run `npm run check`: typecheck, lint, the entire Vitest suite and the Playwright specs, with time limits and

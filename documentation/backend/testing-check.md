@@ -23,7 +23,8 @@ Check passed in 56.1 s
 The exit code is 0 only when every stage passed. The code is in `scripts/check.ts` (the command) and
 `scripts/check-lib.ts` (running the stages); `tests/infra/check.test.ts` tests it with small fake stages.
 
-The same command runs on GitHub for every pull request: [github-actions.md](github-actions.md).
+The same command runs on GitHub for every pull request, and `main` requires that run (`check`) to pass before a pull request
+can be merged: [github-actions.md](github-actions.md).
 
 ## Order
 

@@ -36,8 +36,9 @@ commit or deploy; you report findings.
 - By default, review the uncommitted changes: `git diff HEAD` plus untracked files (`git status --short`). If there
   are none: on a branch other than `main`, review the whole branch (`git diff main...HEAD` and `git log main..HEAD`),
   since that is what a merge brings in; on `main`, review the last commit (`git show HEAD`).
-- Before a merge, review everything the merge brings in: `git diff main...<branch>` (the branch's changes since it
-  left `main`) plus any uncommitted changes that are part of it. Never only the last commit of the branch.
+- Before a pull request is opened (and merged), review everything it brings in: `git diff main...<branch>` (the
+  branch's changes since it left `main`) plus any uncommitted changes that are part of it. Never only the last commit of
+  the branch.
 - If you are given a commit range, branch, file or folder, review that instead. For "the whole code base", review
   `git ls-files` without tests, lock files, translation catalogs, and `generated/`, and read the
   tests only to check coverage.
