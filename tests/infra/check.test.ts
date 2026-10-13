@@ -274,8 +274,23 @@ describe("keeping an eye on the time", () => {
 
   it("puts the warnings under the table and the share in its own column", () => {
     const report = formatReport([result("playwright", 300)], 330);
-    expect(report).toMatch(/^playwright\s+passed\s+300\.0\s+63%$/m);
-    expect(report).toContain("Slow: playwright took 300.0 s, 63% of its 480 s limit.");
+    expect(report).toMatch(/^playwright\s+passed\s+300\.0\s+62%$/m);
+    expect(report).toContain("Slow: playwright took 300.0 s, 62% of its 480 s limit.");
+  });
+
+  it("rounds the shown share down, so 60% and 75% always mean the threshold was reached", () => {
+    expect(slowStageWarnings([result("playwright", 287.9)])).toEqual([]);
+    expect(formatReport([result("playwright", 287.9)], 300)).toMatch(/^playwright\s+passed\s+287\.9\s+59%$/m);
+    expect(slowStageWarnings([result("playwright", 359.9)])[0]).toContain("74% of its 480 s limit.");
+    expect(slowStageWarnings([result("playwright", 359.9)])[0]).not.toContain("split Playwright");
+  });
+
+  it("shows the limit a stage ran under: a stage cut off by the whole-check limit used all of that", async () => {
+    // The stage's own limit is 10 s, but the whole check only has 1 s left for it.
+    const [cut] = await run([[stage("slow", "sleep 5", 10_000)]], 1_000);
+    expect(cut.status).toBe("timeout");
+    expect(cut.limitSeconds).toBe(1);
+    expect(formatReport([cut], 1)).toMatch(/^slow\s+timeout \(whole-check limit\)\s+\d+\.\d\s+(100|1\d\d)%$/m);
   });
 
   it("shows no warning in the report of a fast run", () => {
@@ -286,7 +301,7 @@ describe("keeping an eye on the time", () => {
     const summary = stepSummary([result("vitest", 54.5, 180), result("playwright", 300)], 361.5);
     expect(summary).toContain("| Stage | Result | Seconds | % of limit |");
     expect(summary).toContain("| vitest | passed | 54.5 | 30% |");
-    expect(summary).toContain("| playwright | passed | 300.0 | 63% |");
+    expect(summary).toContain("| playwright | passed | 300.0 | 62% |");
     expect(summary).toContain("The whole check took 361.5 s (limit 660 s).");
     expect(summary).toContain("**Slow:** playwright took 300.0 s");
   });
@@ -295,7 +310,7 @@ describe("keeping an eye on the time", () => {
     it("annotates a slow stage with a warning, escaping the % that a workflow command cannot hold", () => {
       const lines: string[] = [];
       publishToGitHub([result("playwright", 300)], 330, { GITHUB_ACTIONS: "true" }, (line) => lines.push(line));
-      expect(lines).toEqual(["::warning title=The check is getting slow::playwright took 300.0 s, 63%25 of its 480 s limit."]);
+      expect(lines).toEqual(["::warning title=The check is getting slow::playwright took 300.0 s, 62%25 of its 480 s limit."]);
     });
 
     it("appends the stage times to the summary file GitHub names", () => {
@@ -313,6 +328,14 @@ describe("keeping an eye on the time", () => {
       publishToGitHub([result("playwright", 120)], 140, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: file }, (line) => lines.push(line));
       expect(lines).toEqual([]);
       expect(fs.existsSync(file)).toBe(true);
+    });
+
+    it("never fails the check when the summary cannot be written, it says so in a warning", () => {
+      const lines: string[] = [];
+      const file = path.join(dir, "missing-directory", "summary.md");
+      expect(() => publishToGitHub([result("playwright", 120)], 140, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: file }, (line) => lines.push(line))).not.toThrow();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatch(/^::warning::Could not write the run summary: /);
     });
 
     it("does nothing anywhere else: no annotation, no summary file", () => {

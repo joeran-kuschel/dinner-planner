@@ -136,7 +136,7 @@ export function runStage(stage: Stage, limitMs: number, logDir: string): Promise
           seconds: Math.round((Date.now() - started) / 100) / 10,
           tail: status === "passed" ? "" : lastLines(output),
           logFile,
-          limitSeconds: stage.limitMs / 1000,
+          limitSeconds: limitMs / 1000,
         });
         markSettled();
       });
@@ -245,7 +245,8 @@ function limitShare(result: StageResult): number | undefined {
   return result.seconds / result.limitSeconds;
 }
 
-const percent = (share: number) => `${Math.round(share * 100)}%`;
+// Rounded down, so "60%" always means the share reached 60% (the thresholds compare the exact share).
+const percent = (share: number) => `${Math.floor(share * 100 + 1e-9)}%`;
 
 /**
  * One line for every stage that passed but used a good part of its limit: from `WARN_SHARE` on, and from
@@ -320,5 +321,11 @@ export function publishToGitHub(
 ): void {
   if (env.GITHUB_ACTIONS !== "true") return;
   for (const warning of slowStageWarnings(results)) log(`::warning title=The check is getting slow::${escapeAnnotation(warning)}`);
-  if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, stepSummary(results, totalSeconds));
+  if (!env.GITHUB_STEP_SUMMARY) return;
+  // Reporting is a courtesy: a summary that cannot be written must never turn a passing check into a failing one.
+  try {
+    fs.appendFileSync(env.GITHUB_STEP_SUMMARY, stepSummary(results, totalSeconds));
+  } catch (error) {
+    log(`::warning::Could not write the run summary: ${escapeAnnotation(error instanceof Error ? error.message : String(error))}`);
+  }
 }
