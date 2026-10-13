@@ -9,7 +9,16 @@ import { config as loadEnv } from "dotenv";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PHASES, TOTAL_LIMIT_MS, databaseReachable, exitCode, formatReport, runCheck, stopAllStages } from "./check-lib";
+import {
+  PHASES,
+  TOTAL_LIMIT_MS,
+  databaseReachable,
+  exitCode,
+  formatReport,
+  publishToGitHub,
+  runCheck,
+  stopAllStages,
+} from "./check-lib";
 
 async function main() {
   loadEnv({ quiet: true });
@@ -27,7 +36,9 @@ async function main() {
 
   const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "dinner-planner-check-"));
   const results = await runCheck(PHASES, { totalLimitMs: TOTAL_LIMIT_MS, logDir });
-  console.log(formatReport(results, (Date.now() - started) / 1000));
+  const totalSeconds = (Date.now() - started) / 1000;
+  console.log(formatReport(results, totalSeconds));
+  publishToGitHub(results, totalSeconds);
   process.exit(exitCode(results));
 }
 

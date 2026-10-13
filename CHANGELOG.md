@@ -24,6 +24,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- Tooling: `npm run check` shows how much of its time limit each stage used, warns when a stage passes 60% of it (also as a warning and a summary table on GitHub), and the rule for splitting Playwright over several CI jobs is written down ([#64](https://github.com/joeran-kuschel/dinner-planner/issues/64)).
 - Tooling: changes reach `main` through a pull request whose `check` run has to pass (the ruleset "Protect main").
 - The logo and the tab icon are now a serving cloche on the tomato disc instead of a plate, and stay readable at 16 px ([#62](https://github.com/joeran-kuschel/dinner-planner/issues/62)).
 - Tooling: the check's limits fit GitHub's slower runners: 8 minutes for the Playwright stage and 11 for the whole check, so the pipeline no longer fails when the suite takes just over 5 minutes there.

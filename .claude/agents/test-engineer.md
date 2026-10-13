@@ -104,7 +104,9 @@ Start with one sentence on what you tested or checked. Then:
 
 - **Result:** `ready` or `not ready`, for the pre-push/pre-merge check. Otherwise, a summary of the tests you added.
 - **Commands run** and their result (passed, failed, skipped counts). For the pre-push/pre-merge check, the table that
-  `npm run check` prints (stage, result, seconds); for a stage over 2 minutes, add its cause and a concrete suggestion.
+  `npm run check` prints (stage, result, seconds, % of limit); for a stage over 2 minutes, add its cause and a concrete
+  suggestion. Pass on every `Slow:` line under the table (a stage above 60% of its limit; above 75% the line names the
+  next step), because the user keeps an eye on the time (`documentation/backend/testing-check.md`).
 - **Failures:** for each, the test, the error and whether the cause is the code (a bug) or the test.
 - **Tests added or changed:** file and what they cover.
 - **Gaps:** behaviors you could not test, and why (for example contrast, which only a real browser shows).

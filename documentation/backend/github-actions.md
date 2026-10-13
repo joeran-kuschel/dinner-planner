@@ -45,6 +45,12 @@ So the flow for every change is: branch, the local pre-push check, push the bran
 green, merge the pull request (a merge commit, with the branch deleted afterwards; the ruleset allows squash and rebase too, the
 merge commit is the project's convention).
 
+## The summary and the warnings
+
+The run's summary page shows the stage times as a table with the share of each stage's limit, and a stage above 60% of its
+limit gets a warning annotation (`publishToGitHub()` in `scripts/check-lib.ts`, which does nothing outside GitHub
+Actions). See [testing-check.md](testing-check.md#keeping-an-eye-on-the-time) for the thresholds and what to do about them.
+
 ## Limits
 
 The check's own time limits (`scripts/check-lib.ts`: 10 s per Playwright test, 8 minutes for the stage, 11 minutes in
