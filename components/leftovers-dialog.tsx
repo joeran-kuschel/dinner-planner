@@ -62,7 +62,7 @@ export function LeftoversButton({ dayKey, weekday, sources }: { dayKey: string; 
 
   return (
     <>
-      <button type="button" className="btn-secondary self-start px-3 text-sm" aria-haspopup="dialog" aria-label={t(i18n)`Leftovers on ${weekday}`} onClick={open}>
+      <button type="button" data-replaces-dinner className="btn-secondary self-start px-3 text-sm" aria-haspopup="dialog" aria-label={t(i18n)`Leftovers on ${weekday}`} onClick={open}>
         {t(i18n)`Leftovers`}
       </button>
       <dialog

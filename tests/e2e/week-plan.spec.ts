@@ -89,15 +89,81 @@ test.describe("week plan", () => {
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
   });
 
-  test("leaving the field with a name that is no recipe saves nothing", async ({ page }) => {
+  test("leaving the field with a name that is no recipe keeps it as a one-off dinner", async ({ page }) => {
     await page.goto("/?week=2027-03-01");
     const field = dinnerField(page, "Friday");
-    await field.fill(unique("Half-typed"));
-    await page.keyboard.press("Tab");
+    const title = unique("Left-over soup");
+    await field.fill(title);
+    await afterServerAction(page, () => page.keyboard.press("Tab"));
 
-    await expect(field).toHaveValue("");
+    await expect(field).toHaveValue(title);
     await page.reload();
-    await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
+    await expect(dinnerField(page, "Friday")).toHaveValue(title);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+    // It is no recipe.
+    await page.goto("/recipes");
+    await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+  });
+
+  test("Enter plans a name that is no recipe as a one-off dinner and closes the list", async ({ page }) => {
+    await page.goto("/?week=2027-03-08");
+    const field = dinnerField(page, "Saturday");
+    const title = unique("Picnic");
+    await field.fill(title);
+    await expect(page.getByRole("option", { name: `Plan “${title}” for this day only`, exact: true })).toBeVisible();
+    await afterServerAction(page, () => page.keyboard.press("Enter"));
+
+    await expect(page.getByRole("option")).toHaveCount(0);
+    await expect(field).toBeFocused();
+    await page.reload();
+    await expect(dinnerField(page, "Saturday")).toHaveValue(title);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
+  });
+
+  test("a click outside the field plans the typed name, and Escape twice puts the planned dinner back", async ({ page }) => {
+    await page.goto("/?week=2027-03-15");
+    const title = unique("Tacos");
+    await planOnce(page, "Monday", title);
+
+    const field = dinnerField(page, "Monday");
+    await field.fill(unique("Typo"));
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await expect(field).toHaveValue(title);
+
+    const other = unique("Burgers");
+    await field.fill(other);
+    await afterServerAction(page, () => page.getByRole("heading", { name: "Monday" }).click());
+    await expect(field).toHaveValue(other);
+    await page.reload();
+    await expect(dinnerField(page, "Monday")).toHaveValue(other);
+  });
+
+  test("Clear day after typing over the dinner discards the typed text, and Undo brings back the planned dinner", async ({ page }) => {
+    await page.goto("/?week=2027-03-29");
+    const title = unique("Risotto");
+    await planOnce(page, "Wednesday", title);
+
+    const field = dinnerField(page, "Wednesday");
+    await field.fill("Soup");
+    await afterServerAction(page, () => dayCard(page, "Wednesday").getByRole("button", { name: "Clear day" }).click());
+    await expect(field).toHaveValue("");
+    await afterServerAction(page, () => page.getByRole("button", { name: "Undo clearing Wednesday" }).click());
+    await expect(field).toHaveValue(title);
+  });
+
+  test("an emptied field puts the planned dinner back and keeps the day", async ({ page }) => {
+    await page.goto("/?week=2027-03-22");
+    const title = unique("Stew");
+    await planOnce(page, "Tuesday", title);
+
+    const field = dinnerField(page, "Tuesday");
+    await field.fill("");
+    await page.keyboard.press("Tab");
+    await expect(field).toHaveValue(title);
+    await page.reload();
+    await expect(dinnerField(page, "Tuesday")).toHaveValue(title);
+    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
   });
 
   test("leaving the field with a recipe's exact name plans that recipe", async ({ page }) => {

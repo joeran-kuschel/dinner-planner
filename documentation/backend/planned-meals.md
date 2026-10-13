@@ -40,7 +40,7 @@ The action decides what to store in one transaction, in this order:
 2. **A recipe of that name.** A `dinner` that matches a recipe's name (ignoring case) plans that recipe, the oldest if
    there are several. This keeps a typed name from creating a duplicate or hiding a recipe behind a one-off title.
 3. **A new recipe.** With `newRecipe=1`, a recipe with just that name is created (serves 2, no ingredients) and planned.
-4. **A one-off dinner.** Any other `dinner` is stored as `customTitle`.
+4. **A one-off dinner.** Any other `dinner` is stored as `customTitle`. The day card sends typed text that way when the field is left or Enter is pressed.
 5. **Nothing.** With no recipe and an empty `dinner`, the day's row is deleted.
 
 The matching rule ("same dinner" = trimmed and case-insensitive) lives in `lib/planner.ts` (`isSameDinner`), so the day
@@ -99,5 +99,5 @@ dinner only. `setPlannedMeal` on a leftovers day sets `leftoversOf` back to null
 - `tests/unit/app/actions/meals.test.ts`: every rule above, against a real Postgres schema.
 - `tests/unit/lib/planner.test.ts`: the name matching.
 - `tests/unit/lib/leftovers.test.ts`, `tests/unit/components/leftovers-dialog.test.tsx`, `tests/e2e/leftovers.spec.ts`: leftovers.
-- `tests/e2e/week-plan.spec.ts`: planning, adding a recipe from the day card, and leaving the field without picking, in
-  a real browser.
+- `tests/e2e/week-plan.spec.ts`: planning, adding a recipe from the day card, and leaving the field (Tab, Enter, a click
+  elsewhere) with a name that is no recipe, in a real browser.

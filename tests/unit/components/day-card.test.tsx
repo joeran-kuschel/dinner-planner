@@ -1,6 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { polyfillDialog } from "@/tests/support/dialog";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
@@ -58,6 +58,11 @@ function deferred() {
   const promise = new Promise<void>((res, rej) => ((resolve = res), (reject = rej)));
   return { promise, resolve, reject };
 }
+
+// jsdom has no window focus of its own; a blur only settles the field while the document has it.
+beforeEach(() => {
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+});
 
 describe("DayCard", () => {
   describe("rendering", () => {
@@ -299,6 +304,7 @@ describe("DayCard", () => {
 
       await user.keyboard("{Escape}");
       expect(dinnerField()).toHaveValue("Mushroom risotto");
+      await user.tab();
       expect(actions.setPlannedMeal).not.toHaveBeenCalled();
     });
   });
@@ -423,14 +429,59 @@ describe("DayCard", () => {
       expect(dinnerField()).toHaveValue("Chickpea curry");
     });
 
-    it("puts the planned dinner back when the field is left with a name that is no recipe", async () => {
+    it("plans a name that is no recipe as a one-off dinner when the field is left with Tab", async () => {
       const { user } = renderCard({ meal: PLANNED });
       await user.clear(dinnerField());
       await user.type(dinnerField(), "Soup");
       await user.tab();
 
-      expect(dinnerField()).toHaveValue("Mushroom risotto");
-      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      const data = lastFormData(actions.setPlannedMeal);
+      expect(data.get("dinner")).toBe("Soup");
+      expect(data.get("recipeId")).toBe("");
+      expect(data.has("newRecipe")).toBe(false);
+      expect(data.get("servings")).toBe("3");
+      expect(dinnerField()).toHaveValue("Soup");
+    });
+
+    it("plans it the same way when the user clicks outside the field", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "  Soup ");
+      await user.click(document.body);
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("");
+      expect(dinnerField()).toHaveValue("Soup");
+    });
+
+    it("saves the one-off dinner once, however the field is left after Enter", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      await user.keyboard("{Enter}");
+      await user.tab();
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(dinnerField()).toHaveValue("Soup");
+    });
+
+    it("saves a picked suggestion once, not the half-typed text as well", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "curry");
+      await user.click(screen.getByRole("option", { name: "Chickpea curry" }));
+      await user.tab();
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("r-curry");
+    });
+
+    it("still adds a new recipe when that suggestion is picked", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      await user.click(screen.getByRole("option", { name: "Add “Soup” as a new recipe" }));
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("newRecipe")).toBe("1");
     });
 
     it("saves nothing when the field is left with the planned recipe's name, and shows it as named", async () => {
@@ -456,14 +507,17 @@ describe("DayCard", () => {
       expect(data.get("notes")).toBe("Use the good stock");
     });
 
-    it("does not pick a highlighted suggestion when tabbing away", async () => {
+    it("keeps the typed text, and does not pick the highlighted suggestion, when tabbing away", async () => {
       const { user } = renderCard();
-      await user.type(dinnerField(), "Soup");
+      await user.type(dinnerField(), "curry");
       await user.keyboard("{ArrowDown}");
+      expect(screen.getByRole("option", { name: "Chickpea curry" })).toHaveAttribute("aria-selected", "true");
       await user.tab();
 
-      expect(dinnerField()).toHaveValue("");
-      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("curry");
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("");
+      expect(dinnerField()).toHaveValue("curry");
     });
 
     it("does not clear the day when the field is emptied and left", async () => {
@@ -476,6 +530,57 @@ describe("DayCard", () => {
       expect(dinnerField()).toHaveValue("Mushroom risotto");
     });
 
+    it("does not clear the day when the field is emptied and Enter is pressed", async () => {
+      const { user } = renderCard({ meal: PLANNED });
+      await user.clear(dinnerField());
+      await user.keyboard("{Enter}");
+
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(actions.clearPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("Mushroom risotto");
+      expect(dinnerField()).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("does not plan a field of spaces", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "   ");
+      await user.tab();
+
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("");
+    });
+
+    it("saves the text again on the next blur after a failed save", async () => {
+      actions.setPlannedMeal.mockRejectedValueOnce(new Error("offline"));
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      await user.tab();
+      expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
+      expect(dinnerField()).toHaveValue("");
+
+      await user.type(dinnerField(), "Soup");
+      await user.tab();
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(2));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+    });
+
+    it("plans nothing while an input method is composing, or when the window loses focus", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      act(() => dinnerField().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })));
+      await user.tab();
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("Soup");
+
+      act(() => dinnerField().dispatchEvent(new CompositionEvent("compositionend", { bubbles: true })));
+      const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+      await user.click(dinnerField());
+      await user.tab();
+      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      expect(dinnerField()).toHaveValue("Soup");
+      hasFocus.mockRestore();
+    });
+
     it("picks the recipe whose exact name is typed on Enter", async () => {
       const { user } = renderCard();
       await user.type(dinnerField(), "Mushroom risotto");
@@ -485,13 +590,27 @@ describe("DayCard", () => {
       expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("r-risotto");
     });
 
-    it("opens the choices on Enter for a name that is no recipe, saving nothing", async () => {
+    it("plans a name that is no recipe as a one-off dinner on Enter, and closes the list", async () => {
       const { user } = renderCard();
       await user.type(dinnerField(), "Soup");
-      await user.keyboard("{Escape}{Enter}");
-
       expect(suggestions()).toEqual(["Plan “Soup” for this day only", "Add “Soup” as a new recipe"]);
-      expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+      await user.keyboard("{Enter}");
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("");
+      expect(suggestions()).toEqual([]);
+      expect(dinnerField()).toHaveValue("Soup");
+    });
+
+    it("plans the highlighted suggestion, not the typed text, on Enter", async () => {
+      const { user } = renderCard();
+      await user.type(dinnerField(), "curry");
+      await user.keyboard("{ArrowDown}{Enter}");
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("r-curry");
+      expect(dinnerField()).toHaveValue("Chickpea curry");
     });
 
     it("never submits the form, and so never clears the day, on Enter", async () => {
@@ -1271,6 +1390,14 @@ describe("DayCard", () => {
       await expectNoAxeViolations(container);
     });
 
+    it("has no axe violations after a typed name was planned as a one-off dinner", async () => {
+      const { user, container } = renderCard();
+      await user.type(dinnerField(), "Soup");
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      await expectNoAxeViolations(container);
+    });
+
     it("has no axe violations with the suggestions open and one highlighted", async () => {
       const { user, container } = renderCard();
       await user.type(dinnerField(), "r");
@@ -1329,6 +1456,17 @@ describe("DayCard", () => {
       ]);
     });
 
+    it("plans a typed name for this day only when the field is left, in German", async () => {
+      const { user } = renderGerman();
+      await user.type(germanField(), "Flammkuchen");
+      await user.tab();
+
+      await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+      expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Flammkuchen");
+      expect(lastFormData(actions.setPlannedMeal).get("recipeId")).toBe("");
+      expect(germanField()).toHaveValue("Flammkuchen");
+    });
+
     it("announces the number of suggestions with the German plural", async () => {
       const { user } = renderGerman();
       await user.click(germanField());
@@ -1366,6 +1504,52 @@ describe("leftovers on the day card", () => {
     await user.click(screen.getByRole("button", { name: "Leftovers on Monday" }));
 
     expect(screen.getByRole("radio", { name: /Stew/ })).toBeInTheDocument();
+  });
+
+  it("opens the dialog after typing, and plans nothing of the half-typed text", async () => {
+    const { user } = renderCard({ leftoverSources: SOURCES });
+    await user.type(dinnerField(), "Soup");
+    await user.click(screen.getByRole("button", { name: "Leftovers on Monday" }));
+
+    expect(screen.getByRole("radio", { name: /Stew/ })).toBeInTheDocument();
+    expect(dinnerField()).toHaveValue("");
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+  });
+
+  it("plans the typed text when the Leftovers button is only tabbed to", async () => {
+    const { user } = renderCard({ leftoverSources: SOURCES });
+    await user.type(dinnerField(), "Soup");
+    await user.tab();
+
+    await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.setPlannedMeal).get("dinner")).toBe("Soup");
+  });
+
+  it("clears the planned dinner, not the text typed over it, and undoes to the planned dinner", async () => {
+    const { user } = renderCard({ meal: PLANNED });
+    await user.clear(dinnerField());
+    await user.type(dinnerField(), "Soup");
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+    await waitFor(() => expect(actions.clearPlannedMeal).toHaveBeenCalledTimes(1));
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+    await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.restorePlannedMeal).get("dinner")).toBe("Mushroom risotto");
+  });
+
+  it("undoes Clear day with the planned dinner after Escape twice on typed text", async () => {
+    const { user } = renderCard({ meal: PLANNED });
+    await user.clear(dinnerField());
+    await user.type(dinnerField(), "Soup");
+    await user.keyboard("{Escape}{Escape}");
+    expect(dinnerField()).toHaveValue("Mushroom risotto");
+    await user.click(screen.getByRole("button", { name: "Clear day" }));
+    await user.click(await screen.findByRole("button", { name: "Undo clearing Monday" }));
+
+    await waitFor(() => expect(actions.restorePlannedMeal).toHaveBeenCalledTimes(1));
+    expect(lastFormData(actions.restorePlannedMeal).get("dinner")).toBe("Mushroom risotto");
+    expect(actions.setPlannedMeal).not.toHaveBeenCalled();
   });
 
   it("does not offer it on a day with a dinner: leftovers never replace one", () => {

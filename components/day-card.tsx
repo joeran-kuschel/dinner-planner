@@ -366,9 +366,9 @@ function choiceFor(suggestion: Suggestion): Choice {
 
 /**
  * A text field that suggests recipes as the user types (the WAI-ARIA combobox
- * pattern, via Downshift). Only picking a suggestion saves, so a half-typed
- * name never becomes the day's dinner; leaving the field otherwise puts the
- * planned dinner back, unless the text is exactly another recipe's name.
+ * pattern, via Downshift). Picking a suggestion saves, and so does leaving the
+ * field (Enter, Tab, a click elsewhere): typed text that is no recipe becomes
+ * a one-off dinner. Escape twice, or an emptied field, puts the planned dinner back.
  */
 function DinnerCombobox({
   day,
@@ -392,18 +392,20 @@ function DinnerCombobox({
   };
 
   /**
-   * Settle typed text without a pick: the planned dinner's own name (in any
-   * case) changes nothing, even when another recipe has the same name;
-   * another recipe's exact name plans it. Returns false for anything else.
+   * Settle typed text without a pick (Enter, Tab, a click elsewhere): an empty
+   * field puts the planned dinner back and never clears the day; the planned
+   * dinner's own name (in any case) changes nothing, even when another recipe
+   * has the same name; another recipe's exact name plans it; anything else is
+   * planned as a one-off dinner, like "Plan “X” for this day only".
    */
   const settle = () => {
-    if (isSameDinner(choice.dinner, text)) {
+    const typed = text.trim();
+    if (!typed || isSameDinner(choice.dinner, typed)) {
       setText(choice.dinner);
-      return true;
+      return;
     }
-    const recipe = recipes.find((r) => isSameDinner(r.name, text));
-    if (recipe) choose(choiceFor({ kind: "recipe", id: recipe.id, name: recipe.name, tag: null }));
-    return Boolean(recipe);
+    const recipe = recipes.find((r) => isSameDinner(r.name, typed));
+    choose(recipe ? choiceFor({ kind: "recipe", id: recipe.id, name: recipe.name, tag: null }) : choiceFor({ kind: "once", name: typed }));
   };
 
   const combobox = useCombobox<Suggestion>({
@@ -433,16 +435,24 @@ function DinnerCombobox({
       return next.isOpen && empty ? { ...next, isOpen: false } : next;
     },
   });
-  const { isOpen, highlightedIndex, getLabelProps, getInputProps, openMenu, closeMenu } = combobox;
+  const { isOpen, highlightedIndex, getLabelProps, getInputProps, closeMenu } = combobox;
+
+  const guard = useLeaveGuard();
+  const onBlur = () => {
+    // Not leaving for good: the window lost focus (alt-tab, a browser dialog) or a composition is under way.
+    if (guard.composing() || !document.hasFocus()) return;
+    if (guard.takeDiscard()) setText(choice.dinner);
+    else settle();
+  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "Enter" && highlightedIndex < 0) {
-      // Never submit the form from here: Enter settles the text, or asks how to plan it.
+      // Never submit the form from here: Enter settles the text.
       event.preventDefault();
       Object.assign(event.nativeEvent, { preventDownshiftDefault: true });
-      if (settle()) closeMenu();
-      else if (text.trim()) openMenu();
+      settle();
+      closeMenu();
     } else if (event.key === "Escape" && !isOpen) {
       // Downshift would empty the field; put the planned dinner back instead.
       Object.assign(event.nativeEvent, { preventDownshiftDefault: true });
@@ -460,10 +470,12 @@ function DinnerCombobox({
         // onInputValueChange, which runs a render too late: fast typing
         // would lose characters in between.
         {...getInputProps({
-          onBlur: () => settle() || setText(choice.dinner),
+          onBlur,
           onKeyDown,
           onChange: (event) => setText(event.currentTarget.value),
         })}
+        onCompositionStart={guard.startComposition}
+        onCompositionEnd={guard.endComposition}
         className="field"
         name="dinner"
         placeholder={t(i18n)`Pick a recipe or type a dinner…`}
@@ -472,6 +484,37 @@ function DinnerCombobox({
       <SuggestionList combobox={combobox} suggestions={suggestions} />
     </div>
   );
+}
+
+/**
+ * What decides whether leaving the dinner field plans its text. `composing`: an input method is
+ * mid-composition. `discarding`: the pointer went down on "Leftovers" or "Clear day" (`data-replaces-dinner`),
+ * which replace the dinner, so the half-typed text is dropped rather than planned first (that would also
+ * remove "Leftovers" before the click lands). Tabbing to those buttons is different: it leaves the field like
+ * any other key and plans the text.
+ */
+function useLeaveGuard() {
+  const [guard] = useState(() => {
+    let composing = false;
+    let discarding = false;
+    return {
+      composing: () => composing,
+      startComposition: () => void (composing = true),
+      endComposition: () => void (composing = false),
+      press: (target: EventTarget | null) => void (discarding = target instanceof Element && target.closest("[data-replaces-dinner]") !== null),
+      takeDiscard: () => {
+        const result = discarding;
+        discarding = false;
+        return result;
+      },
+    };
+  });
+  useEffect(() => {
+    const track = (event: PointerEvent) => guard.press(event.target);
+    document.addEventListener("pointerdown", track, true);
+    return () => document.removeEventListener("pointerdown", track, true);
+  }, [guard]);
+  return guard;
 }
 
 /**
@@ -643,6 +686,7 @@ function PlannedDetails({
           type="submit"
           formAction={clearPlannedMeal}
           data-intent="clear"
+          data-replaces-dinner
           className="btn-danger-quiet -ml-3 px-3 text-xs"
         >
           {t(i18n)`Clear day`}
