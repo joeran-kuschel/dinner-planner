@@ -22,6 +22,14 @@ describe("SiteNav", () => {
     expect(screen.getByRole("link", { name: "Groceries" })).toHaveAttribute("href", "/groceries");
   });
 
+  it("draws the logo as decoration: the visible name labels the home link", () => {
+    renderAt("/");
+    const home = screen.getByRole("link", { name: "Dinner Planner" });
+    const mark = home.querySelector("svg");
+    expect(mark).not.toBeNull();
+    expect(mark!.closest("[aria-hidden]")).not.toBeNull();
+  });
+
   it.each([
     ["/", "This week"],
     ["/recipes", "Recipes"],

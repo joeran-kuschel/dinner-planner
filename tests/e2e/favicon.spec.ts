@@ -1,6 +1,6 @@
 import { expect, test } from "@/tests/e2e/support/test";
 
-// The tab icon is the logo from the header: the tomato disc with the plate (app/icon.svg).
+// The tab icon is the logo from the header: the tomato disc with the cloche (app/icon.svg).
 
 test("the page links the logo as its icon, and the files are served", async ({ page, request }) => {
   await page.goto("/");
