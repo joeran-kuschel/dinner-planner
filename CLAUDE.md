@@ -161,9 +161,10 @@ touching forms. What is already handled:
 - The dinner field is a Downshift combobox and the one controlled field: its
   text must update in the input's own `onChange` (Downshift's
   `onInputValueChange` comes a render late and fast typing drops characters).
-  Only picking a suggestion saves; leaving the field puts the planned dinner
-  back unless the text is exactly another recipe's name, so an emptied field
-  never clears the day. A failed save is caught in `useAutoSave`: the card
+  Picking a suggestion saves, and so do Enter and leaving the field
+  (`settle()`): another recipe's exact name plans that recipe, any other text
+  becomes a one-off dinner, and an emptied field puts the planned dinner back,
+  so it never clears the day. Escape twice also puts it back. A failed save is caught in `useAutoSave`: the card
   shows an alert, falls back to the saved dinner and refreshes the router.
 - The card's first submit button is a hidden one, so Enter in a text field
   saves. Without it, Enter would submit through "Clear day" and wipe the day.

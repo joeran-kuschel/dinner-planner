@@ -30,7 +30,8 @@ Each day has a single dinner field that suggests as you type.
   If the text is exactly a recipe's name (ignoring case), these two choices are not offered, so a recipe cannot be
   created twice by accident.
 
-Picking a suggestion saves the day at once. Typing alone never saves.
+Picking a suggestion saves the day at once. Typing alone never saves; leaving the field does (Enter, Tab or a click
+elsewhere).
 
 **Leaving the field without picking:**
 
@@ -38,9 +39,11 @@ Picking a suggestion saves the day at once. Typing alone never saves.
 | ----------------------------------------------------- | ----------------------------------------------------- |
 | The planned dinner's name (in any case)               | Nothing changes, even if another recipe has that name. |
 | Exactly another recipe's name (in any case)           | That recipe is planned.                               |
-| Anything else, or nothing                             | The planned dinner is shown again; nothing is saved.  |
+| Anything else                                         | It is planned for this day only, like **Plan “…” for this day only**. |
+| Nothing (or only spaces)                              | The planned dinner is shown again; nothing is saved.  |
 
-Emptying the field never clears the day. Use **Clear day** for that.
+Tabbing through an empty day's field after typing a few letters therefore plans that text; Escape (twice) before
+leaving, or **Clear day** afterwards, undoes it. Emptying the field never clears the day. Use **Clear day** for that.
 
 ## Keyboard
 
@@ -48,9 +51,9 @@ Emptying the field never clears the day. Use **Clear day** for that.
 | --------------------- | ------------------------------------------------------------------------------------ |
 | Typing                | Opens and narrows the suggestions.                                                   |
 | Down / Up arrow       | Moves through the suggestions (opens them if closed).                                |
-| Enter                 | Picks the highlighted suggestion. With none highlighted: plans the recipe whose exact name is typed, or opens the choices for a new name. |
-| Escape                | Closes the suggestions; a second Escape puts the planned dinner back.                |
-| Tab                   | Leaves the field (see above). It does not pick a highlighted suggestion.             |
+| Enter                 | Picks the highlighted suggestion. With none highlighted: plans the recipe whose exact name is typed, or the typed text for this day only (as when leaving the field), and closes the suggestions. |
+| Escape                | Closes the suggestions; a second Escape puts the planned dinner back (undoes a typo).  |
+| Tab                   | Leaves the field (see above). It keeps the typed text and does not pick a highlighted suggestion. |
 
 Enter in the servings or note field saves the day, like leaving the field does.
 

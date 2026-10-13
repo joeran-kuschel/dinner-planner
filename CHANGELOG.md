@@ -41,6 +41,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- The dinner field on a day card keeps what you typed: leaving it (Tab, a click elsewhere) or pressing Enter plans a name that is no recipe for that day only, instead of throwing the text away. Escape (twice) still puts the planned dinner back, and an emptied field never clears the day ([#54](https://github.com/joeran-kuschel/dinner-planner/issues/54)).
 - On a day card, "Saving…" no longer shows for a moment next to the message that a save failed ([#53](https://github.com/joeran-kuschel/dinner-planner/issues/53)).
 - The recipe form suggests the units "EL" and "TL" on the English page too, next to g, kg, ml and l ([#44](https://github.com/joeran-kuschel/dinner-planner/issues/44)).
 - Typing several words into the recipe search, such as two tags (`vegetarian quick`), now finds the recipes that match all of them; a quoted phrase ("one pot") stays together ([#46](https://github.com/joeran-kuschel/dinner-planner/issues/46)).
