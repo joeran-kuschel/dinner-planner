@@ -174,6 +174,7 @@ npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal
 npm run k8s:seed     # sample data into the cluster's database (one-off Job)
 npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
 npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
+npm run k8s:renew-tls            # a fresh mkcert certificate for https://dinner.local, when it has expired
 npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
 npm run k8s:status   # pods, services, ingress
 npm run k8s:logs     # follow the app's logs
@@ -291,11 +292,18 @@ change.
   migrator image installs with `--omit=dev`; moving any of them to
   `devDependencies` breaks migrations and seeding in the cluster with
   `Cannot find module 'dotenv/config'`.
-- **Access is via Ingress at `http://dinner.local`.** Docker Desktop publishes
-  the ingress controller's LoadBalancer on `localhost:80`, so `/etc/hosts` needs
+- **Access is via Ingress at `https://dinner.local`.** Docker Desktop publishes
+  the ingress controller's LoadBalancer on `localhost:80` and `:443`, so `/etc/hosts` needs
   `127.0.0.1 dinner.local` **and** `::1 dinner.local`: without the IPv6 line,
   macOS asks Bonjour about the `.local` name first and every request takes 5
   seconds longer. `deploy.sh` prints missing lines; it never edits `/etc/hosts`.
+- **The certificate is mkcert's, in a Secret that is no manifest.** `deploy.sh` makes the `dinner-planner-tls`
+  Secret once (`k8s/tls-secret.sh`: `mkcert` for `dinner.local`, then `kubectl create secret tls`, never `apply`,
+  which would copy the key into an annotation) and keeps it; the Ingress names it and redirects http to https
+  (this Ingress only, never the shared controller). No certificate or key is ever in the repository
+  (`tests/infra/k8s.test.ts` checks). Without mkcert and its certificate authority (`brew install mkcert && mkcert
+  -install`) the first deploy stops with those commands and installs nothing. `npm run k8s:renew-tls` replaces the
+  certificate when it expires (about two years and three months). Details: `documentation/backend/tls.md`.
 - **The database volume lives inside the kind node.** Resetting or updating
   Docker Desktop's Kubernetes deletes it, and so does `npm run k8s:delete`,
   which removes the whole namespace. A launchd job (`npm run k8s:backup:install`)
@@ -353,7 +361,7 @@ with your work rather than deleting it.
 - Don't refactor without permission
 - Data has to be persistently stored somewhere
 - The app must be deployable to Kubernetes (container image + manifests). The app itself stays stateless; persistent data lives in PostgreSQL, configured via `DATABASE_URL`
-- The app runs in the local Kubernetes environment: **Docker Desktop's Kubernetes** (context `docker-desktop`), namespace `dinner-planner`, reached at `http://dinner.local`. Deploy with `npm run k8s:deploy`; never target a context other than `docker-desktop`. Keep it working there — a change that cannot be deployed and reached in that cluster is not finished
+- The app runs in the local Kubernetes environment: **Docker Desktop's Kubernetes** (context `docker-desktop`), namespace `dinner-planner`, reached at `https://dinner.local`. Deploy with `npm run k8s:deploy`; never target a context other than `docker-desktop`. Keep it working there — a change that cannot be deployed and reached in that cluster is not finished
 - Add test cases for everything we implement
 - The UI has to be accessible and adhere to W3C and WAI standards (target: WCAG 2.2 level AA)
 - Be lean in the code: avoid duplicated code and tight coupling

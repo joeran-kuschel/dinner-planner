@@ -115,10 +115,10 @@ Under the header, **Copy list** and **Print** take the list to the shop.
   **Ticked lines and lines hidden by a pantry staple are left out** (also when the pantry lines are shown), as are
   sections that this empties. Nothing is left to copy when everything is ticked, so the button is then not shown.
   A status line next to the buttons says "Copied" (a screen reader announces it). When the browser refuses, or has no
-  clipboard (it needs `https://` or `localhost`), the status says so and a read-only field "The list as text" appears
+  clipboard (it needs `https://` or `localhost`; the cluster serves `https://dinner.local`, so it normally has one), the status says so and a read-only field "The list as text" appears
   with the same text, selected when it takes the focus, to copy by hand. The browser only offers the clipboard in a
-  secure context, so over plain `http://` (as at `http://dinner.local` today) this field is what you get every time;
-  **Copy list** works by itself once the app is served over HTTPS.
+  secure context: over `https://dinner.local` **Copy list** works by itself, while a page opened over plain `http://`
+  (for example by the machine's network address) gets this field every time.
   - The field can be closed again: with its **Close** button below it, or Escape from anywhere in the box (the text, the copy
     icon or Close). Focus goes back to **Copy list** and the status line says "Closed the list as text.", which fades
     after a few seconds like "Copied".

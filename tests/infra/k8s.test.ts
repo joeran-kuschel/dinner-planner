@@ -63,6 +63,16 @@ describe("Kubernetes setup for Docker Desktop", () => {
     expect(script.match(/kubectl(?! --context)/g) ?? []).toEqual([]);
   });
 
+  it.each(["k8s/renew-tls.sh", "k8s/tls-secret.sh"])("%s only talks to the docker-desktop context", (file) => {
+    const script = read(file).split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
+
+    // Every kubectl call goes through a pinned context: renew-tls.sh sets it, tls-secret.sh uses the caller's
+    // (deploy.sh sets it to the cluster it checks).
+    expect(script.match(/kubectl(?! --context)/g) ?? []).toEqual([]);
+    expect(read("k8s/renew-tls.sh")).toContain(`KUBE_CONTEXT=${CLUSTER}`);
+    expect(read("k8s/deploy.sh")).toContain('KUBE_CONTEXT="$CLUSTER"');
+  });
+
   it("pins every kubectl npm script to the docker-desktop context", () => {
     const scripts: Record<string, string> = JSON.parse(read("package.json")).scripts;
     const kubectl = Object.values(scripts).filter((command) => command.includes("kubectl"));
@@ -118,6 +128,49 @@ describe("Kubernetes setup for Docker Desktop", () => {
     expect(services.map((s) => s.metadata.name)).toContain(url.hostname);
     expect(url.pathname).toBe(`/${manifest.stringData.POSTGRES_DB}`);
     expect(manifest.metadata.namespace).toBe(resources("kustomization.yaml")[0].namespace);
+  });
+
+  describe("HTTPS", () => {
+    const ingress = () => resources("ingress.yaml").find((r) => r?.kind === "Ingress")!;
+
+    it("serves dinner.local over TLS from a Secret that deploy.sh makes, and redirects http to it", () => {
+      const { tls } = ingress().spec;
+      const secret = /^TLS_SECRET=(\S+)$/m.exec(read("k8s/tls-secret.sh"))![1];
+
+      expect(tls).toEqual([{ hosts: ["dinner.local"], secretName: secret }]);
+      expect(ingress().spec.rules.map((rule: Resource) => rule.host)).toEqual(["dinner.local"]);
+      expect(ingress().metadata.annotations["nginx.ingress.kubernetes.io/ssl-redirect"]).toBe("true");
+      // The Secret is not a manifest (no key in the repository): the scripts make it.
+      expect(read("k8s/deploy.sh")).toContain("tls_secret_manifest");
+      expect(read("k8s/renew-tls.sh")).toContain("tls_secret_manifest");
+    });
+
+    const codeOf = (file: string) =>
+      read(file).split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
+
+    it("makes the Secret with `kubectl create` or `replace`, never `apply`, which would copy the key into an annotation", () => {
+      // Anywhere in the code, not only on a `kubectl` line: renew-tls.sh calls it through an array.
+      for (const file of ["k8s/tls-secret.sh", "k8s/renew-tls.sh"]) expect(codeOf(file), file).not.toMatch(/\bapply\b/);
+      expect(read("k8s/tls-secret.sh")).toContain("create secret tls");
+      expect(read("k8s/tls-secret.sh")).toContain("--dry-run=client");
+    });
+
+    it("sets the redirect on this Ingress only, never on the shared controller", () => {
+      expect(read("k8s/deploy.sh")).not.toMatch(/ingress-nginx.*(apply|patch|annotate)/);
+      // No write to the controller's namespace by any spelling, and the TLS scripts do not name it at all.
+      expect(codeOf("k8s/deploy.sh")).not.toMatch(/(?:-n|--namespace)[ =]ingress-nginx\s+(?:apply|patch|annotate|edit|replace|delete|create|label|rollout)/);
+      for (const file of ["k8s/tls-secret.sh", "k8s/renew-tls.sh"]) expect(codeOf(file), file).not.toMatch(/ingress-nginx/);
+    });
+
+    it("keeps every certificate and key out of the repository", () => {
+      const tracked = execFileSync("git", ["ls-files"], { encoding: "utf-8" }).split("\n").filter(Boolean);
+      for (const file of tracked) {
+        // Symlinks to folders (the agent skills) and images are not text.
+        if (!fs.existsSync(file) || !fs.statSync(file).isFile() || /\.(png|ico|webp|jpe?g|woff2?)$/.test(file) || file === "tests/infra/k8s.test.ts") continue;
+        expect(fs.readFileSync(file, "utf-8"), file).not.toMatch(/BEGIN (?:[A-Z]+ )?(?:PRIVATE KEY|CERTIFICATE)/);
+      }
+      expect(tracked.filter((file) => /\.(pem|key|crt)$/.test(file))).toEqual([]);
+    });
   });
 
   it("keeps the database password out of the manifests, the scripts and the docs", () => {

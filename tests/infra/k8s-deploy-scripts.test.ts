@@ -14,6 +14,7 @@ const K8S = path.join(process.cwd(), "k8s");
 // does not exist unless SECRET_EXIT=0, and each command can be made to fail through FAIL_<name>.
 const FAKE_KUBECTL = `#!/bin/bash
 echo "$*" >> "$FAKE_DIR/kubectl.log"
+echo "kubectl $*" >> "$FAKE_DIR/calls.log"
 args="$*"
 case "$args" in
   *"get nodes -o jsonpath"*) printf 'desktop-control-plane' ;;
@@ -21,6 +22,15 @@ case "$args" in
   *"get ingressclass nginx"*) exit "\${FAIL_INGRESS:-0}" ;;
   *"kustomize k8s"*) cat k8s/app.yaml ;;
   *"get secret dinner-planner-db"*) exit "\${SECRET_EXIT:-1}" ;;
+  *"get secret dinner-planner-tls"*) exit "\${TLS_SECRET_EXIT:-1}" ;;
+  *"create secret tls"*)
+    while [ $# -gt 0 ]; do
+      case "$1" in --cert) cert="$2" ;; --key) key="$2" ;; esac
+      shift
+    done
+    printf 'kind: Secret\ntype: kubernetes.io/tls\ndata:\n  tls.crt: %s\n  tls.key: %s\n' "$(cat "$cert")" "$(cat "$key")" ;;
+  *"create -f -"*) cat > "$FAKE_DIR/created.yaml" ;;
+  *"replace -f -"*) cat > "$FAKE_DIR/replaced.yaml" ;;
   *"apply -f -"*) tee -a "$FAKE_DIR/applied-all.yaml" > "$FAKE_DIR/applied.yaml" ;;
   *"rollout status deployment/"*) exit "\${FAIL_ROLLOUT:-0}" ;;
   *"get deployment dinner-planner -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planner-migrator:20260928101500}" ;;
@@ -32,10 +42,28 @@ exit 0
 // docker save prints the image name, docker exec stores what is piped into the node.
 const FAKE_DOCKER = `#!/bin/bash
 echo "$*" >> "$FAKE_DIR/docker.log"
+echo "docker $*" >> "$FAKE_DIR/calls.log"
 case "$1" in
   save) echo "IMAGE $2" ;;
   exec) cat >> "$FAKE_DIR/imported" ;;
 esac
+`;
+// mkcert writes a certificate and a key (the key a random one) to the files it is told, and logs where; its
+// certificate authority is in $FAKE_DIR/ca unless FAKE_NO_CA is set.
+const FAKE_MKCERT = `#!/bin/bash
+echo "$*" >> "$FAKE_DIR/mkcert.log"
+if [ "$1" = "-CAROOT" ]; then
+  [ -n "$FAKE_NO_CA" ] && mkdir -p "$FAKE_DIR/noca" && echo "$FAKE_DIR/noca" || echo "$FAKE_DIR/ca"
+  exit 0
+fi
+while [ $# -gt 0 ]; do
+  case "$1" in -cert-file) cert="$2" ;; -key-file) key="$2" ;; esac
+  shift
+done
+echo "CERTIFICATE-$RANDOM" > "$cert"
+echo "PRIVATE-KEY-$RANDOM$RANDOM" > "$key"
+echo "$cert" >> "$FAKE_DIR/mkcert-files"
+echo "$key" >> "$FAKE_DIR/mkcert-files"
 `;
 const FAKE_CURL = '#!/bin/bash\necho "$*" >> "$FAKE_DIR/curl.log"\nexit "${FAIL_CURL:-0}"\n';
 const FAKE_SLEEP = "#!/bin/bash\nexit 0\n";
@@ -47,10 +75,13 @@ function writeExecutable(file: string, content: string) {
   fs.chmodSync(file, 0o755);
 }
 
-function run(script: string, env: Record<string, string> = {}) {
+// `withoutMkcert` leaves only the fakes and the system's own tools on the PATH, as on a machine without mkcert.
+function run(script: string, env: Record<string, string> = {}, { withoutMkcert = false } = {}) {
+  const tools = withoutMkcert ? "/usr/bin:/bin" : process.env.PATH;
+  if (withoutMkcert) fs.rmSync(path.join(dir, "bin", "mkcert"), { force: true });
   return spawnSync("bash", [path.join(K8S, script)], {
     encoding: "utf8",
-    env: { ...process.env, PATH: `${path.join(dir, "bin")}:${process.env.PATH}`, FAKE_DIR: dir, ...env },
+    env: { ...process.env, PATH: `${path.join(dir, "bin")}:${tools}`, FAKE_DIR: dir, ...env },
   });
 }
 
@@ -64,6 +95,9 @@ beforeEach(() => {
   fs.mkdirSync(path.join(dir, "bin"));
   writeExecutable(path.join(dir, "bin", "kubectl"), FAKE_KUBECTL);
   writeExecutable(path.join(dir, "bin", "docker"), FAKE_DOCKER);
+  writeExecutable(path.join(dir, "bin", "mkcert"), FAKE_MKCERT);
+  fs.mkdirSync(path.join(dir, "ca"));
+  fs.writeFileSync(path.join(dir, "ca", "rootCA.pem"), "ROOT CA");
   writeExecutable(path.join(dir, "bin", "curl"), FAKE_CURL);
   writeExecutable(path.join(dir, "bin", "sleep"), FAKE_SLEEP);
 });
@@ -136,8 +170,9 @@ describe("deploy.sh", () => {
 
     expect(log("kubectl.log")).toContain("-n dinner-planner rollout status statefulset/dinner-planner-db");
     expect(log("kubectl.log")).toContain("-n dinner-planner rollout status deployment/dinner-planner");
-    expect(log("curl.log")).toContain("-H Host: dinner.local http://127.0.0.1/");
-    expect(result.stdout).toContain("Open http://dinner.local");
+    // Over HTTPS, against mkcert's own authority, with dinner.local resolved to this machine.
+    expect(log("curl.log")).toContain(`--cacert ${path.join(dir, "ca", "rootCA.pem")} --resolve dinner.local:443:127.0.0.1 https://dinner.local/healthz`);
+    expect(result.stdout).toContain("Open https://dinner.local");
   });
 
   it("stops before building when the cluster is not reachable", () => {
@@ -173,6 +208,95 @@ describe("deploy.sh", () => {
     expect(result.status).not.toBe(0);
     expect(log("curl.log").trim().split("\n")).toHaveLength(30);
     expect(result.stderr).toContain("did not answer through the ingress");
+    expect(result.stderr).toContain("mkcert -install");
+  });
+
+  describe("the HTTPS certificate", () => {
+    it("is made with mkcert for dinner.local the first time, before anything is built", () => {
+      const result = run("deploy.sh");
+
+      expect(result.status).toBe(0);
+      expect(log("mkcert.log")).toMatch(/-cert-file \S+tls\.crt -key-file \S+tls\.key dinner\.local/);
+      expect(log("kubectl.log")).toContain("-n dinner-planner create secret tls dinner-planner-tls --cert");
+      expect(log("created.yaml")).toContain("type: kubernetes.io/tls");
+      expect(result.stdout).toContain("Created the dinner-planner-tls Secret");
+      // One log for both tools, so the order across them is the real one.
+      const calls = log("calls.log");
+      expect(calls.indexOf("create secret tls")).toBeGreaterThanOrEqual(0);
+      expect(calls.indexOf("create secret tls")).toBeLessThan(calls.indexOf("docker build --target app"));
+    });
+
+    it("never puts the key in a command line, a log, the output or a file that stays behind", () => {
+      const result = run("deploy.sh");
+
+      const key = /tls\.key: (\S+)/.exec(log("created.yaml"))![1];
+      expect(key).toMatch(/^PRIVATE-KEY-\d+$/);
+      expect(log("kubectl.log")).not.toContain(key);
+      expect(log("docker.log")).not.toContain(key);
+      expect(log("applied-all.yaml")).not.toContain(key);
+      expect(result.stdout + result.stderr).not.toContain(key);
+      // The temporary directory with the key is gone again.
+      for (const file of log("mkcert-files").trim().split("\n")) expect(fs.existsSync(file), file).toBe(false);
+    });
+
+    it("is kept when it exists, without needing mkcert at all", () => {
+      const result = run("deploy.sh", { TLS_SECRET_EXIT: "0" }, { withoutMkcert: true });
+
+      expect(result.status).toBe(0);
+      expect(log("mkcert.log")).toBe("");
+      expect(log("kubectl.log")).not.toContain("create secret tls");
+      expect(result.stdout).toContain("The dinner-planner-tls Secret exists and is kept");
+    });
+
+    it("stops with the install commands, before building, when mkcert is missing, and installs nothing itself", () => {
+      const result = run("deploy.sh", {}, { withoutMkcert: true });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("brew install mkcert && mkcert -install");
+      expect(log("docker.log")).toBe("");
+      expect(log("kubectl.log")).not.toContain("create secret tls");
+    });
+
+    it("stops and asks for `mkcert -install` when mkcert has no certificate authority yet", () => {
+      const result = run("deploy.sh", { FAKE_NO_CA: "1" });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("mkcert -install");
+      expect(log("mkcert.log")).not.toContain("-cert-file");
+      expect(log("docker.log")).toBe("");
+    });
+  });
+});
+
+describe("renew-tls.sh", () => {
+  it("replaces the Secret with a new certificate, through a pipe and without `apply`", () => {
+    const result = run("renew-tls.sh", { TLS_SECRET_EXIT: "0" });
+
+    expect(result.status).toBe(0);
+    expect(log("kubectl.log")).toContain("--context docker-desktop -n dinner-planner replace -f -");
+    expect(log("kubectl.log")).not.toContain(" apply");
+    expect(log("replaced.yaml")).toContain("type: kubernetes.io/tls");
+    expect(log("mkcert.log")).toContain("dinner.local");
+    expect(result.stdout).toContain("https://dinner.local has a new certificate");
+    const key = /tls\.key: (\S+)/.exec(log("replaced.yaml"))![1];
+    expect(log("kubectl.log")).not.toContain(key);
+    for (const file of log("mkcert-files").trim().split("\n")) expect(fs.existsSync(file), file).toBe(false);
+  });
+
+  it("creates the Secret when there is none yet", () => {
+    const result = run("renew-tls.sh");
+
+    expect(result.status).toBe(0);
+    expect(log("created.yaml")).toContain("type: kubernetes.io/tls");
+    expect(log("kubectl.log")).not.toContain("replace");
+  });
+
+  it("needs mkcert, and says how to get it", () => {
+    const result = run("renew-tls.sh", {}, { withoutMkcert: true });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("brew install mkcert && mkcert -install");
+    expect(log("kubectl.log")).not.toContain("replace");
   });
 });
 
