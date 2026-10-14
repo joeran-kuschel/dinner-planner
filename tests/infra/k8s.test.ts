@@ -63,6 +63,13 @@ describe("Kubernetes setup for Docker Desktop", () => {
     expect(script.match(/kubectl(?! --context)/g) ?? []).toEqual([]);
   });
 
+  it.each(["k8s/access-link.sh", "k8s/rotate-access-key.sh"])("%s only talks to the docker-desktop context", (file) => {
+    const script = read(file).split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
+
+    expect(script).toContain(`KUBE_CONTEXT=${CLUSTER}`);
+    expect(script.match(/kubectl(?! --context)/g) ?? []).toEqual([]);
+  });
+
   it.each(["k8s/renew-tls.sh", "k8s/tls-secret.sh"])("%s only talks to the docker-desktop context", (file) => {
     const script = read(file).split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
 
@@ -102,7 +109,10 @@ describe("Kubernetes setup for Docker Desktop", () => {
     const named = (kind: string) => all.filter((r) => r.kind === kind);
     // The Secret is not a manifest: deploy.sh creates it (k8s/db-secret.sh), so it is named there.
     expect(named("Secret")).toEqual([]);
-    const secrets = [/^DB_SECRET=(\S+)$/m.exec(read("k8s/db-secret.sh"))![1]];
+    const secrets = [
+      /^DB_SECRET=(\S+)$/m.exec(read("k8s/db-secret.sh"))![1],
+      /^ACCESS_SECRET=(\S+)$/m.exec(read("k8s/access-secret.sh"))![1],
+    ];
     const services = named("Service");
     const podLabels = all.flatMap((r: Resource) => (r.spec?.template?.metadata?.labels ? [r.spec.template.metadata.labels] : []));
 

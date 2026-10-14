@@ -6,6 +6,7 @@ import { parseQuantity, readText } from "@/lib/form-data";
 import { groceryKey } from "@/lib/grocery";
 import { parseGroceryCategory } from "@/lib/grocery-category";
 import { parseDayKey, startOfWeek } from "@/lib/week";
+import { requireAccess } from "@/lib/access-guard";
 
 /**
  * Tick or untick a line.
@@ -16,6 +17,7 @@ import { parseDayKey, startOfWeek } from "@/lib/week";
  * the entry's amount, unit and section, so it stays here, ticked, and is not carried on.
  */
 export async function toggleGroceryLine(formData: FormData) {
+  await requireAccess();
   const weekStart = requireWeekStart(formData);
   const key = readText(formData, "key");
   const label = readText(formData, "label");
@@ -46,6 +48,7 @@ export async function toggleGroceryLine(formData: FormData) {
 
 /** Add something the recipes do not cover — dish soap, wine, bin bags. */
 export async function addGroceryExtra(formData: FormData) {
+  await requireAccess();
   const weekStart = requireWeekStart(formData);
   const label = readText(formData, "label");
   if (!label) return;
@@ -74,6 +77,7 @@ export async function addGroceryExtra(formData: FormData) {
  * here, which hides it and ends the carrying.
  */
 export async function removeGroceryExtra(formData: FormData) {
+  await requireAccess();
   if (readText(formData, "carried") === "1") {
     const weekStart = requireWeekStart(formData);
     const key = readText(formData, "key");

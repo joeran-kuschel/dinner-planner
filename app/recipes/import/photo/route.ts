@@ -1,6 +1,7 @@
 import { ImportError, type ImportErrorCode } from "@/lib/recipe-import/errors";
 import { importPhoto } from "@/lib/recipe-import";
 import { readRequestedUrl } from "@/lib/recipe-import/request";
+import { accessRefusal } from "@/lib/access-guard";
 
 /**
  * The picture of an imported recipe, for the browser to put in the form's photo field: `{ "url": "…" }` in, the
@@ -8,6 +9,8 @@ import { readRequestedUrl } from "@/lib/recipe-import/request";
  * itself apply to where it may come from. Nothing is saved here; saving the recipe re-encodes the photo like any upload.
  */
 export async function POST(request: Request) {
+  const refusal = await accessRefusal();
+  if (refusal) return refusal;
   const requested = await readRequestedUrl(request);
   if ("refusal" in requested) return requested.refusal;
 

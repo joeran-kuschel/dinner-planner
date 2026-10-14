@@ -109,6 +109,18 @@ tags no recipe uses in the same transaction. The recipe list's search is a GET f
 over `lib/recipe-search.ts`, which escapes `%` and `_` for `contains`. Details:
 `documentation/backend/recipe-tags.md`.
 
+**One shared access key guards the whole app.** `proxy.ts` lets a request through only with a valid `dp_access` cookie
+(`lib/access.ts`: `v1.<expires>.<HMAC>`, signed with a secret derived from `ACCESS_KEY`, so it cannot be forged and a new
+key logs every device out). `/healthz` (the probes) and `/access` (which hands the cookie out) are the only open paths.
+Every server action calls `await requireAccess()` first and every route handler `accessRefusal()` (`lib/access-guard.ts`),
+because the proxy should not be the only gate; `tests/infra/access.test.ts` fails when one is missing, so a new action
+needs the call. Without a key the app is open outside production (`npm run dev`, Vitest) and refuses everything with 503
+in production (the image sets `NODE_ENV=production`), so a missing Secret never leaves it open. The key is a Secret
+(`dinner-planner-access`) that `deploy.sh` makes once; `npm run k8s:access-link` prints the private link
+`https://dinner.local/access#<key>` (the key after `#` never reaches a server or a log) and `npm run k8s:rotate-access-key`
+replaces it. Playwright runs with a test key and every browser context starts with its cookie (`use.storageState` in
+`playwright.config.ts`); `access.spec.ts` starts with none. Details: `documentation/backend/access-key.md`.
+
 **Hand-added grocery entries carry over to the next week, worked out when the list renders.** An entry still
 unticked at the end of its week appears in the following weeks until it is ticked (`carriedEntries()` in
 `lib/grocery-carry.ts`); nothing is stored for the weeks it passes through. A tick writes a row for that week and
@@ -175,6 +187,8 @@ npm run k8s:seed     # sample data into the cluster's database (one-off Job)
 npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
 npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
 npm run k8s:renew-tls            # a fresh mkcert certificate for https://dinner.local, when it has expired
+npm run k8s:access-link          # the private link that gives a device access (open it once per device)
+npm run k8s:rotate-access-key    # a new access key: every device is logged out until it opens the new link
 npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
 npm run k8s:status   # pods, services, ingress
 npm run k8s:logs     # follow the app's logs
@@ -297,6 +311,10 @@ change.
   `127.0.0.1 dinner.local` **and** `::1 dinner.local`: without the IPv6 line,
   macOS asks Bonjour about the `.local` name first and every request takes 5
   seconds longer. `deploy.sh` prints missing lines; it never edits `/etc/hosts`.
+- **The access key is a Secret that is no manifest either.** `deploy.sh` makes `dinner-planner-access` once
+  (`k8s/access-secret.sh`, `kubectl create`, never `apply`) and keeps it; the app container reads it as `ACCESS_KEY`
+  and does not start without it. After the first deploy open `npm run k8s:access-link`'s link once on each device:
+  until then the app answers 401 there. Details: `documentation/backend/access-key.md`.
 - **The certificate is mkcert's, in a Secret that is no manifest.** `deploy.sh` makes the `dinner-planner-tls`
   Secret once (`k8s/tls-secret.sh`: `mkcert` for `dinner.local`, then `kubectl create secret tls`, never `apply`,
   which would copy the key into an annotation) and keeps it; the Ingress names it and redirects http to https

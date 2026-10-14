@@ -42,9 +42,10 @@ describe("recipe import: where a pasted link may lead", () => {
     // The one module that opens connections to somebody else's server.
     const connecting = sources.filter((file) => /from "node:(https?|net|tls|dns)"|require\("(https?|net|tls)"\)/.test(read(file)));
     expect(connecting.sort()).toEqual(["lib/recipe-import/address.ts", "lib/recipe-import/safe-fetch.ts"]);
-    // And no other server code calls fetch(): the browser's own calls are the dialog's, to this app.
+    // And no other server code calls fetch(): the browser's own calls are the dialog's and the access page's
+    // script (a string sent to the browser, posting the key to this app's own /access).
     const fetching = sources.filter((file) => /\bfetch\(/.test(read(file)));
-    expect(fetching).toEqual(["components/import-recipe-dialog.tsx"]);
+    expect(fetching).toEqual(["lib/access-pages.ts", "components/import-recipe-dialog.tsx"]);
   });
 
   it("is only ever asked through the functions that check the address", () => {

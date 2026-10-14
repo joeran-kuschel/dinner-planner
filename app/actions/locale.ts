@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { readText } from "@/lib/form-data";
 import { isLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
+import { requireAccess } from "@/lib/access-guard";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
@@ -13,6 +14,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
  * the form post returns the page in the new language.
  */
 export async function setLocale(formData: FormData) {
+  await requireAccess();
   const locale = readText(formData, "locale");
   if (!isLocale(locale)) throw new Error("setLocale: unknown `locale`");
 

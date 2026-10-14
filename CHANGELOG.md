@@ -8,6 +8,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Added
 
+- The planner now answers only to browsers that hold its shared access key: open the private link (`npm run k8s:access-link` prints it, with a QR code if `qrencode` is installed) once on each device, and everything else, including saving, works as before. Others on the network get a page saying the planner needs its access link, and `npm run k8s:rotate-access-key` logs every device out ([#68](https://github.com/joeran-kuschel/dinner-planner/issues/68)).
 - The app is served over HTTPS at `https://dinner.local` with a certificate from `mkcert` (and `http://` redirects there), so what you type and see cannot be read by others on the same network; `npm run k8s:renew-tls` makes a fresh one when it expires ([#67](https://github.com/joeran-kuschel/dinner-planner/issues/67)).
 - The recipe import (the link and its photo) refuses requests that come from another website, so another website open in your browser cannot make the app fetch addresses for it by sending a request across sites ([#58](https://github.com/joeran-kuschel/dinner-planner/issues/58)).
 - Things you added to the grocery list by hand and did not tick move on to the next week's list, marked "Added last week" or "Added 3 weeks ago", until you tick or delete them; earlier weeks stay as they were ([#38](https://github.com/joeran-kuschel/dinner-planner/issues/38)).

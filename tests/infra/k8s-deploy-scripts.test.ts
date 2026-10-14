@@ -23,14 +23,17 @@ case "$args" in
   *"kustomize k8s"*) cat k8s/app.yaml ;;
   *"get secret dinner-planner-db"*) exit "\${SECRET_EXIT:-1}" ;;
   *"get secret dinner-planner-tls"*) exit "\${TLS_SECRET_EXIT:-1}" ;;
+  *"get secret dinner-planner-access -o"*) printf '%s' "\${FAKE_ACCESS_KEY:-the-current-access-key-0123456789}" ;;
+  *"get secret dinner-planner-access"*) exit "\${ACCESS_SECRET_EXIT:-1}" ;;
   *"create secret tls"*)
     while [ $# -gt 0 ]; do
       case "$1" in --cert) cert="$2" ;; --key) key="$2" ;; esac
       shift
     done
     printf 'kind: Secret\ntype: kubernetes.io/tls\ndata:\n  tls.crt: %s\n  tls.key: %s\n' "$(cat "$cert")" "$(cat "$key")" ;;
-  *"create -f -"*) cat > "$FAKE_DIR/created.yaml" ;;
-  *"replace -f -"*) cat > "$FAKE_DIR/replaced.yaml" ;;
+  *"create -f -"*) tee -a "$FAKE_DIR/created-all.yaml" > /dev/null ;;
+  *"replace -f -"*) tee -a "$FAKE_DIR/replaced-all.yaml" > "$FAKE_DIR/replaced.yaml" ;;
+  *"rollout restart"*) exit 0 ;;
   *"apply -f -"*) tee -a "$FAKE_DIR/applied-all.yaml" > "$FAKE_DIR/applied.yaml" ;;
   *"rollout status deployment/"*) exit "\${FAIL_ROLLOUT:-0}" ;;
   *"get deployment dinner-planner -o jsonpath"*) printf '%s' "\${DEPLOYED_IMAGE-dinner-planner-migrator:20260928101500}" ;;
@@ -218,7 +221,7 @@ describe("deploy.sh", () => {
       expect(result.status).toBe(0);
       expect(log("mkcert.log")).toMatch(/-cert-file \S+tls\.crt -key-file \S+tls\.key dinner\.local/);
       expect(log("kubectl.log")).toContain("-n dinner-planner create secret tls dinner-planner-tls --cert");
-      expect(log("created.yaml")).toContain("type: kubernetes.io/tls");
+      expect(log("created-all.yaml")).toContain("type: kubernetes.io/tls");
       expect(result.stdout).toContain("Created the dinner-planner-tls Secret");
       // One log for both tools, so the order across them is the real one.
       const calls = log("calls.log");
@@ -229,7 +232,7 @@ describe("deploy.sh", () => {
     it("never puts the key in a command line, a log, the output or a file that stays behind", () => {
       const result = run("deploy.sh");
 
-      const key = /tls\.key: (\S+)/.exec(log("created.yaml"))![1];
+      const key = /tls\.key: (\S+)/.exec(log("created-all.yaml"))![1];
       expect(key).toMatch(/^PRIVATE-KEY-\d+$/);
       expect(log("kubectl.log")).not.toContain(key);
       expect(log("docker.log")).not.toContain(key);
@@ -287,7 +290,7 @@ describe("renew-tls.sh", () => {
     const result = run("renew-tls.sh");
 
     expect(result.status).toBe(0);
-    expect(log("created.yaml")).toContain("type: kubernetes.io/tls");
+    expect(log("created-all.yaml")).toContain("type: kubernetes.io/tls");
     expect(log("kubectl.log")).not.toContain("replace");
   });
 
@@ -330,5 +333,90 @@ describe("seed.sh", () => {
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain("Seeding failed");
     expect(log("kubectl.log")).toContain("logs job/dinner-planner-seed --tail=30");
+  });
+});
+
+describe("the access key", () => {
+  const keyIn = (text: string) => /ACCESS_KEY: "([\w-]+)"/.exec(text)![1];
+
+  it("is made on the first deploy: 256 random bits, URL-safe, through a pipe, before anything is built", () => {
+    const result = run("deploy.sh");
+
+    expect(result.status).toBe(0);
+    const key = keyIn(log("created-all.yaml"));
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(log("created-all.yaml")).toContain("name: dinner-planner-access");
+    const calls = log("calls.log");
+    expect(calls.indexOf("create -f -")).toBeGreaterThanOrEqual(0);
+    expect(calls.lastIndexOf("create -f -")).toBeLessThan(calls.indexOf("docker build --target app"));
+    // On stdin only: in no command line, no log, no output, and never through `apply`.
+    for (const text of [log("kubectl.log"), log("docker.log"), log("applied-all.yaml"), result.stdout, result.stderr]) {
+      expect(text).not.toContain(key);
+    }
+    expect(result.stdout).toContain("Created the dinner-planner-access Secret");
+    expect(result.stdout).toContain("npm run k8s:access-link");
+  });
+
+  it("is a new key on every first deploy", () => {
+    run("deploy.sh");
+    const first = keyIn(log("created-all.yaml"));
+    fs.rmSync(path.join(dir, "created-all.yaml"));
+    run("deploy.sh");
+
+    expect(keyIn(log("created-all.yaml"))).not.toBe(first);
+  });
+
+  it("is kept when it exists: a new key would lock out every device", () => {
+    const result = run("deploy.sh", { ACCESS_SECRET_EXIT: "0" });
+
+    expect(result.status).toBe(0);
+    expect(log("created-all.yaml")).not.toContain("ACCESS_KEY");
+    expect(result.stdout).toContain("The dinner-planner-access Secret exists and is kept");
+  });
+});
+
+describe("access-link.sh", () => {
+  it("prints the private link with the key after #, which no server receives", () => {
+    const result = run("access-link.sh", { FAKE_ACCESS_KEY: "abc-DEF_123" });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("https://dinner.local/access#abc-DEF_123");
+    expect(log("kubectl.log")).toContain("--context docker-desktop -n dinner-planner get secret dinner-planner-access");
+    expect(result.stdout).toContain("npm run k8s:rotate-access-key");
+  });
+
+  it("adds a QR code when qrencode is installed", () => {
+    writeExecutable(path.join(dir, "bin", "qrencode"), '#!/bin/bash\necho "QR: $*" >> "$FAKE_DIR/qr.log"; echo "[qr code]"\n');
+
+    const result = run("access-link.sh", { FAKE_ACCESS_KEY: "abc-DEF_123" });
+
+    expect(log("qr.log")).toBe("QR: -t ANSIUTF8 https://dinner.local/access#abc-DEF_123\n");
+    expect(result.stdout).toContain("[qr code]");
+  });
+});
+
+describe("rotate-access-key.sh", () => {
+  it("replaces the Secret with a new key through a pipe, restarts the app and waits for it", () => {
+    const result = run("rotate-access-key.sh");
+
+    expect(result.status).toBe(0);
+    const key = /ACCESS_KEY: "([\w-]+)"/.exec(log("replaced.yaml"))![1];
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(log("kubectl.log")).toContain("--context docker-desktop -n dinner-planner replace -f -");
+    expect(log("kubectl.log")).not.toContain(" apply");
+    expect(log("kubectl.log")).not.toContain(key);
+    expect(result.stdout + result.stderr).not.toContain(key);
+    const calls = log("calls.log");
+    expect(calls.indexOf("replace -f -")).toBeLessThan(calls.indexOf("rollout restart deployment/dinner-planner"));
+    expect(calls.indexOf("rollout restart")).toBeLessThan(calls.indexOf("rollout status deployment/dinner-planner"));
+    expect(result.stdout).toContain("npm run k8s:access-link");
+  });
+
+  it("gives every rotation a new key", () => {
+    run("rotate-access-key.sh");
+    const first = /ACCESS_KEY: "([\w-]+)"/.exec(log("replaced.yaml"))![1];
+    run("rotate-access-key.sh");
+
+    expect(/ACCESS_KEY: "([\w-]+)"/.exec(log("replaced.yaml"))![1]).not.toBe(first);
   });
 });

@@ -42,7 +42,9 @@ npm run k8s:deploy   # builds the images, imports them into the cluster, applies
 npm run k8s:seed     # optional sample data
 ```
 
-The app is then at https://dinner.local (http redirects there). The first deploy needs
+The app is then at https://dinner.local (http redirects there). It answers only to browsers that
+hold its access key: run `npm run k8s:access-link` and open the link it prints once on each device (see
+[documentation/backend/access-key.md](documentation/backend/access-key.md)). The first deploy needs
 [mkcert](https://github.com/FiloSottile/mkcert) for the certificate and stops with the install commands
 (`brew install mkcert && mkcert -install`) if it is missing; see
 [documentation/backend/tls.md](documentation/backend/tls.md). `k8s:deploy` prints the `/etc/hosts`

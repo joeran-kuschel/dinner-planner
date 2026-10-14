@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config as loadEnv } from "dotenv";
+import { ACCESS_COOKIE, nowSeconds, signSession } from "./lib/access";
 
 loadEnv({ quiet: true });
 
@@ -11,6 +12,30 @@ const PORT = 3100;
 // emptied before every test (tests/e2e/support/test.ts), so they cannot affect each other. That is
 // why `workers` stays 1: with several, one worker's reset would empty another's data.
 export const E2E_SCHEMA = "e2e";
+
+/**
+ * The access key of the test server (lib/access.ts). Only the test server gets it, and every browser context starts
+ * with the cookie it makes (`use.storageState` below, which Playwright also applies to `browser.newContext()`), so
+ * the whole suite runs through the gate; `access.spec.ts` overrides it with an empty storage state. tests/infra/access.test.ts checks that no manifest or example file has a key.
+ */
+export const E2E_ACCESS_KEY = "e2e-access-key-0123456789abcdef";
+
+/** A browser's storage with a valid access cookie in it. `access.spec.ts` replaces it with an empty one. */
+export const E2E_ACCESS_STATE = {
+  cookies: [
+    {
+      name: ACCESS_COOKIE,
+      value: signSession(E2E_ACCESS_KEY, nowSeconds()),
+      domain: "localhost",
+      path: "/",
+      expires: -1,
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax" as const,
+    },
+  ],
+  origins: [],
+};
 
 /** The development database, pointed at the end-to-end schema. */
 function e2eDatabaseUrl(): string {
@@ -31,6 +56,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    storageState: E2E_ACCESS_STATE,
     trace: "retain-on-failure",
     timezoneId: "Europe/Berlin",
     // The browser asks for English, so the app starts in English whatever the
@@ -57,6 +83,7 @@ export default defineConfig({
       NODE_ENV: "production",
       PORT: String(PORT),
       HOSTNAME: "localhost",
+      ACCESS_KEY: E2E_ACCESS_KEY,
       // The recipe import refuses private addresses; its sample website here runs on this machine.
       // Only the test server gets this (tests/infra/recipe-import.test.ts checks no deployment does).
       RECIPE_IMPORT_ALLOW_PRIVATE: "1",
