@@ -9,129 +9,6 @@ Prisma 7 + Postgres. Single user, no auth.
 It runs in the developer's own machine only: Postgres in Docker for `npm run dev`
 and tests, and Docker Desktop's Kubernetes for the real thing. See "Kubernetes".
 
-## Commands
-
-```bash
-npm run db:up        # local Postgres in Docker (host port 5433), first creates .env with a random password — needed by dev and tests
-npm run dev          # dev server on :3000
-npm run build        # production build (also type-checks)
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint
-npm run db:down      # stop the local Postgres
-
-npm run i18n:extract # collect the source's messages into locales/*/messages.po
-npm run i18n:compile # compile the catalogs (runs by itself before dev, build, typecheck and Vitest)
-
-npm run db:migrate -- --name <what-changed>   # edit schema, then run this
-npm run db:generate  # regenerate the client without migrating
-npm run db:seed      # sample recipes + a few planned days (safe to re-run)
-npm run db:studio    # browse the database
-
-npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal deploy
-npm run k8s:seed     # sample data into the cluster's database (one-off Job)
-npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
-npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
-npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
-npm run k8s:status   # pods, services, ingress
-npm run k8s:logs     # follow the app's logs
-npm run k8s:delete   # tear the namespace down
-
-npm test             # Vitest: lib helpers, server actions, components
-npm run check        # the pre-push/pre-merge check: typecheck, lint, Vitest, Playwright — about 2 min, time-limited, no retries
-npm run test:e2e     # Playwright: builds and starts its own server on :3100
-npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test during development
-```
-
-## Testing
-
-- **Every test case lives in `tests/`**, never next to the code:
-  `tests/unit/` mirrors the source tree (`tests/unit/lib/week.test.ts` tests
-  `lib/week.ts`), `tests/infra/` covers the scripts and manifests, and
-  `tests/e2e/` holds the Playwright specs. Tests import the code under test via
-  `@/…`. Vitest setup and helpers are in `tests/support/`, Playwright helpers
-  in `tests/e2e/support/`.
-- **Vitest** (`vitest.config.mts`) has two projects. `server` (Node) runs the
-  `*.test.ts` files in `tests/unit/` and `tests/infra/` against the local Postgres (`DATABASE_URL`): every test file
-  gets its own schema with the migrations applied (`tests/support/setup-server.ts`,
-  `tests/support/migrate.ts`), emptied before each test and dropped afterwards; `next/cache` and `next/navigation` are mocked, use
-  `expectRedirect` from `tests/support/next.ts` and `formData` from `tests/support/db.ts`. `dom`
-  (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
-  actions the component imports and call `expectNoAxeViolations` from `tests/support/axe.ts`.
-  Render through `renderWithI18n(ui, { locale })` from `tests/support/render.tsx`
-  (English by default) and add German cases; server tests get an instance from
-  `testI18n(locale)` in `tests/support/i18n.ts`. Vitest compiles Lingui's macros
-  with the Babel plugin (`tests/support/lingui-macro.mts`).
-- Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
-- **Playwright** (`playwright.config.ts`, specs in `tests/e2e/`) runs the same
-  standalone server as the Docker image (`node .next/standalone/server.js`, with
-  `public/` and `.next/static` copied in; not `next start`, which Next.js does
-  not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
-  touches the development data in `public`. The browser asks for `en-GB`, so specs
-  run in English; German lives in `tests/e2e/language.spec.ts`. **Every test starts with an empty database**: specs import `test` and
-  `expect` from `tests/e2e/support/test.ts`, whose automatic fixture truncates every
-  table of the `e2e` schema before each test (`emptySchema()` in
-  `tests/support/migrate.ts`), so tests are independent, can use any week and can be
-  repeated (`--repeat-each`). Never import `test` from `@playwright/test` in a spec
-  (`tests/infra/e2e-isolation.test.ts` checks). This relies on one worker: with
-  several, each would need a schema of its own. Check pages with `expectAccessible()`
-  (axe incl. contrast) from `tests/e2e/support/helpers.ts`; `unique()` is still handy
-  for names within one test.
-- A test that documents a known bug is marked `it.fails` / `test.fail` with a
-  `// BUG:` comment until the bug is fixed.
-
-`AGENTS.md` is generated and re-added by `next dev` — leave it alone and commit it
-with your work rather than deleting it.
-
-## Layout
-
-```
-app/
-  page.tsx              week plan (the home page)
-  recipes/              list, new, [id] detail, [id]/edit, [id]/photo/route.ts (serves a photo)
-  groceries/            derived shopping list
-  actions/              server actions: meals, recipes, groceries, locale
-  healthz/route.ts      readiness probe — 503 while Postgres is unreachable
-components/             client components (day-card, recipe-form, grocery-list, site-nav,
-                        language-switcher, i18n-provider, confirm-action — the question
-                        before a destructive action); week-nav (previous/this/next week,
-                        shared by the plan and the grocery list) and recipe-photo (the
-                        <img>) are plain components that server pages use too
-lib/
-  db.ts                 Prisma client singleton
-  database-url.ts       requireDatabaseUrl() — one clear error when it is unset
-  prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see below
-  week.ts               day/week helpers — see "Dates" below
-  grocery.ts            grocery aggregation, grouping + formatting
-  grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
-  planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
-  recipe-form.ts        recipe form state types (kept out of the "use server" file)
-  tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
-  recipe-search.ts      the recipe list's search + tag filter, tagNames() — server only
-  units.ts              the recipe form's unit suggestions: the common units plus those in use — server only
-  recipe-import/        "Add from a link": safe-fetch.ts is the only code that fetches a user-supplied address — server only except errors.ts and messages.ts
-  recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
-  recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
-  recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
-  i18n/                 languages, locale detection, catalogs — see "Translations" below
-CHANGELOG.md           what changed, per release day — see "Rules" and documentation/backend/changelog.md
-locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
-tests/
-  unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
-  infra/                Vitest: k8s manifests, deploy/backup scripts, test setup
-  support/              Vitest setup and helpers (db, axe, next mocks, migrations)
-  e2e/                  Playwright specs
-    support/            Playwright helpers and prepare-db.ts
-prisma/
-  schema.prisma         Recipe, RecipePhoto, Ingredient, PlannedMeal, GroceryEntry
-  seed.ts
-generated/prisma/       generated client — never edit, never commit
-Dockerfile              two targets: `app` (Next standalone) and `migrator`
-compose.yaml            Postgres for local development only
-k8s/                    manifests + deploy.sh / seed.sh / rotate-db-password.sh — see "Kubernetes"
-scripts/                check.ts (npm run check), ensure-env.ts (creates .env for npm run db:up)
-.github/workflows/      check.yml: `npm run check` on every pull request and push to main — documentation/backend/github-actions.md
-```
-
 ## Things worth knowing before changing code
 
 **Dates are calendar days, not instants.** Every planner day is a `Date` pinned to
@@ -275,6 +152,102 @@ uses `public`. Every `PrismaClient` must therefore get its adapter from
 `DATABASE_URL` and passes it to `PrismaPg` explicitly. Building a client by hand
 is how the test suite ended up writing into the development data.
 
+## Commands
+
+```bash
+npm run db:up        # local Postgres in Docker (host port 5433), first creates .env with a random password — needed by dev and tests
+npm run dev          # dev server on :3000
+npm run build        # production build (also type-checks)
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run db:down      # stop the local Postgres
+
+npm run i18n:extract # collect the source's messages into locales/*/messages.po
+npm run i18n:compile # compile the catalogs (runs by itself before dev, build, typecheck and Vitest)
+
+npm run db:migrate -- --name <what-changed>   # edit schema, then run this
+npm run db:generate  # regenerate the client without migrating
+npm run db:seed      # sample recipes + a few planned days (safe to re-run)
+npm run db:studio    # browse the database
+
+npm run k8s:deploy   # build, import into the cluster, apply k8s/ — the normal deploy
+npm run k8s:seed     # sample data into the cluster's database (one-off Job)
+npm run k8s:backup   # dump the cluster's database to ~/DinnerPlannerBackups
+npm run k8s:rotate-db-password   # backs up, then gives the cluster's database a new random password
+npm run k8s:restore -- <file.sql.gz>   # replace all cluster data with a backup
+npm run k8s:status   # pods, services, ingress
+npm run k8s:logs     # follow the app's logs
+npm run k8s:delete   # tear the namespace down
+
+npm test             # Vitest: lib helpers, server actions, components
+npm run check        # the pre-push/pre-merge check: typecheck, lint, Vitest, Playwright — about 2 min, time-limited, no retries
+npm run test:e2e     # Playwright: builds and starts its own server on :3100
+npx vitest run tests/unit/lib/week.test.ts -t "Monday"   # one file / one test during development
+```
+
+## Layout
+
+```
+app/
+  page.tsx              week plan (the home page)
+  recipes/              list, new, [id] detail, [id]/edit, [id]/photo/route.ts (serves a photo)
+  groceries/            derived shopping list
+  actions/              server actions: meals, recipes, groceries, locale
+  healthz/route.ts      readiness probe — 503 while Postgres is unreachable
+components/             client components (day-card, recipe-form, grocery-list, site-nav,
+                        language-switcher, i18n-provider, confirm-action — the question
+                        before a destructive action); week-nav (previous/this/next week,
+                        shared by the plan and the grocery list) and recipe-photo (the
+                        <img>) are plain components that server pages use too
+lib/
+  db.ts                 Prisma client singleton
+  database-url.ts       requireDatabaseUrl() — one clear error when it is unset
+  prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see "Things worth knowing"
+  week.ts               day/week helpers — see "Dates" above
+  grocery.ts            grocery aggregation, grouping + formatting
+  grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
+  planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
+  recipe-form.ts        recipe form state types (kept out of the "use server" file)
+  tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
+  recipe-search.ts      the recipe list's search + tag filter, tagNames() — server only
+  units.ts              the recipe form's unit suggestions: the common units plus those in use — server only
+  recipe-import/        "Add from a link": safe-fetch.ts is the only code that fetches a user-supplied address — server only except errors.ts and messages.ts
+  recipe-facts.ts       "Serves 4 · 3 ingredients · …", shared by the recipe pages
+  recipe-photo.ts       processPhoto(): decodes and re-encodes an upload (sharp) — server only
+  recipe-photo-shared.ts  photo limits, sizes and recipePhotoUrl(); safe for client code
+  i18n/                 languages, locale detection, catalogs — see "Translations" above
+CHANGELOG.md           what changed, per release day — see "Rules" and documentation/backend/changelog.md
+locales/                gettext catalogs: {en,de}/messages.po (messages.ts is compiled, git-ignored)
+tests/
+  unit/                 Vitest, mirrors the source tree (lib/, app/, components/, prisma/)
+  infra/                Vitest: k8s manifests, deploy/backup scripts, test setup
+  support/              Vitest setup and helpers (db, axe, next mocks, migrations)
+  e2e/                  Playwright specs
+    support/            Playwright helpers and prepare-db.ts
+prisma/
+  schema.prisma         Recipe, RecipePhoto, Ingredient, PlannedMeal, GroceryEntry
+  seed.ts
+generated/prisma/       generated client — never edit, never commit
+Dockerfile              two targets: `app` (Next standalone) and `migrator`
+compose.yaml            Postgres for local development only
+k8s/                    manifests + deploy.sh / seed.sh / rotate-db-password.sh — see "Kubernetes"
+scripts/                check.ts (npm run check), ensure-env.ts (creates .env for npm run db:up)
+.github/workflows/      check.yml: `npm run check` on every pull request and push to main — documentation/backend/github-actions.md
+```
+
+## Styling
+
+Colours are CSS custom properties on `:root` in `app/globals.css`, redefined under
+`prefers-color-scheme: dark`, and exposed to Tailwind through `@theme inline`. Use
+the tokens (`bg-surface`, `text-muted`, `border-border`, `bg-accent`) and the
+`.card` / `.field` / `.btn-*` / `.label` primitives rather than hard-coding
+colours. Tailwind v4 cannot `@apply` one custom class inside another, which is why
+the shared button base is a selector list. Destructive actions use `.btn-danger-quiet`
+(starts one) and `.btn-danger` (confirms it), never the primary look; a symbol-only
+button is `.btn-icon`. Every button is at least 44 px on a touch screen
+(`pointer: coarse`, at the end of the components layer), so a new button primitive
+joins that list. Details: `documentation/ui/buttons.md`.
+
 ## Kubernetes
 
 The app runs in **Docker Desktop's Kubernetes** (context `docker-desktop`), in
@@ -334,18 +307,45 @@ change.
   output and carries no Prisma CLI, schema or `tsx`; the migrator image has
   those and no Next server.
 
-## Styling
+## Testing
 
-Colours are CSS custom properties on `:root` in `app/globals.css`, redefined under
-`prefers-color-scheme: dark`, and exposed to Tailwind through `@theme inline`. Use
-the tokens (`bg-surface`, `text-muted`, `border-border`, `bg-accent`) and the
-`.card` / `.field` / `.btn-*` / `.label` primitives rather than hard-coding
-colours. Tailwind v4 cannot `@apply` one custom class inside another, which is why
-the shared button base is a selector list. Destructive actions use `.btn-danger-quiet`
-(starts one) and `.btn-danger` (confirms it), never the primary look; a symbol-only
-button is `.btn-icon`. Every button is at least 44 px on a touch screen
-(`pointer: coarse`, at the end of the components layer), so a new button primitive
-joins that list. Details: `documentation/ui/buttons.md`.
+- **Every test case lives in `tests/`**, never next to the code:
+  `tests/unit/` mirrors the source tree (`tests/unit/lib/week.test.ts` tests
+  `lib/week.ts`), `tests/infra/` covers the scripts and manifests, and
+  `tests/e2e/` holds the Playwright specs. Tests import the code under test via
+  `@/…`. Vitest setup and helpers are in `tests/support/`, Playwright helpers
+  in `tests/e2e/support/`.
+- **Vitest** (`vitest.config.mts`) has two projects. `server` (Node) runs the
+  `*.test.ts` files in `tests/unit/` and `tests/infra/` against the local Postgres (`DATABASE_URL`): every test file
+  gets its own schema with the migrations applied (`tests/support/setup-server.ts`,
+  `tests/support/migrate.ts`), emptied before each test and dropped afterwards; `next/cache` and `next/navigation` are mocked, use
+  `expectRedirect` from `tests/support/next.ts` and `formData` from `tests/support/db.ts`. `dom`
+  (jsdom) runs `*.test.tsx` component tests with Testing Library; mock the server
+  actions the component imports and call `expectNoAxeViolations` from `tests/support/axe.ts`.
+  Render through `renderWithI18n(ui, { locale })` from `tests/support/render.tsx`
+  (English by default) and add German cases; server tests get an instance from
+  `testI18n(locale)` in `tests/support/i18n.ts`. Vitest compiles Lingui's macros
+  with the Babel plugin (`tests/support/lingui-macro.mts`).
+- Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
+- **Playwright** (`playwright.config.ts`, specs in `tests/e2e/`) runs the same
+  standalone server as the Docker image (`node .next/standalone/server.js`, with
+  `public/` and `.next/static` copied in; not `next start`, which Next.js does
+  not support with `output: "standalone"`) against the schema `e2e`, recreated from the migrations on every run, so it never
+  touches the development data in `public`. The browser asks for `en-GB`, so specs
+  run in English; German lives in `tests/e2e/language.spec.ts`. **Every test starts with an empty database**: specs import `test` and
+  `expect` from `tests/e2e/support/test.ts`, whose automatic fixture truncates every
+  table of the `e2e` schema before each test (`emptySchema()` in
+  `tests/support/migrate.ts`), so tests are independent, can use any week and can be
+  repeated (`--repeat-each`). Never import `test` from `@playwright/test` in a spec
+  (`tests/infra/e2e-isolation.test.ts` checks). This relies on one worker: with
+  several, each would need a schema of its own. Check pages with `expectAccessible()`
+  (axe incl. contrast) from `tests/e2e/support/helpers.ts`; `unique()` is still handy
+  for names within one test.
+- A test that documents a known bug is marked `it.fails` / `test.fail` with a
+  `// BUG:` comment until the bug is fixed.
+
+`AGENTS.md` is generated and re-added by `next dev` — leave it alone and commit it
+with your work rather than deleting it.
 
 ## Rules
 
