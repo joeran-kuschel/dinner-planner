@@ -2,7 +2,7 @@
 
 `CHANGELOG.md` at the repository root says what changed in the app, in the
 [Keep a Changelog](https://keepachangelog.com) layout. It answers "what is in the version at
-`http://dinner.local`, and what did the last deploy bring in?"
+`https://dinner.local`, and what did the last deploy bring in?"
 
 ## Layout
 

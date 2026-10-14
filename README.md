@@ -42,7 +42,10 @@ npm run k8s:deploy   # builds the images, imports them into the cluster, applies
 npm run k8s:seed     # optional sample data
 ```
 
-The app is then at http://dinner.local. `k8s:deploy` prints the `/etc/hosts`
+The app is then at https://dinner.local (http redirects there). The first deploy needs
+[mkcert](https://github.com/FiloSottile/mkcert) for the certificate and stops with the install commands
+(`brew install mkcert && mkcert -install`) if it is missing; see
+[documentation/backend/tls.md](documentation/backend/tls.md). `k8s:deploy` prints the `/etc/hosts`
 lines to add if they are missing (they need sudo, so it will not do it for
 you). `npm run k8s:delete` removes it again, including its database. The first deploy creates the
 database login with a random password; `npm run k8s:rotate-db-password` replaces it later.

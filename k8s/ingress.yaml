@@ -1,6 +1,8 @@
-# Served at http://dinner.local through the nginx ingress controller, which
-# Docker Desktop publishes on localhost:80. The name needs a 127.0.0.1 line in
-# /etc/hosts, which `npm run k8s:deploy` prints if it is missing.
+# Served at https://dinner.local through the nginx ingress controller, which
+# Docker Desktop publishes on localhost:80 and :443. The name needs a 127.0.0.1 line in
+# /etc/hosts, which `npm run k8s:deploy` prints if it is missing. The certificate is in the
+# dinner-planner-tls Secret, which deploy.sh makes once with mkcert (k8s/tls-secret.sh): it is
+# not a manifest, so no key is ever in the repository.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,8 +13,15 @@ metadata:
     # is shared with other apps and must not be changed. Above the app's own
     # 5 MB photo limit and the 6 MB server-action limit in next.config.ts.
     nginx.ingress.kubernetes.io/proxy-body-size: 8m
+    # http://dinner.local answers with a redirect to https://dinner.local. This Ingress only: the controller
+    # is shared and its own settings are never changed.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - dinner.local
+      secretName: dinner-planner-tls
   rules:
     - host: dinner.local
       http:

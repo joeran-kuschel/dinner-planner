@@ -20,6 +20,9 @@ MIGRATOR_IMAGE="$MIGRATOR_REPO:$TAG"
 cd "$(dirname "$0")/.."
 # shellcheck source=k8s/db-secret.sh
 source k8s/db-secret.sh
+# shellcheck source=k8s/tls-secret.sh
+source k8s/tls-secret.sh
+KUBE_CONTEXT="$CLUSTER"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
@@ -34,7 +37,7 @@ if ! "${KUBECTL[@]}" get nodes >/dev/null 2>&1; then
   exit 1
 fi
 
-# The nginx ingress controller serves http://dinner.local. It is shared with
+# The nginx ingress controller serves https://dinner.local. It is shared with
 # other apps on this cluster, so it is only checked here, never installed.
 if ! "${KUBECTL[@]}" get ingressclass nginx >/dev/null 2>&1; then
   echo "The nginx ingress controller is missing. Install it once with:" >&2
@@ -53,6 +56,16 @@ if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$DB_SECRET" >/dev/null 2>&1; then
 else
   db_secret_manifest dinner "$(new_db_password)" dinner_planner | "${KUBECTL[@]}" apply -f - >/dev/null
   echo "Created the $DB_SECRET Secret with a random password."
+fi
+
+step "Checking the HTTPS certificate"
+# Like the database Secret, the TLS Secret is made once and then left alone. It needs mkcert only then.
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$TLS_SECRET" >/dev/null 2>&1; then
+  echo "The $TLS_SECRET Secret exists and is kept."
+else
+  require_mkcert "$HOST" || exit 1
+  tls_secret_manifest "$HOST" | "${KUBECTL[@]}" -n "$NAMESPACE" create -f - >/dev/null
+  echo "Created the $TLS_SECRET Secret with a certificate for $HOST."
 fi
 
 step "Building images ($TAG)"
@@ -95,7 +108,7 @@ fi
 
 step "Ready"
 
-# Docker Desktop publishes the ingress controller's LoadBalancer on localhost:80,
+# Docker Desktop publishes the ingress controller's LoadBalancer on localhost:80 and :443,
 # so the app is reachable once dinner.local points at localhost. Both lines are
 # needed: without the IPv6 one, macOS first asks Bonjour about the `.local`
 # name, which adds a 5-second delay to every request.
@@ -108,16 +121,23 @@ for line in "127.0.0.1 ${HOST}" "::1 ${HOST}"; do
   fi
 done
 
-# The ingress controller takes a few seconds to pick up a new Ingress.
+# The ingress controller takes a few seconds to pick up a new Ingress. The certificate is checked against
+# mkcert's own authority when mkcert is there (otherwise against the system's, which `mkcert -install` extends).
+# (The ${…+…} form: macOS ships bash 3.2, where an empty array is an unbound variable under `set -u`.)
+CURL_TRUST=()
+if command -v mkcert >/dev/null 2>&1 && [ -f "$(mkcert -CAROOT)/rootCA.pem" ]; then
+  CURL_TRUST=(--cacert "$(mkcert -CAROOT)/rootCA.pem")
+fi
 for _ in $(seq 1 30); do
-  if curl -s -o /dev/null --max-time 3 --fail -H "Host: ${HOST}" "http://127.0.0.1/"; then
-    echo "Open http://${HOST}"
+  if curl -s -o /dev/null --max-time 3 --fail ${CURL_TRUST[@]+"${CURL_TRUST[@]}"} --resolve "${HOST}:443:127.0.0.1" "https://${HOST}/healthz"; then
+    echo "Open https://${HOST}"
     exit 0
   fi
   sleep 1
 done
 
-echo "The app is deployed, but http://${HOST} did not answer through the ingress on" >&2
-echo "localhost:80. Check that nothing else holds port 80 and that the ingress" >&2
-echo "controller has an address: kubectl --context $CLUSTER -n ingress-nginx get svc" >&2
+echo "The app is deployed, but https://${HOST} did not answer through the ingress on" >&2
+echo "localhost:443, or its certificate is not trusted (run 'mkcert -install'). Check that nothing" >&2
+echo "else holds port 443 and that the ingress controller has an address:" >&2
+echo "  kubectl --context $CLUSTER -n ingress-nginx get svc" >&2
 exit 1
