@@ -74,7 +74,15 @@ describe("the access key stays out of the repository", () => {
 
   it("the test server's key is in playwright.config.ts alone", () => {
     const tracked = execFileSync("git", ["ls-files"], { encoding: "utf-8" }).split("\n").filter(Boolean);
-    const withKey = tracked.filter((file) => fs.existsSync(file) && fs.statSync(file).isFile() && /\.(ts|tsx|md|yaml|sh|json)$/.test(file) && read(file).includes("e2e-access-key-0123456789abcdef"));
+    // This file names the key in order to look for it, so it is left out (it was untracked, and so unseen, when the check ran locally before the commit).
+    const withKey = tracked.filter(
+      (file) =>
+        file !== "tests/infra/access.test.ts" &&
+        fs.existsSync(file) &&
+        fs.statSync(file).isFile() &&
+        /\.(ts|tsx|md|yaml|sh|json)$/.test(file) &&
+        read(file).includes("e2e-access-key-0123456789abcdef"),
+    );
 
     expect(withKey).toEqual(["playwright.config.ts"]);
   });
