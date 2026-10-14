@@ -1,6 +1,7 @@
 import { ImportError, type ImportErrorCode } from "@/lib/recipe-import/errors";
 import { importRecipe } from "@/lib/recipe-import";
 import { readRequestedUrl } from "@/lib/recipe-import/request";
+import { accessRefusal } from "@/lib/access-guard";
 
 /**
  * The import dialog's request: `{ "url": "…" }` in, the recipe form's values and the address of the recipe's picture
@@ -8,6 +9,8 @@ import { readRequestedUrl } from "@/lib/recipe-import/request";
  * the server too. Nothing is saved here.
  */
 export async function POST(request: Request) {
+  const refusal = await accessRefusal();
+  if (refusal) return refusal;
   const requested = await readRequestedUrl(request);
   if ("refusal" in requested) return requested.refusal;
 

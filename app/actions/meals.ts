@@ -6,6 +6,7 @@ import { parsePositiveInt, readText } from "@/lib/form-data";
 import { isDinner, LEFTOVERS_DAYS } from "@/lib/leftovers";
 import { isSameDinner, MAX_SERVINGS } from "@/lib/planner";
 import { addDays, parseDayKey, startOfWeek } from "@/lib/week";
+import { requireAccess } from "@/lib/access-guard";
 
 /**
  * Assign, change or clear the dinner for one day.
@@ -17,6 +18,7 @@ import { addDays, parseDayKey, startOfWeek } from "@/lib/week";
  * See documentation/backend/planned-meals.md for how these combine.
  */
 export async function setPlannedMeal(formData: FormData) {
+  await requireAccess();
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("setPlannedMeal: missing or malformed `day`");
 
@@ -70,6 +72,7 @@ export async function setPlannedMeal(formData: FormData) {
  * landing within the same few milliseconds could still collide; that window is accepted.
  */
 export async function restorePlannedMeal(formData: FormData): Promise<"restored" | "occupied"> {
+  await requireAccess();
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("restorePlannedMeal: missing or malformed `day`");
 
@@ -95,6 +98,7 @@ export async function restorePlannedMeal(formData: FormData): Promise<"restored"
  * cleared). See documentation/backend/planned-meals.md.
  */
 export async function setLeftovers(formData: FormData): Promise<"saved" | "changed"> {
+  await requireAccess();
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("setLeftovers: missing or malformed `day`");
   const from = parseDayKey(readText(formData, "from"));
@@ -130,6 +134,7 @@ function likeLiteral(text: string): string {
 }
 
 export async function clearPlannedMeal(formData: FormData) {
+  await requireAccess();
   const day = parseDayKey(readText(formData, "day"));
   if (!day) throw new Error("clearPlannedMeal: missing or malformed `day`");
 
@@ -139,6 +144,7 @@ export async function clearPlannedMeal(formData: FormData) {
 
 /** Wipe a whole week, for starting over. */
 export async function clearWeek(formData: FormData) {
+  await requireAccess();
   const day = parseDayKey(readText(formData, "weekStart"));
   if (!day) throw new Error("clearWeek: missing or malformed `weekStart`");
   // A stale or edited form may post another weekday; the week is still Monday-based.

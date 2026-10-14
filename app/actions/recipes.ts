@@ -17,6 +17,7 @@ import {
   type RecipeFormState,
   type RecipeFormValues,
 } from "@/lib/recipe-form";
+import { requireAccess } from "@/lib/access-guard";
 
 /**
  * Ingredient rows arrive as three parallel arrays from the repeated inputs in
@@ -177,6 +178,7 @@ export async function createRecipe(
   prev: RecipeFormState,
   formData: FormData,
 ): Promise<RecipeFormState> {
+  await requireAccess();
   const values = readValues(formData);
   const error = validationError(values);
   if (error) return reject(prev, values, error);
@@ -203,6 +205,7 @@ export async function updateRecipe(
   prev: RecipeFormState,
   formData: FormData,
 ): Promise<RecipeFormState> {
+  await requireAccess();
   const id = rawText(formData.get("id")).trim();
   const values = readValues(formData);
   if (!id) return reject(prev, values, msg`Missing recipe id.`);
@@ -252,6 +255,7 @@ function photoUpdate(change: PhotoChange) {
 }
 
 export async function deleteRecipe(formData: FormData) {
+  await requireAccess();
   const id = rawText(formData.get("id")).trim();
   if (!id) throw new Error("deleteRecipe: missing `id`");
 

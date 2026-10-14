@@ -10,25 +10,25 @@ describe("GET /healthz", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok" });
   });
 
-  it("answers 503 with the reason while the database is unreachable", async () => {
+  it("answers 503 while the database is unreachable, and keeps the reason to itself: anyone can ask", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(prisma, "$queryRaw").mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:5432"));
 
     const response = await GET();
 
     expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({
-      status: "database-unreachable",
-      detail: "connect ECONNREFUSED 127.0.0.1:5432",
-    });
+    expect(await response.text()).not.toContain("5432");
+    expect(log).toHaveBeenCalledWith("healthz: the database is unreachable:", "connect ECONNREFUSED 127.0.0.1:5432");
   });
 
-  it("reports no detail when the failure is not an Error", async () => {
+  it("answers 503 with the same body when the failure is not an Error", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(prisma, "$queryRaw").mockRejectedValue("down");
 
     const response = await GET();
 
     expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({ status: "database-unreachable", detail: null });
+    await expect(response.json()).resolves.toEqual({ status: "database-unreachable" });
   });
 
   it("is never cached, so the probe sees the current state", () => {

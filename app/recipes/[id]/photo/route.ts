@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { accessRefusal } from "@/lib/access-guard";
 
 // A photo can change at any time, and a deleted recipe's photo must be gone at once.
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ function matchesEtag(header: string | null, etag: string): boolean {
  * browser asks again each time and gets a cheap 304 through the ETag.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const refusal = await accessRefusal();
+  if (refusal) return refusal;
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const size = searchParams.get("size") === "thumb" ? "thumb" : "full";

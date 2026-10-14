@@ -160,6 +160,10 @@ msgstr "Category"
 msgid "Category for ingredient {number}"
 msgstr "Category for ingredient {number}"
 
+#: lib/access-pages.ts
+msgid "Checking the access link…"
+msgstr "Checking the access link…"
+
 #: app/recipes/page.tsx
 msgid "Clear"
 msgstr "Clear"
@@ -356,6 +360,10 @@ msgstr "Herbs & spices"
 msgid "Hide the pantry items again"
 msgstr "Hide the pantry items again"
 
+#: lib/access-pages.ts
+msgid "If you have lost it, print it again on the computer that runs the planner with {COMMAND}."
+msgstr "If you have lost it, print it again on the computer that runs the planner with {COMMAND}."
+
 #: app/recipes/new/page.tsx
 #: components/import-recipe-dialog.tsx
 msgid "Import"
@@ -536,6 +544,14 @@ msgstr "One step per line.\n"
 #: app/recipes/page.tsx
 msgid "Only recipes with all of these tags"
 msgstr "Only recipes with all of these tags"
+
+#: lib/access-pages.ts
+msgid "Open the link you got when the planner was set up, once on each device."
+msgstr "Open the link you got when the planner was set up, once on each device."
+
+#: lib/access-pages.ts
+msgid "Opening the planner"
+msgstr "Opening the planner"
 
 #: lib/grocery-category.ts
 msgid "Other"
@@ -775,6 +791,10 @@ msgstr "That address is not a picture."
 msgid "That address is not a web page."
 msgstr "That address is not a web page."
 
+#: lib/access-pages.ts
+msgid "That link is not valid. Print the current one with {COMMAND}."
+msgstr "That link is not valid. Print the current one with {COMMAND}."
+
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
 msgstr "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
@@ -844,9 +864,17 @@ msgstr "This day could not be saved. It shows what is saved now; please try agai
 msgid "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
 msgstr "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
 
+#: lib/access-pages.ts
+msgid "This one-time step needs JavaScript. Turn it on for this page and open the link again."
+msgstr "This one-time step needs JavaScript. Turn it on for this page and open the link again."
+
 #: app/not-found.tsx
 msgid "This page does not exist, or the recipe was deleted."
 msgstr "This page does not exist, or the recipe was deleted."
+
+#: lib/access-pages.ts
+msgid "This planner needs its access link"
+msgstr "This planner needs its access link"
 
 #: components/site-nav.tsx
 #: components/week-nav.tsx

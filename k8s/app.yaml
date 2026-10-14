@@ -53,6 +53,10 @@ spec:
           envFrom:
             - secretRef:
                 name: dinner-planner-db
+            # The shared access key (lib/access.ts). Without it the pod does not start, and a pod that starts
+            # without a key refuses every request: the app is never open by accident.
+            - secretRef:
+                name: dinner-planner-access
           readinessProbe:
             httpGet:
               path: /healthz

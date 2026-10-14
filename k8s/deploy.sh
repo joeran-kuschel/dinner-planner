@@ -22,6 +22,8 @@ cd "$(dirname "$0")/.."
 source k8s/db-secret.sh
 # shellcheck source=k8s/tls-secret.sh
 source k8s/tls-secret.sh
+# shellcheck source=k8s/access-secret.sh
+source k8s/access-secret.sh
 KUBE_CONTEXT="$CLUSTER"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
@@ -66,6 +68,16 @@ else
   require_mkcert "$HOST" || exit 1
   tls_secret_manifest "$HOST" | "${KUBECTL[@]}" -n "$NAMESPACE" create -f - >/dev/null
   echo "Created the $TLS_SECRET Secret with a certificate for $HOST."
+fi
+
+step "Checking the access key"
+# The one key every browser needs (lib/access.ts). Made once and then left alone: a new one would lock out every
+# device. `npm run k8s:rotate-access-key` replaces it on purpose.
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret "$ACCESS_SECRET" >/dev/null 2>&1; then
+  echo "The $ACCESS_SECRET Secret exists and is kept."
+else
+  access_secret_manifest "$(new_access_key)" | "${KUBECTL[@]}" -n "$NAMESPACE" create -f - >/dev/null
+  echo "Created the $ACCESS_SECRET Secret. Print the link for your devices with: npm run k8s:access-link"
 fi
 
 step "Building images ($TAG)"
@@ -130,7 +142,7 @@ if command -v mkcert >/dev/null 2>&1 && [ -f "$(mkcert -CAROOT)/rootCA.pem" ]; t
 fi
 for _ in $(seq 1 30); do
   if curl -s -o /dev/null --max-time 3 --fail ${CURL_TRUST[@]+"${CURL_TRUST[@]}"} --resolve "${HOST}:443:127.0.0.1" "https://${HOST}/healthz"; then
-    echo "Open https://${HOST}"
+    echo "Open https://${HOST} (a device that has not opened its access link yet needs it first: npm run k8s:access-link)"
     exit 0
   fi
   sleep 1

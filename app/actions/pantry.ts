@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { readText } from "@/lib/form-data";
 import { MAX_STAPLE_LENGTH, MAX_STAPLES, normalizeStaple } from "@/lib/pantry";
+import { requireAccess } from "@/lib/access-guard";
 
 /**
  * Add an ingredient to the pantry staples. Adding one that is there already changes nothing,
  * and blank, too long and (past the limit) further names are ignored, like a hand-added grocery line.
  */
 export async function addPantryStaple(formData: FormData) {
+  await requireAccess();
   const name = normalizeStaple(readText(formData, "name"));
   if (!name || name.length > MAX_STAPLE_LENGTH) return;
 
@@ -21,6 +23,7 @@ export async function addPantryStaple(formData: FormData) {
 }
 
 export async function removePantryStaple(formData: FormData) {
+  await requireAccess();
   const id = readText(formData, "id");
   if (!id) throw new Error("removePantryStaple: missing `id`");
 
