@@ -45,6 +45,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- Adding a recipe from a link now also finds the recipe on some pages whose recipe data was not read before.
 - The grocery list's text box ("The list as text", shown when copying is not possible) can be closed again with a Close button or Escape, and has a small copy button in its corner that copies, or selects the text for you to copy by hand where the browser has no clipboard ([#60](https://github.com/joeran-kuschel/dinner-planner/issues/60)).
 - The dinner field on a day card keeps what you typed: leaving it (Tab, a click elsewhere) or pressing Enter plans a name that is no recipe for that day only, instead of throwing the text away. Escape (twice) still puts the planned dinner back, and an emptied field never clears the day ([#54](https://github.com/joeran-kuschel/dinner-planner/issues/54)).
 - On a day card, "Saving…" no longer shows for a moment next to the message that a save failed ([#53](https://github.com/joeran-kuschel/dinner-planner/issues/53)).

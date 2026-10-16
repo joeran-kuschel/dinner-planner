@@ -78,7 +78,8 @@ export function extractJsonLd(html: string): unknown[] {
   const documents: unknown[] = [];
   // Literal searches only: no pattern here can backtrack, however the page is built.
   const opening = /<script/gi;
-  const closing = /<\/script\s*>/gi;
+  // A closing tag may carry attributes (`</script foo="bar">`), which browsers accept: find its start, then its `>`.
+  const closing = /<\/script(?![\w-])/gi;
   for (let match = opening.exec(html); match; match = opening.exec(html)) {
     const tagEnd = html.indexOf(">", match.index);
     if (tagEnd === -1) break;
@@ -89,13 +90,16 @@ export function extractJsonLd(html: string): unknown[] {
     closing.lastIndex = bodyStart;
     const end = closing.exec(html);
     if (!end) break;
-    opening.lastIndex = end.index + end[0].length;
+    const closeTagEnd = html.indexOf(">", end.index);
+    if (closeTagEnd === -1) break;
+    opening.lastIndex = closeTagEnd + 1;
     if (end.index - bodyStart > MAX_JSONLD_BLOCK) continue;
     const text = html
       .slice(bodyStart, end.index)
       .trim()
       .replace(/^(?:<!--|<!\[CDATA\[)/, "")
-      .replace(/(?:-->|\]\]>)$/, "")
+      // A comment may end with `--!>` as well as `-->` (browsers read both).
+      .replace(/(?:--!?>|\]\]>)$/, "")
       .trim();
     for (const attempt of [text, text.replace(/[\u0000-\u001f]+/g, " ")]) {
       try {
