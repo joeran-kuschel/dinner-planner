@@ -67,6 +67,31 @@ describe("extractJsonLd", () => {
     expect(extractJsonLd(html)).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }]);
   });
 
+  it("copes with a comment wrapper that ends with --!>, which browsers read as the end of a comment too", () => {
+    const html = `<script type="application/ld+json"><!-- {"a":1} --!></script><script type="application/ld+json"><!--{"b":2}--!></script><script type="application/ld+json"><!-- {"c":3} --></script>`;
+    expect(extractJsonLd(html)).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }]);
+  });
+
+  it("cuts an end marker that follows the JSON without a start marker, and keeps one inside a string", () => {
+    const html = `<script type="application/ld+json">{"a":1} --!></script><script type="application/ld+json">{"b":"x --!> y","c":"z -->"}</script>`;
+    expect(extractJsonLd(html)).toEqual([{ a: 1 }, { b: "x --!> y", c: "z -->" }]);
+  });
+
+  it("finds the end of a block whose closing tag has attributes, spaces or a line break, as a browser does", () => {
+    const html = [
+      `<script type="application/ld+json">{"a":1}</script foo="bar">`,
+      `<script type="application/ld+json">{"b":2}</script\n>`,
+      `<script type="application/ld+json">{"c":3}</SCRIPT >`,
+      `<script type="application/ld+json">{"d":4}</script>`,
+    ].join("<p>text</p>");
+    expect(extractJsonLd(html)).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }, { d: 4 }]);
+  });
+
+  it("does not take a longer tag name for a closing script tag, and gives up on a closing tag that never ends", () => {
+    expect(extractJsonLd(`<script type="application/ld+json">{"a":"</scripts> and </script-x>"}</script>`)).toEqual([{ a: "</scripts> and </script-x>" }]);
+    expect(extractJsonLd(`<script type="application/ld+json">{"a":1}</script`)).toEqual([]);
+  });
+
   it("repairs raw line breaks inside a string and skips what stays broken", () => {
     const html = `<script type="application/ld+json">{"a":"x\ny"}</script><script type="application/ld+json">{ broken </script>`;
     expect(extractJsonLd(html)).toEqual([{ a: "x y" }]);
