@@ -20,6 +20,7 @@ export async function addPantryStaple(formData: FormData) {
 
   await prisma.pantryStaple.upsert({ where: { name }, update: {}, create: { name } });
   revalidatePath("/groceries");
+  revalidatePath("/shelf");
 }
 
 export async function removePantryStaple(formData: FormData) {
@@ -30,4 +31,5 @@ export async function removePantryStaple(formData: FormData) {
   // A staple removed in another tab is gone already, which is what was asked for.
   await prisma.pantryStaple.deleteMany({ where: { id } });
   revalidatePath("/groceries");
+  revalidatePath("/shelf");
 }

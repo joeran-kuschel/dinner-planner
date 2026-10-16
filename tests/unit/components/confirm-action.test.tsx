@@ -60,6 +60,11 @@ describe("ConfirmAction", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it("can name the asking button more closely than its visible label, which it still starts with", () => {
+    renderConfirm({ label: "Remove", accessibleName: "Remove Milk, 12 Oct 2026" });
+    expect(screen.getByText("Remove", { selector: "summary" })).toHaveAttribute("aria-label", "Remove Milk, 12 Oct 2026");
+  });
+
   it("runs the action with the hidden fields when confirmed", async () => {
     const { user, action } = renderConfirm({ fields: { id: "r-risotto", weekStart: "2026-09-28" } });
     await user.click(summary());

@@ -121,6 +121,13 @@ in production (the image sets `NODE_ENV=production`), so a missing Secret never 
 replaces it. Playwright runs with a test key and every browser context starts with its cookie (`use.storageState` in
 `playwright.config.ts`); `access.spec.ts` starts with none. Details: `documentation/backend/access-key.md`.
 
+**The shelf is a list of dated purchases, kept apart from the pantry staples.** `ShelfItem` rows are typed in on `/shelf`, many per
+name, each with a day and an optional amount; the only thing that creates one by itself is ticking a pantry staple's line
+on the grocery list (`syncShelf()` in `app/actions/groceries.ts`: today's date, no amount, tied to the line by
+`sourceWeek`/`sourceKey`, deleted when the line is unticked). No amount ever comes from the grocery list (more is bought than
+the list asks for), and staples keep hiding their lines as before. A derived line whose normalised name is on the shelf
+gets "On the shelf". Details: `documentation/backend/shelf.md`.
+
 **Hand-added grocery entries carry over to the next week, worked out when the list renders.** An entry still
 unticked at the end of its week appears in the following weeks until it is ticked (`carriedEntries()` in
 `lib/grocery-carry.ts`); nothing is stored for the weeks it passes through. A tick writes a row for that week and

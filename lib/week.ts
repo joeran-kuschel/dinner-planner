@@ -100,6 +100,11 @@ export function formatDayMonth(day: Date, locale: Locale): string {
   return formatters(locale).dayMonth.format(day);
 }
 
+/** e.g. "12 Oct 2026" / "12. Okt. 2026" */
+export function formatDay(day: Date, locale: Locale): string {
+  return formatters(locale).dayMonthYear.format(day);
+}
+
 /** e.g. "12 Oct – 18 Oct 2026" / "12. Okt. – 18. Okt. 2026" */
 export function formatWeekRange(weekStart: Date, locale: Locale): string {
   const { dayMonth, dayMonthYear } = formatters(locale);

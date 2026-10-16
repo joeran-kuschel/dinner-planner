@@ -45,6 +45,11 @@ const ICONS = {
       <circle cx="17" cy="19" r="1" />
     </Icon>
   ),
+  "/shelf": (
+    <Icon>
+      <path d="M4 20h16M5 20V4M19 20V4M5 9h14M5 15h14" />
+    </Icon>
+  ),
 } as const;
 
 export function SiteNav() {
@@ -55,6 +60,7 @@ export function SiteNav() {
     { href: "/", label: t(i18n)`This week` },
     { href: "/recipes", label: t(i18n)`Recipes` },
     { href: "/groceries", label: t(i18n)`Groceries` },
+    { href: "/shelf", label: t(i18n)`On the shelf` },
   ] as const;
 
   return (

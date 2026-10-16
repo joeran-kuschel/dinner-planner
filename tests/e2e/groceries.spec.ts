@@ -1,6 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
+  afterServerAction,
   createRecipe,
   expectAccessible,
   fillIngredients,
@@ -91,7 +92,7 @@ test.describe("groceries", () => {
     await expect(carrots).not.toBeChecked();
     // The box flips at once; the reload below shows what the server saved.
     await expect(carrots).toBeEnabled();
-    await carrots.click();
+    await afterServerAction(page, () => carrots.click());
     await expect(carrots).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: "1 of 2 ticked off" })).toBeVisible();
 
@@ -139,7 +140,7 @@ test.describe("groceries", () => {
     await expectAccessible(page);
 
     const dairy = page.getByRole("region", { name: "Dairy and eggs (1)" });
-    await dairy.getByRole("checkbox", { name: "Tick off Mozzarella" }).click();
+    await afterServerAction(page, () => dairy.getByRole("checkbox", { name: "Tick off Mozzarella" }).click());
     // It stays in its section, still counted there; nothing moves.
     await expect(dairy.getByRole("checkbox", { name: "Tick off Mozzarella" })).toBeChecked();
     await expect(page.getByRole("heading", { name: /In the basket/ })).toHaveCount(0);
@@ -366,7 +367,7 @@ test.describe("copy and print", () => {
 
   test("Copy list puts the open items on the clipboard and says so", async ({ page }) => {
     await planRisotto(page, "2027-11-01");
-    await page.getByRole("checkbox", { name: "Tick off Onion", exact: true }).click();
+    await afterServerAction(page, () => page.getByRole("checkbox", { name: "Tick off Onion", exact: true }).click());
     await expect(page.getByRole("checkbox", { name: "Tick off Onion", exact: true })).toBeChecked();
 
     await page.getByRole("button", { name: "Copy list" }).click();
@@ -393,7 +394,7 @@ test.describe("copy and print", () => {
 
   test("the print view leaves out ticked lines and frames the list in nothing", async ({ page }) => {
     await planRisotto(page, "2027-11-15");
-    await page.getByRole("checkbox", { name: "Tick off Rice", exact: true }).click();
+    await afterServerAction(page, () => page.getByRole("checkbox", { name: "Tick off Rice", exact: true }).click());
     await expect(page.getByRole("checkbox", { name: "Tick off Rice", exact: true })).toBeChecked();
     await page.emulateMedia({ media: "print" });
 
@@ -443,7 +444,7 @@ test.describe("hand-added entries carried over", () => {
     await page.goto(`/groceries?week=${W3}`);
     await expect(box(page, item)).toHaveAccessibleDescription("Added 2 weeks ago");
 
-    await box(page, item).click();
+    await afterServerAction(page, () => box(page, item).click());
     await expect(box(page, item)).toBeChecked();
     await page.reload();
     await expect(box(page, item)).toBeChecked();
@@ -490,7 +491,7 @@ test.describe("hand-added entries carried over", () => {
   test("an entry ticked in its own week is not carried", async ({ page }) => {
     const item = unique("Tape");
     await addItem(page, W1, item);
-    await box(page, item).click();
+    await afterServerAction(page, () => box(page, item).click());
     await expect(box(page, item)).toBeChecked();
 
     await page.goto(`/groceries?week=${W2}`);

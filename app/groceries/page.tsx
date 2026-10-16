@@ -12,6 +12,7 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
 import { carriedEntries, carryRowsWhere } from "@/lib/grocery-carry";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
+import { markOnShelf } from "@/lib/shelf";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
 export async function generateMetadata() {
@@ -26,7 +27,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, entries, earlierEntries, staples, ingredientNames] = await Promise.all([
+  const [meals, entries, earlierEntries, staples, ingredientNames, shelfNames] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
       include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
@@ -37,7 +38,10 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     prisma.pantryStaple.findMany({ orderBy: { name: "asc" } }),
     // What a staple can be, offered while typing one.
     prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
+    // What is on the shelf: a derived line with one of these names says so (see lib/shelf.ts).
+    prisma.shelfItem.findMany({ select: { name: true }, distinct: ["name"] }),
   ]);
+  const onShelf = new Set(shelfNames.map(({ name }) => name));
 
   const entriesByKey = new Map(entries.map((entry) => [entry.key, entry]));
   // Hand-added entries still unticked from earlier weeks, by key: they are listed here too.
@@ -113,7 +117,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     staples.map((staple) => staple.name),
     showPantry,
   );
-  const lines: GroceryListLine[] = pantryView.lines;
+  const lines: GroceryListLine[] = markOnShelf(pantryView.lines, onShelf);
   const suggestions = [...new Set(ingredientNames.map(({ name }) => normalizeStaple(name)).filter(Boolean))];
   const weekRange = formatWeekRange(weekStart, locale);
   const { recipes: recipeCount, typed: typedCount } = mealSources(meals);

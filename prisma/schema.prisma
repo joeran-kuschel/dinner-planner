@@ -128,6 +128,29 @@ model PantryStaple {
   name String @unique
 }
 
+/// A purchase on the shelf ("what I have at home"): entered by hand, or made by ticking a pantry staple on the grocery list.
+model ShelfItem {
+  id         String           @id @default(cuid())
+  /// Normalised like a pantry staple's name (lib/pantry.ts): what the grocery list and the staples are matched on.
+  name       String
+  /// The name as typed.
+  label      String
+  /// Optional: a ticked staple has none, since more is usually bought than the list asks for.
+  quantity   Float?
+  unit       String?
+  category   GroceryCategory  @default(OTHER)
+  /// UTC midnight of the day it was bought.
+  boughtOn   DateTime
+  /// Set when ticking a staple on the grocery list made this entry: the list's Monday and the line's key.
+  /// Unticking the line deletes it again.
+  sourceWeek DateTime?
+  sourceKey  String?
+  createdAt  DateTime         @default(now())
+
+  @@unique([sourceWeek, sourceKey])
+  @@index([name])
+}
+
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
   id        String   @id @default(cuid())

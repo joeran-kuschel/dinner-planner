@@ -78,6 +78,7 @@ msgid "A tag can be at most {MAX_TAG_LENGTH} characters."
 msgstr "A tag can be at most {MAX_TAG_LENGTH} characters."
 
 #: app/groceries/page.tsx
+#: app/shelf/page.tsx
 #: components/pantry-section.tsx
 msgid "Add"
 msgstr "Add"
@@ -105,6 +106,10 @@ msgstr "Add ingredient"
 msgid "Add something else"
 msgstr "Add something else"
 
+#: app/shelf/page.tsx
+msgid "Add to the shelf"
+msgstr "Add to the shelf"
+
 #. placeholder {0}: line.carriedWeeks
 #: components/grocery-list.tsx
 msgid "Added {0} weeks ago"
@@ -124,6 +129,7 @@ msgstr "Added tag {added}"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Amount"
 msgstr "Amount"
 
@@ -144,6 +150,14 @@ msgstr "Back to the plan"
 msgid "Bakery"
 msgstr "Bakery"
 
+#: components/shelf-list.tsx
+msgid "bought {bought}"
+msgstr "bought {bought}"
+
+#: components/shelf-form.tsx
+msgid "Bought on"
+msgstr "Bought on"
+
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
 #: components/leftovers-dialog.tsx
@@ -153,6 +167,7 @@ msgstr "Cancel"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Category"
 msgstr "Category"
 
@@ -282,8 +297,13 @@ msgid "Eat the rest of"
 msgstr "Eat the rest of"
 
 #: app/recipes/[id]/page.tsx
+#: components/shelf-list.tsx
 msgid "Edit"
 msgstr "Edit"
+
+#: components/shelf-list.tsx
+msgid "Edit {label}, {bought}"
+msgstr "Edit {label}, {bought}"
 
 #: app/recipes/[id]/edit/page.tsx
 msgid "Edit recipe"
@@ -391,6 +411,7 @@ msgid "Ingredients"
 msgstr "Ingredients"
 
 #: app/groceries/page.tsx
+#: components/shelf-form.tsx
 msgid "Item"
 msgstr "Item"
 
@@ -402,6 +423,7 @@ msgstr "JPEG, PNG or WebP, up to {MAX_PHOTO_MEGABYTES} MB."
 msgid "kg"
 msgstr "kg"
 
+#: components/shelf-form.tsx
 #: lib/units.ts
 msgid "l"
 msgstr "l"
@@ -443,6 +465,10 @@ msgstr "Meat and fish"
 #: components/recipe-form.tsx
 msgid "Method"
 msgstr "Method"
+
+#: components/shelf-form.tsx
+msgid "Milk"
+msgstr "Milk"
 
 #: app/actions/recipes.ts
 msgid "Missing recipe id."
@@ -489,6 +515,10 @@ msgstr "Next week"
 msgid "No dinner is planned in the six days before this one."
 msgstr "No dinner is planned in the six days before this one."
 
+#: components/shelf-list.tsx
+msgid "No purchase noted. Ticking it off on the grocery list adds one."
+msgstr "No purchase noted. Ticking it off on the grocery list adds one."
+
 #: app/recipes/page.tsx
 msgid "No recipe matches. Try fewer tags or another word."
 msgstr "No recipe matches. Try fewer tags or another word."
@@ -525,9 +555,19 @@ msgstr "Note for {weekday}"
 msgid "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
 msgstr "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
 
+#: components/shelf-list.tsx
+msgid "Nothing on the shelf yet. Add what you have at home, or tick off a pantry staple on the grocery list."
+msgstr "Nothing on the shelf yet. Add what you have at home, or tick off a pantry staple on the grocery list."
+
 #: components/grocery-list.tsx
 msgid "Nothing to buy yet. Plan some dinners and their ingredients land here."
 msgstr "Nothing to buy yet. Plan some dinners and their ingredients land here."
+
+#: app/shelf/page.tsx
+#: components/grocery-list.tsx
+#: components/site-nav.tsx
+msgid "On the shelf"
+msgstr "On the shelf"
 
 #: components/recipe-form.tsx
 msgid "One line on why you make this"
@@ -660,9 +700,25 @@ msgstr "Recipe imported. Check it, then press “Create recipe”."
 msgid "Recipes"
 msgstr "Recipes"
 
+#: components/shelf-list.tsx
+msgid "Remove"
+msgstr "Remove"
+
 #: components/grocery-list.tsx
 msgid "Remove {label}"
 msgstr "Remove {label}"
+
+#: components/shelf-list.tsx
+msgid "Remove {label} from the staples"
+msgstr "Remove {label} from the staples"
+
+#: components/shelf-list.tsx
+msgid "Remove {label}, {bought}"
+msgstr "Remove {label}, {bought}"
+
+#: components/shelf-list.tsx
+msgid "Remove {label}, bought {bought}, from the shelf?"
+msgstr "Remove {label}, bought {bought}, from the shelf?"
 
 #: components/pantry-section.tsx
 msgid "Remove {name} from the pantry staples"
@@ -679,6 +735,10 @@ msgstr "Remove ingredient {number}"
 #: components/recipe-form.tsx
 msgid "Remove photo"
 msgstr "Remove photo"
+
+#: components/shelf-list.tsx
+msgid "Remove staple"
+msgstr "Remove staple"
 
 #: components/tag-input.tsx
 msgid "Remove tag {tag}"
@@ -698,11 +758,13 @@ msgstr "Replace photo"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "required"
 msgstr "required"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Required"
 msgstr "Required"
 
@@ -711,6 +773,7 @@ msgid "Salt"
 msgstr "Salt"
 
 #: components/leftovers-dialog.tsx
+#: components/shelf-list.tsx
 msgid "Save"
 msgstr "Save"
 
@@ -755,6 +818,14 @@ msgstr "source"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Source"
+
+#: components/shelf-list.tsx
+msgid "Staple"
+msgstr "Staple"
+
+#: components/shelf-list.tsx
+msgid "Stop treating {label} as a staple? Its grocery lines show on the list again. Purchases stay on the shelf."
+msgstr "Stop treating {label} as a staple? Its grocery lines show on the list again. Purchases stay on the shelf."
 
 #: components/recipe-search-box.tsx
 msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
@@ -911,6 +982,7 @@ msgstr "Undo clearing {weekday}"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Unit"
 msgstr "Unit"
 
@@ -933,3 +1005,7 @@ msgstr "View recipe for {weekday}"
 #: app/groceries/page.tsx
 msgid "Washing-up liquid"
 msgstr "Washing-up liquid"
+
+#: app/shelf/page.tsx
+msgid "What you have at home. Grocery lines for things that are here say so."
+msgstr "What you have at home. Grocery lines for things that are here say so."

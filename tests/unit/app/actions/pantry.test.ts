@@ -15,7 +15,7 @@ describe("addPantryStaple", () => {
   it("stores the name normalised and refreshes the grocery list", async () => {
     await addPantryStaple(formData({ name: "  Olive   OIL " }));
     expect(await names()).toEqual(["olive oil"]);
-    expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"]]);
+    expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"], ["/shelf"]]);
   });
 
   it("keeps one staple when the same name is added again, in any case", async () => {
@@ -71,7 +71,7 @@ describe("removePantryStaple", () => {
     await removePantryStaple(formData({ id: salt.id }));
 
     expect(await names()).toEqual(["oil"]);
-    expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"]]);
+    expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"], ["/shelf"]]);
   });
 
   it("accepts an id padded with whitespace", async () => {

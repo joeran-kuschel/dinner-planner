@@ -33,6 +33,7 @@ function line(overrides: Partial<Line> & Pick<Line, "label">): Line {
 const RICE = line({ label: "Arborio rice", quantity: 300, unit: "g", sources: ["Mushroom risotto"] });
 const ONION = line({ label: "Onion", quantity: 1.5, sources: ["Mushroom risotto", "Chickpea curry"] });
 const SALT = line({ label: "Salt", sources: ["Chickpea curry"], checked: true, entryId: "e-salt" });
+const MILK = line({ label: "Milk", sources: ["Pancakes"], onShelf: true });
 const NAPKINS = line({ label: "Napkins", manual: true, entryId: "e-napkins" });
 const WINE = line({ label: "Wine", manual: true, checked: true, entryId: "e-wine" });
 
@@ -330,6 +331,7 @@ describe("GroceryList", () => {
       const data = lastFormData(actions.toggleGroceryLine);
       expect(Object.fromEntries(data)).toEqual({
         weekStart: "2026-09-28",
+        category: "OTHER",
         key: RICE.key,
         label: "Arborio rice",
         checked: "true",
@@ -504,6 +506,15 @@ describe("GroceryList: entries carried over from an earlier week", () => {
     expect(lastFormData(actions.toggleGroceryLine).has("carried")).toBe(false);
   });
 
+  it("posts the line's section with every tick, for a staple that lands on the shelf under it", async () => {
+    const { user } = renderList([line({ label: "Salt", category: "HERBS_SPICES" })]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Tick off Salt" }));
+
+    await waitFor(() => expect(actions.toggleGroceryLine).toHaveBeenCalled());
+    expect(lastFormData(actions.toggleGroceryLine).get("category")).toBe("HERBS_SPICES");
+  });
+
   it("can be deleted without a row: the delete says which week and item", async () => {
     const { user } = renderList([CARRIED]);
 
@@ -538,5 +549,28 @@ describe("GroceryList: entries carried over from an earlier week", () => {
 
     expect(screen.getByRole("checkbox", { name: "Soap abhaken" })).toHaveAccessibleDescription("Letzte Woche hinzugefügt");
     expect(screen.getByRole("checkbox", { name: "Wine abhaken" })).toHaveAccessibleDescription("Hinzugefügt vor 3 Wochen");
+  });
+});
+
+describe("GroceryList: lines of things on the shelf", () => {
+  it("says 'On the shelf' with the line, next to where it comes from", () => {
+    renderList([MILK]);
+    expect(screen.getByRole("checkbox", { name: "Tick off Milk" })).toHaveAccessibleDescription("Pancakes · On the shelf");
+  });
+
+  it("does not say it for a line that is ticked off", () => {
+    renderList([{ ...MILK, checked: true }]);
+    expect(screen.queryByText(/On the shelf/)).not.toBeInTheDocument();
+  });
+
+  it("does not say it for a line that is not on the shelf", () => {
+    renderList([RICE]);
+    expect(screen.queryByText(/On the shelf/)).not.toBeInTheDocument();
+  });
+
+  it("says it in German and has no axe violations", async () => {
+    const { container } = renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[MILK]} />, { locale: "de" });
+    expect(screen.getByText("Pancakes · Im Regal")).toBeInTheDocument();
+    await expectNoAxeViolations(container);
   });
 });

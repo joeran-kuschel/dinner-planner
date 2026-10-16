@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addDays,
   dayKey,
+  formatDay,
   formatDayMonth,
   formatWeekday,
   formatWeekRange,
@@ -254,6 +255,11 @@ describe("formatting", () => {
     ["2026-10-25", "25 Oct"],
   ])("formatDayMonth(%s) is %s", (key, expected) => {
     expect(formatDayMonth(day(key), "en")).toBe(expected);
+  });
+
+  it("formatDay names the day with its year, in either language", () => {
+    expect(formatDay(day("2026-10-12"), "en")).toBe("12 Oct 2026");
+    expect(formatDay(day("2026-10-12"), "de")).toBe("12. Okt. 2026");
   });
 
   it.each([

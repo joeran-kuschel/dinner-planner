@@ -16,6 +16,13 @@ function renderAt(path: string, locale: "en" | "de" = "en") {
 }
 
 describe("SiteNav", () => {
+  it("links to the shelf, in German too", () => {
+    renderAt("/");
+    expect(screen.getByRole("link", { name: "On the shelf" })).toHaveAttribute("href", "/shelf");
+    renderAt("/", "de");
+    expect(screen.getByRole("link", { name: "Im Regal" })).toHaveAttribute("href", "/shelf");
+  });
+
   it("links to the week, the recipes and the groceries", () => {
     renderAt("/");
     const nav = screen.getByRole("navigation");
@@ -46,6 +53,7 @@ describe("SiteNav", () => {
     ["/recipes", "Recipes"],
     ["/recipes/abc/edit", "Recipes"],
     ["/groceries", "Groceries"],
+    ["/shelf", "On the shelf"],
   ])("marks only the current section on %s", (path, current) => {
     renderAt(path);
     const marked = screen

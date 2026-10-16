@@ -6,6 +6,7 @@ test.describe("navigation", () => {
     ["This week", "/"],
     ["Recipes", "/recipes"],
     ["Groceries", "/groceries"],
+    ["On the shelf", "/shelf"],
   ] as const) {
     test(`${name} opens ${path} and passes axe`, async ({ page }) => {
       await page.goto(path === "/" ? "/recipes" : "/");

@@ -8,6 +8,8 @@ import { useFormStatus } from "react-dom";
 export type ConfirmActionProps = {
   /** The button that asks; a second click on it, Cancel or Escape closes the question again. */
   label: string;
+  /** For a button that repeats down a list: the name that says which one, e.g. "Remove milk, 12 Oct". Starts with `label`. */
+  accessibleName?: string;
   question: string;
   confirmLabel: string;
   action: (formData: FormData) => Promise<void>;
@@ -29,6 +31,7 @@ export type ConfirmActionProps = {
  */
 export function ConfirmAction({
   label,
+  accessibleName,
   question,
   confirmLabel,
   action,
@@ -68,7 +71,7 @@ export function ConfirmAction({
         }
       }}
     >
-      <summary ref={summary} className="btn-danger-quiet cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+      <summary ref={summary} aria-label={accessibleName} className="btn-danger-quiet cursor-pointer list-none [&::-webkit-details-marker]:hidden">
         {label}
       </summary>
       <div

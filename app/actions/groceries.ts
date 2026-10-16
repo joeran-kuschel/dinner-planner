@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseQuantity, readText } from "@/lib/form-data";
 import { groceryKey } from "@/lib/grocery";
-import { parseGroceryCategory } from "@/lib/grocery-category";
-import { parseDayKey, startOfWeek } from "@/lib/week";
+import { type GroceryCategory, parseGroceryCategory } from "@/lib/grocery-category";
+import { normalizeShelfName } from "@/lib/shelf";
+import { parseDayKey, startOfWeek, today } from "@/lib/week";
 import { requireAccess } from "@/lib/access-guard";
 
 /**
@@ -15,6 +16,9 @@ import { requireAccess } from "@/lib/access-guard";
  * (weekStart, key) and stores the label to keep the row readable on its own. A hand-added entry carried over
  * from an earlier week (`carried=1`) has no row in this week either: ticking it writes one for this week with
  * the entry's amount, unit and section, so it stays here, ticked, and is not carried on.
+ *
+ * Ticking a pantry staple also puts it on the shelf, dated today and without an amount (more is usually bought than
+ * the list asks for); unticking the line takes that entry off again (`syncShelf`).
  */
 export async function toggleGroceryLine(formData: FormData) {
   await requireAccess();
@@ -37,13 +41,38 @@ export async function toggleGroceryLine(formData: FormData) {
         }
       : {};
 
-  await prisma.groceryEntry.upsert({
-    where: { weekStart_key: { weekStart, key } },
-    update: { checked, ...carried },
-    create: { weekStart, key, label: label || key, checked, ...carried },
+  // One transaction, so a tick and the shelf entry it makes (or removes) never fall out of step.
+  await prisma.$transaction(async (tx) => {
+    await tx.groceryEntry.upsert({
+      where: { weekStart_key: { weekStart, key } },
+      update: { checked, ...carried },
+      create: { weekStart, key, label: label || key, checked, ...carried },
+    });
+    await syncShelf(tx, { weekStart, key, label: label || key, checked, category: parseGroceryCategory(formData.get("category")) });
   });
 
   revalidatePath("/groceries");
+  revalidatePath("/shelf");
+}
+
+/** A ticked staple line is on the shelf, an unticked one is not. Other lines never touch the shelf. */
+async function syncShelf(
+  tx: Pick<typeof prisma, "shelfItem" | "pantryStaple">,
+  line: { weekStart: Date; key: string; label: string; checked: boolean; category: GroceryCategory },
+) {
+  const sourceWeek_sourceKey = { sourceWeek: line.weekStart, sourceKey: line.key };
+  if (!line.checked) {
+    await tx.shelfItem.deleteMany({ where: sourceWeek_sourceKey });
+    return;
+  }
+  const name = normalizeShelfName(line.label);
+  if (!(await tx.pantryStaple.findUnique({ where: { name } }))) return;
+  // A repeated tick (two tabs) changes nothing: the entry keeps the day it was made, and any edit of it.
+  await tx.shelfItem.upsert({
+    where: { sourceWeek_sourceKey },
+    update: {},
+    create: { ...sourceWeek_sourceKey, name, label: line.label, category: line.category, boughtOn: today() },
+  });
 }
 
 /** Add something the recipes do not cover — dish soap, wine, bin bags. */

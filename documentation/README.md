@@ -7,6 +7,7 @@ Feature documentation, split into the user interface and the backend.
 - [Week plan](ui/week-plan.md): the day cards, the dinner field with its suggestions, and keyboard use
 - [Recipes](ui/recipes.md): the recipe list and pages, the form with its photo, and deleting a recipe
 - [Grocery list](ui/groceries.md): the weekly shopping list, moving between weeks, ticking off and extras
+- [On the shelf](ui/shelf.md): what you have at home, as dated purchases, the staples among them, and the note on grocery lines
 - [Look and layout](ui/design.md): the palette, the two typefaces, the focus ring, the tab bar and the page layouts
 - [Buttons and touch targets](ui/buttons.md): the kinds of button, the red of destructive actions, the 44 px touch size
 - [Language](ui/language.md): switching between English and German, which language you get, dates and numbers
@@ -17,6 +18,7 @@ Feature documentation, split into the user interface and the backend.
 - [Recipe tags and search](backend/recipe-tags.md): the `Tag` table, the chip form, pruning, the list query and the dinner field
 - [Grocery categories](backend/grocery-categories.md): the shop-section enum, how it travels from recipe form to list, merging and grouping
 - [Pantry staples](backend/pantry-staples.md): the `PantryStaple` table, name-only matching, hiding at render time, the actions
+- [The shelf](backend/shelf.md): the `ShelfItem` table, how a ticked staple makes an entry, the actions, the grocery list's note
 - [Recipe import](backend/recipe-import.md): "Add from a link", what may be fetched, how the recipe is read, the test switch
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language

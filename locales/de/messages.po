@@ -78,6 +78,7 @@ msgid "A tag can be at most {MAX_TAG_LENGTH} characters."
 msgstr "Ein Tag darf höchstens {MAX_TAG_LENGTH} Zeichen lang sein."
 
 #: app/groceries/page.tsx
+#: app/shelf/page.tsx
 #: components/pantry-section.tsx
 msgid "Add"
 msgstr "Hinzufügen"
@@ -105,6 +106,10 @@ msgstr "Zutat hinzufügen"
 msgid "Add something else"
 msgstr "Etwas anderes hinzufügen"
 
+#: app/shelf/page.tsx
+msgid "Add to the shelf"
+msgstr "Zum Regal hinzufügen"
+
 #. placeholder {0}: line.carriedWeeks
 #: components/grocery-list.tsx
 msgid "Added {0} weeks ago"
@@ -124,6 +129,7 @@ msgstr "Tag {added} hinzugefügt"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Amount"
 msgstr "Menge"
 
@@ -144,6 +150,14 @@ msgstr "Zurück zum Plan"
 msgid "Bakery"
 msgstr "Backwaren"
 
+#: components/shelf-list.tsx
+msgid "bought {bought}"
+msgstr "gekauft am {bought}"
+
+#: components/shelf-form.tsx
+msgid "Bought on"
+msgstr "Gekauft am"
+
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
 #: components/leftovers-dialog.tsx
@@ -153,6 +167,7 @@ msgstr "Abbrechen"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Category"
 msgstr "Kategorie"
 
@@ -282,8 +297,13 @@ msgid "Eat the rest of"
 msgstr "Den Rest essen von"
 
 #: app/recipes/[id]/page.tsx
+#: components/shelf-list.tsx
 msgid "Edit"
 msgstr "Bearbeiten"
+
+#: components/shelf-list.tsx
+msgid "Edit {label}, {bought}"
+msgstr "{label} bearbeiten, {bought}"
 
 #: app/recipes/[id]/edit/page.tsx
 msgid "Edit recipe"
@@ -391,6 +411,7 @@ msgid "Ingredients"
 msgstr "Zutaten"
 
 #: app/groceries/page.tsx
+#: components/shelf-form.tsx
 msgid "Item"
 msgstr "Artikel"
 
@@ -402,6 +423,7 @@ msgstr "JPEG, PNG oder WebP, bis zu {MAX_PHOTO_MEGABYTES} MB."
 msgid "kg"
 msgstr "kg"
 
+#: components/shelf-form.tsx
 #: lib/units.ts
 msgid "l"
 msgstr "l"
@@ -443,6 +465,10 @@ msgstr "Fleisch und Fisch"
 #: components/recipe-form.tsx
 msgid "Method"
 msgstr "Zubereitung"
+
+#: components/shelf-form.tsx
+msgid "Milk"
+msgstr "Milch"
 
 #: app/actions/recipes.ts
 msgid "Missing recipe id."
@@ -489,6 +515,10 @@ msgstr "Nächste Woche"
 msgid "No dinner is planned in the six days before this one."
 msgstr "In den sechs Tagen davor ist kein Essen geplant."
 
+#: components/shelf-list.tsx
+msgid "No purchase noted. Ticking it off on the grocery list adds one."
+msgstr "Kein Einkauf notiert. Wenn du ihn auf der Einkaufsliste abhakst, wird einer eingetragen."
+
 #: app/recipes/page.tsx
 msgid "No recipe matches. Try fewer tags or another word."
 msgstr "Kein Rezept passt. Versuche weniger Tags oder ein anderes Wort."
@@ -525,9 +555,19 @@ msgstr "Notiz für {weekday}"
 msgid "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
 msgstr "Noch nichts da. Ein Rezept braucht einen Namen und seine Zutaten – die Zubereitung ist optional."
 
+#: components/shelf-list.tsx
+msgid "Nothing on the shelf yet. Add what you have at home, or tick off a pantry staple on the grocery list."
+msgstr "Noch nichts im Regal. Trag ein, was du zu Hause hast, oder hake einen Vorratsartikel auf der Einkaufsliste ab."
+
 #: components/grocery-list.tsx
 msgid "Nothing to buy yet. Plan some dinners and their ingredients land here."
 msgstr "Noch nichts zu kaufen. Plane ein paar Abendessen, dann landen ihre Zutaten hier."
+
+#: app/shelf/page.tsx
+#: components/grocery-list.tsx
+#: components/site-nav.tsx
+msgid "On the shelf"
+msgstr "Im Regal"
 
 #: components/recipe-form.tsx
 msgid "One line on why you make this"
@@ -660,9 +700,25 @@ msgstr "Rezept importiert. Prüfe es und wähle dann „Rezept anlegen“."
 msgid "Recipes"
 msgstr "Rezepte"
 
+#: components/shelf-list.tsx
+msgid "Remove"
+msgstr "Entfernen"
+
 #: components/grocery-list.tsx
 msgid "Remove {label}"
 msgstr "{label} entfernen"
+
+#: components/shelf-list.tsx
+msgid "Remove {label} from the staples"
+msgstr "{label} aus den Vorratsartikeln entfernen"
+
+#: components/shelf-list.tsx
+msgid "Remove {label}, {bought}"
+msgstr "{label}, {bought} entfernen"
+
+#: components/shelf-list.tsx
+msgid "Remove {label}, bought {bought}, from the shelf?"
+msgstr "{label}, gekauft am {bought}, aus dem Regal entfernen?"
 
 #: components/pantry-section.tsx
 msgid "Remove {name} from the pantry staples"
@@ -679,6 +735,10 @@ msgstr "Zutat {number} entfernen"
 #: components/recipe-form.tsx
 msgid "Remove photo"
 msgstr "Foto entfernen"
+
+#: components/shelf-list.tsx
+msgid "Remove staple"
+msgstr "Vorratsartikel entfernen"
 
 #: components/tag-input.tsx
 msgid "Remove tag {tag}"
@@ -698,11 +758,13 @@ msgstr "Foto ersetzen"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "required"
 msgstr "Pflichtfeld"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Required"
 msgstr "Pflichtfeld"
 
@@ -711,6 +773,7 @@ msgid "Salt"
 msgstr "Salz"
 
 #: components/leftovers-dialog.tsx
+#: components/shelf-list.tsx
 msgid "Save"
 msgstr "Speichern"
 
@@ -755,6 +818,14 @@ msgstr "Quelle"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Quelle"
+
+#: components/shelf-list.tsx
+msgid "Staple"
+msgstr "Vorratsartikel"
+
+#: components/shelf-list.tsx
+msgid "Stop treating {label} as a staple? Its grocery lines show on the list again. Purchases stay on the shelf."
+msgstr "{label} nicht mehr als Vorratsartikel behandeln? Die Zeilen dazu erscheinen wieder auf der Einkaufsliste. Die Einkäufe bleiben im Regal."
 
 #: components/recipe-search-box.tsx
 msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
@@ -911,6 +982,7 @@ msgstr "Rückgängig: {weekday} wurde geleert"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx
+#: components/shelf-form.tsx
 msgid "Unit"
 msgstr "Einheit"
 
@@ -933,3 +1005,7 @@ msgstr "Rezept ansehen für {weekday}"
 #: app/groceries/page.tsx
 msgid "Washing-up liquid"
 msgstr "Spülmittel"
+
+#: app/shelf/page.tsx
+msgid "What you have at home. Grocery lines for things that are here say so."
+msgstr "Was du zu Hause hast. Zeilen der Einkaufsliste für Dinge, die hier stehen, sagen das."

@@ -12,6 +12,8 @@ import { categoryLabel } from "@/lib/grocery-category";
 export type GroceryListLine = GroceryLine & {
   entryId: string | null;
   pantry?: boolean;
+  /** An unticked line whose name has an entry on the shelf (or is a staple with one). */
+  onShelf?: boolean;
   /** For a hand-added entry carried over from an earlier week: how many weeks ago it was added. */
   carriedWeeks?: number;
 };
@@ -133,6 +135,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   const notes = [
     line.sources.length > 0 ? line.sources.join(", ") : null,
     line.pantry ? t(i18n)`in the pantry` : null,
+    line.onShelf && !checked ? t(i18n)`On the shelf` : null,
     // A carried entry says when it was added instead of "added by hand".
     line.carriedWeeks
       ? line.carriedWeeks === 1
@@ -150,13 +153,14 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
         <input type="hidden" name="weekStart" value={weekStart} />
         <input type="hidden" name="key" value={line.key} />
         <input type="hidden" name="label" value={line.label} />
+        {/* The section goes with every tick: a staple ticked off lands on the shelf under it. */}
+        <input type="hidden" name="category" value={line.category} />
         {/* A carried entry has no row in this week yet: its details travel with the tick. */}
         {line.carriedWeeks ? (
           <>
             <input type="hidden" name="carried" value="1" />
             <input type="hidden" name="quantity" value={line.quantity ?? ""} />
             <input type="hidden" name="unit" value={line.unit ?? ""} />
-            <input type="hidden" name="category" value={line.category} />
           </>
         ) : null}
         {/* The hidden field carries the value the action should persist, which is the opposite of the
@@ -171,7 +175,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
             onChange={() => formRef.current?.requestSubmit()}
             className="size-6 shrink-0 accent-[var(--herb)]"
             aria-label={t(i18n)`Tick off ${label}`}
-            aria-describedby={line.carriedWeeks ? noteId : undefined}
+            aria-describedby={line.carriedWeeks || (line.onShelf && !checked) ? noteId : undefined}
           />
 
           <span className="flex min-w-0 flex-1 flex-col">

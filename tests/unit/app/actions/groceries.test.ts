@@ -18,6 +18,10 @@ function expectGroceriesRevalidated() {
   expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"]]);
 }
 
+function expectTickRevalidated() {
+  expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"], ["/shelf"]]);
+}
+
 beforeEach(() => {
   vi.mocked(revalidatePath).mockClear();
 });
@@ -39,7 +43,7 @@ describe("toggleGroceryLine", () => {
       unit: null,
     });
     expect(rows[0].weekStart.toISOString()).toBe("2026-09-28T00:00:00.000Z");
-    expectGroceriesRevalidated();
+    expectTickRevalidated();
   });
 
   it("unticks the existing row instead of adding another", async () => {
@@ -375,5 +379,69 @@ describe("entries carried over from an earlier week", () => {
     await addGroceryExtra(formData({ weekStart: dayKey(NEXT_WEEK), label: "Wine", unit: "bottles", quantity: "1" }));
 
     expect(await entries(NEXT_WEEK)).toMatchObject([{ manual: true, dismissed: false, quantity: 1 }]);
+  });
+});
+
+describe("toggleGroceryLine and the shelf", () => {
+  const salt = { weekStart: dayKey(WEEK), key: groceryKey("Salt", "tsp"), label: "Salt", category: "HERBS_SPICES" };
+  const shelf = () => prisma.shelfItem.findMany();
+
+  it("puts a ticked pantry staple on the shelf, dated today, without an amount, in the line's section", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 14, 12));
+    try {
+      await prisma.pantryStaple.create({ data: { name: "salt" } });
+      await toggleGroceryLine(formData({ ...salt, checked: "true" }));
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const [item, ...rest] = await shelf();
+    expect(rest).toEqual([]);
+    expect(item).toMatchObject({
+      name: "salt",
+      label: "Salt",
+      quantity: null,
+      unit: null,
+      category: "HERBS_SPICES",
+      sourceKey: "salt|tsp",
+    });
+    expect(item.boughtOn.toISOString()).toBe("2026-10-14T00:00:00.000Z");
+    expect(item.sourceWeek?.toISOString()).toBe("2026-09-28T00:00:00.000Z");
+  });
+
+  it("matches the staple by name whatever the case, and ticking twice changes nothing", async () => {
+    await prisma.pantryStaple.create({ data: { name: "olive oil" } });
+    const oil = { weekStart: dayKey(WEEK), key: groceryKey("Olive OIL", null), label: "Olive OIL" };
+    await toggleGroceryLine(formData({ ...oil, checked: "true" }));
+    const [first] = await shelf();
+    await prisma.shelfItem.update({ where: { id: first.id }, data: { quantity: 2, unit: "bottles" } });
+    await toggleGroceryLine(formData({ ...oil, checked: "true" }));
+
+    expect(await shelf()).toEqual([expect.objectContaining({ id: first.id, name: "olive oil", quantity: 2, unit: "bottles" })]);
+  });
+
+  it("takes the entry off again when the line is unticked, and only that one", async () => {
+    await prisma.pantryStaple.create({ data: { name: "salt" } });
+    await toggleGroceryLine(formData({ ...salt, checked: "true" }));
+    await toggleGroceryLine(formData({ ...salt, weekStart: dayKey(NEXT_WEEK), checked: "true" }));
+    await prisma.shelfItem.create({ data: { name: "salt", label: "Salt", boughtOn: WEEK } });
+
+    await toggleGroceryLine(formData({ ...salt, checked: "false" }));
+
+    const rows = await shelf();
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.sourceWeek?.toISOString() ?? null).sort()).toEqual(["2026-10-05T00:00:00.000Z", null]);
+  });
+
+  it("leaves the shelf alone for a line that is no staple", async () => {
+    await toggleGroceryLine(formData({ ...salt, checked: "true" }));
+    expect(await shelf()).toEqual([]);
+  });
+
+  it("puts a hand-added carried staple on the shelf too", async () => {
+    await prisma.pantryStaple.create({ data: { name: "salt" } });
+    await toggleGroceryLine(formData({ ...salt, carried: "1", quantity: "1", unit: "kg", checked: "true" }));
+    expect(await shelf()).toEqual([expect.objectContaining({ name: "salt", quantity: null })]);
   });
 });
