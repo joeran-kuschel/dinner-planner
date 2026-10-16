@@ -45,6 +45,31 @@ So the flow for every change is: branch, the local pre-push check, push the bran
 green, merge the pull request (a merge commit, with the branch deleted afterwards; the ruleset allows squash and rebase too, the
 merge commit is the project's convention).
 
+## Code scanning with CodeQL
+
+[CodeQL](https://codeql.github.com) reads the source for security problems (injection, unsafe regular expressions,
+missing escaping, unsafe use of untrusted input and the like) and, for the workflow files, for unsafe uses of Actions. It
+is switched on through GitHub's **default setup**, a repository setting, so there is no workflow file for it in
+`.github/workflows/`: GitHub runs it as its own "CodeQL" workflow on pushes to `main`, on pull requests into it and once a
+week (`schedule: weekly` in the setup), so a new alert can also appear on a quiet week, when a new query is added.
+Hard-coded secrets are the job of GitHub's separate **secret scanning** (with push protection), which is on too.
+
+- **Settings** (Settings → Advanced Security → Code scanning, or `gh api repos/<owner>/<repo>/code-scanning/default-setup`):
+  languages `javascript-typescript` (the app and its tests) and `actions` (the workflow files), query suite `default`,
+  threat model `remote` (data that comes in over the network is untrusted, which is what this app's forms, routes and
+  `/access` handle).
+- **Reading the results:** the repository's Security tab, "Code scanning", and, for an alert a pull request introduces, as
+  an annotation on the changed line. The scan does not block a merge: only the status check **check** does (see "Making it a gate"). To make CodeQL
+  results required, an admin adds "Code scanning results" to the ruleset **Protect main**; it is not done, so a finding is
+  a thing to look at, not a red pull request.
+- **What to do with a finding:** a real problem becomes an issue (or a fix in the pull request that introduced it); a
+  false positive is dismissed in the Security tab with a reason ("false positive", "won't fix" or "used in tests"), so it
+  does not come back with every scan. Code that stays flagged on purpose gets a comment next to it saying why.
+- **Next to the other reviews:** it does not replace the `code-reviewer` agent, which also checks the project's own rules
+  (tests, documentation, translations, accessibility); CodeQL is a second, mechanical pair of eyes on the same changes.
+- **To turn it off or change it:** the same settings page, or `gh api -X PATCH
+  repos/<owner>/<repo>/code-scanning/default-setup -f state=not-configured`.
+
 ## The summary and the warnings
 
 The run's summary page shows the stage times as a table with the share of each stage's limit, and a stage above 60% of its

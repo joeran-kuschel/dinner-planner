@@ -23,6 +23,6 @@ Feature documentation, split into the user interface and the backend.
 
 - [Database backups](backend/database-backups.md): hourly dumps of the cluster database, restore, and the launchd job
 - [The pre-push / pre-merge check](backend/testing-check.md): `npm run check`, its stages, time limits and the no-retry rule
-- [GitHub Actions](backend/github-actions.md): the same check on every pull request and push to `main`
+- [GitHub Actions](backend/github-actions.md): the same check on every pull request and push to `main`, and CodeQL code scanning
 - [Database credentials](backend/database-credentials.md): where the database password lives, locally and in the cluster, and how to change it
 - [Changelog](backend/changelog.md): `CHANGELOG.md`, how an entry is written, cutting a release
