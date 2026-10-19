@@ -4,7 +4,14 @@ import { prisma } from "@/lib/db";
 import { groceryKey } from "@/lib/grocery";
 import { addDays, dayKey, parseDayKey, startOfWeek } from "@/lib/week";
 import { formData } from "@/tests/support/db";
-import { addGroceryExtra, removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
+import { MAX_MERGE_RULES, MAX_RULE_LABEL, MAX_RULE_NAME } from "@/lib/ingredients/merge-rules";
+import {
+  addGroceryExtra,
+  mergeGroceryLines,
+  removeGroceryExtra,
+  toggleGroceryLine,
+  unmergeGroceryLines,
+} from "@/app/actions/groceries";
 
 // Fixed Mondays, so the tests never depend on the real clock.
 const WEEK = parseDayKey("2026-09-28")!;
@@ -153,7 +160,7 @@ describe("addGroceryExtra", () => {
     const rows = await entries();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      key: "red wine|bottles",
+      key: "~red-wine|bottles",
       label: "Red Wine",
       quantity: 2,
       unit: "Bottles",
@@ -227,7 +234,7 @@ describe("addGroceryExtra", () => {
     await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Tomatoes", quantity: "500", unit: "g" }));
     await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Tomatoes", quantity: "2" }));
 
-    expect((await entries()).map((row) => row.key)).toEqual(["tomatoes|", "tomatoes|g"]);
+    expect((await entries()).map((row) => row.key)).toEqual(["~tomato|", "~tomato|g"]);
   });
 
   it("keeps extras per week", async () => {
@@ -375,5 +382,236 @@ describe("entries carried over from an earlier week", () => {
     await addGroceryExtra(formData({ weekStart: dayKey(NEXT_WEEK), label: "Wine", unit: "bottles", quantity: "1" }));
 
     expect(await entries(NEXT_WEEK)).toMatchObject([{ manual: true, dismissed: false, quantity: 1 }]);
+  });
+});
+
+describe("addGroceryExtra and the dictionary", () => {
+  it("stores the canonical key of a name in the dictionary and keeps the label as typed", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Tomaten", quantity: "500", unit: "Gramm" }));
+
+    expect((await entries())[0]).toMatchObject({ key: "~tomato|g", label: "Tomaten", unit: "Gramm", quantity: 500 });
+  });
+
+  it("adds the same ingredient in another language to the same row", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Tomaten", quantity: "1", unit: "g" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "tomatoes", quantity: "2", unit: "grams" }));
+
+    const rows = await entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ key: "~tomato|g", label: "tomatoes", quantity: 2 });
+  });
+
+  it("stores the rule target's key for a merged name", async () => {
+    await prisma.groceryMergeRule.create({
+      data: { fromName: "aubergine", toName: "eggplant", fromLabel: "Aubergine", toLabel: "Eggplant" },
+    });
+
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Aubergine", unit: "kg" }));
+
+    expect((await entries())[0]).toMatchObject({ key: "eggplant|g", label: "Aubergine", unit: "kg" });
+  });
+
+  it("counts garlic cloves as garlic in cloves", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Knoblauchzehen" }));
+
+    expect((await entries())[0].key).toBe("~garlic|clove");
+  });
+});
+
+const rules = () => prisma.groceryMergeRule.findMany({ orderBy: { fromName: "asc" } });
+const merge = (fields: Record<string, string>) => mergeGroceryLines(formData(fields));
+
+describe("mergeGroceryLines", () => {
+  it("stores the rule, revalidates the list and says it merged", async () => {
+    const result = await merge({ from: "aubergine", to: "eggplant", fromLabel: "Aubergine", toLabel: "Eggplant" });
+
+    expect(result).toBe("merged");
+    expect(await rules()).toEqual([
+      expect.objectContaining({ fromName: "aubergine", toName: "eggplant", fromLabel: "Aubergine", toLabel: "Eggplant" }),
+    ]);
+    expectGroceriesRevalidated();
+  });
+
+  it("merges dictionary groups by their ids and normalises typed names", async () => {
+    await merge({ from: "~shallot", to: "  RED   Onion ", fromLabel: "Shallot", toLabel: "Red Onion" });
+
+    expect(await rules()).toEqual([expect.objectContaining({ fromName: "~shallot", toName: "red onion" })]);
+  });
+
+  it("falls back to the ids as labels when none are sent", async () => {
+    await merge({ from: "a", to: "b" });
+
+    expect(await rules()).toEqual([expect.objectContaining({ fromLabel: "a", toLabel: "b" })]);
+  });
+
+  it("cuts long labels to 80 characters", async () => {
+    await merge({ from: "a", to: "b", fromLabel: "x".repeat(200), toLabel: "y".repeat(200) });
+
+    const [rule] = await rules();
+    expect(rule.fromLabel).toHaveLength(MAX_RULE_LABEL);
+    expect(rule.toLabel).toHaveLength(MAX_RULE_LABEL);
+  });
+
+  it("stores a 150-character name whole", async () => {
+    expect(await merge({ from: "n".repeat(150), to: "b" })).toBe("merged");
+
+    expect((await rules())[0].fromName).toBe("n".repeat(150));
+  });
+
+  it("accepts a name of exactly 200 characters", async () => {
+    expect(await merge({ from: "n".repeat(MAX_RULE_NAME), to: "b" })).toBe("merged");
+  });
+
+  it.each([["from", { from: "n".repeat(201), to: "b" }], ["to", { from: "a", to: "n".repeat(201) }]])(
+    "answers invalid for a %s name longer than 200 characters, writing and revalidating nothing",
+    async (_label, fields) => {
+      expect(await merge(fields)).toBe("invalid");
+
+      expect(await rules()).toEqual([]);
+      expect(revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it("measures the length after normalising", async () => {
+    expect(await merge({ from: `  ${"n".repeat(200)}  `, to: "b" })).toBe("merged");
+  });
+
+  it("moves a name that is merged again instead of adding a second rule", async () => {
+    await merge({ from: "a", to: "b", fromLabel: "A", toLabel: "B" });
+    await merge({ from: "a", to: "c", fromLabel: "A2", toLabel: "C" });
+
+    expect(await rules()).toEqual([expect.objectContaining({ fromName: "a", toName: "c", fromLabel: "A2", toLabel: "C" })]);
+  });
+
+  it.each([
+    ["no from", { to: "b" }],
+    ["no to", { from: "a" }],
+    ["blank names", { from: "  ", to: " " }],
+    ["nothing at all", {}],
+    ["the same name", { from: "a", to: "a" }],
+    ["the same name in another spelling", { from: "A ", to: " a" }],
+    ["the same group", { from: "~tomato", to: "~tomato" }],
+  ])("answers invalid for %s, writing and revalidating nothing", async (_label, fields) => {
+    expect(await merge(fields)).toBe("invalid");
+
+    expect(await rules()).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("answers invalid for a merge that would send two names round in a circle", async () => {
+    await merge({ from: "a", to: "b" });
+    await merge({ from: "b", to: "c" });
+    vi.mocked(revalidatePath).mockClear();
+
+    expect(await merge({ from: "c", to: "a" })).toBe("invalid");
+    expect(await merge({ from: "b", to: "a" })).toBe("invalid");
+
+    expect((await rules()).map((rule) => rule.fromName)).toEqual(["a", "b"]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("ignores extra form fields", async () => {
+    await merge({ from: "a", to: "b", id: "evil", createdAt: "2000-01-01" });
+
+    const [rule] = await rules();
+    expect(rule.id).not.toBe("evil");
+    expect(rule.createdAt.getFullYear()).toBeGreaterThan(2000);
+  });
+
+  describe("limit", () => {
+    const fill = () =>
+      prisma.groceryMergeRule.createMany({
+        data: Array.from({ length: MAX_MERGE_RULES }, (_, i) => ({
+          fromName: `from ${i}`,
+          toName: `to ${i}`,
+          fromLabel: `From ${i}`,
+          toLabel: `To ${i}`,
+        })),
+      });
+
+    it("refuses a new rule once there are 300", async () => {
+      await fill();
+
+      expect(await merge({ from: "one more", to: "target" })).toBe("limit");
+
+      expect(await prisma.groceryMergeRule.count()).toBe(MAX_MERGE_RULES);
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("still moves a name that has a rule already", async () => {
+      await fill();
+
+      expect(await merge({ from: "from 7", to: "elsewhere", toLabel: "Elsewhere" })).toBe("merged");
+
+      expect(await prisma.groceryMergeRule.count()).toBe(MAX_MERGE_RULES);
+      expect(await prisma.groceryMergeRule.findUnique({ where: { fromName: "from 7" } })).toMatchObject({ toName: "elsewhere" });
+    });
+
+    it("allows the 300th rule", async () => {
+      await prisma.groceryMergeRule.createMany({
+        data: Array.from({ length: MAX_MERGE_RULES - 1 }, (_, i) => ({
+          fromName: `from ${i}`,
+          toName: `to ${i}`,
+          fromLabel: "F",
+          toLabel: "T",
+        })),
+      });
+
+      expect(await merge({ from: "last", to: "target" })).toBe("merged");
+    });
+  });
+});
+
+describe("unmergeGroceryLines", () => {
+  it("removes only the given rule and revalidates the list", async () => {
+    await merge({ from: "a", to: "b" });
+    await merge({ from: "c", to: "d" });
+    const [a] = await rules();
+    vi.mocked(revalidatePath).mockClear();
+
+    await unmergeGroceryLines(formData({ id: a.id }));
+
+    expect((await rules()).map((rule) => rule.fromName)).toEqual(["c"]);
+    expectGroceriesRevalidated();
+  });
+
+  it("accepts an id padded with whitespace", async () => {
+    await merge({ from: "a", to: "b" });
+    const [rule] = await rules();
+
+    await unmergeGroceryLines(formData({ id: ` ${rule.id} ` }));
+
+    expect(await rules()).toEqual([]);
+  });
+
+  it("does not fail for an unknown id, as the rule may be undone in another tab already", async () => {
+    await merge({ from: "a", to: "b" });
+
+    await unmergeGroceryLines(formData({ id: "nope" }));
+
+    expect(await rules()).toHaveLength(1);
+  });
+
+  it.each([["missing", {}], ["empty", { id: "" }], ["whitespace-only", { id: "  " }]])(
+    "throws for a %s id without touching the rules",
+    async (_label, fields) => {
+      await merge({ from: "a", to: "b" });
+      vi.mocked(revalidatePath).mockClear();
+
+      await expect(unmergeGroceryLines(formData(fields))).rejects.toThrow(/`id`/);
+
+      expect(await rules()).toHaveLength(1);
+      expect(revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it("splits the lines again: the name is its own line once more", async () => {
+    await merge({ from: "aubergine", to: "eggplant" });
+    const [rule] = await rules();
+    await unmergeGroceryLines(formData({ id: rule.id }));
+
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Aubergine" }));
+
+    expect((await entries())[0].key).toBe("aubergine|");
   });
 });

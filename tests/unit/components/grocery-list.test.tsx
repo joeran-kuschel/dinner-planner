@@ -2,8 +2,9 @@ import { I18nProvider } from "@lingui/react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/tests/support/axe";
+import { polyfillDialog } from "@/tests/support/dialog";
 import { testI18n } from "@/tests/support/i18n";
 import { renderWithI18n } from "@/tests/support/render";
 import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
@@ -11,6 +12,7 @@ import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
 const actions = vi.hoisted(() => ({
   toggleGroceryLine: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   removeGroceryExtra: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
+  mergeGroceryLines: vi.fn<(formData: FormData) => Promise<"merged" | "invalid" | "limit">>(async () => "merged"),
 }));
 vi.mock("@/app/actions/groceries", () => actions);
 
@@ -538,5 +540,114 @@ describe("GroceryList: entries carried over from an earlier week", () => {
 
     expect(screen.getByRole("checkbox", { name: "Soap abhaken" })).toHaveAccessibleDescription("Letzte Woche hinzugefügt");
     expect(screen.getByRole("checkbox", { name: "Wine abhaken" })).toHaveAccessibleDescription("Hinzugefügt vor 3 Wochen");
+  });
+});
+
+describe("GroceryList: merging lines", () => {
+  beforeAll(() => polyfillDialog());
+
+  const TOMATO = line({ key: "~tomato|g", label: "Tomato", quantity: 500, unit: "g", sources: ["Pasta"] });
+  const FLOUR = line({ key: "~flour|g", label: "Flour", quantity: 1, unit: "kg", sources: ["Bread"] });
+  const MILK = line({ key: "~milk|ml", label: "Milk", quantity: 200, unit: "ml" });
+  const LONE = line({ key: "~egg|", label: "Egg", quantity: 2 });
+  const mergeButton = (label: string) => screen.getByRole("button", { name: `Merge ${label} with another line` });
+  const dialog = () => document.querySelector("dialog") as HTMLDialogElement;
+
+  it("offers a merge button on a line when another line has the same unit", () => {
+    renderList([TOMATO, FLOUR, MILK]);
+
+    expect(mergeButton("Tomato")).toBeInTheDocument();
+    expect(mergeButton("Flour")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Merge Milk with another line" })).not.toBeInTheDocument();
+  });
+
+  it("offers none on a lone line", () => {
+    renderList([TOMATO]);
+    expect(screen.queryByRole("button", { name: /^Merge / })).not.toBeInTheDocument();
+  });
+
+  it("offers none for lines whose units differ", () => {
+    renderList([TOMATO, MILK, LONE]);
+    expect(screen.queryByRole("button", { name: /^Merge / })).not.toBeInTheDocument();
+  });
+
+  it("offers only the lines in the same unit as targets, with their amounts", async () => {
+    const { user } = renderList([TOMATO, FLOUR, MILK, LONE]);
+
+    await user.click(mergeButton("Tomato"));
+
+    const radios = within(dialog()).getAllByRole("radio");
+    expect(radios.map((radio) => radio.closest("label")?.textContent)).toEqual(["Flour1 kg"]);
+  });
+
+  it("posts the name ids taken from the keys", async () => {
+    const { user } = renderList([TOMATO, FLOUR]);
+    await user.click(mergeButton("Tomato"));
+    await user.click(within(dialog()).getByRole("radio", { name: /Flour/ }));
+
+    await user.click(within(dialog()).getByRole("button", { name: "Merge" }));
+
+    await waitFor(() => expect(actions.mergeGroceryLines).toHaveBeenCalled());
+    expect(Object.fromEntries(actions.mergeGroceryLines.mock.calls.at(-1)![0])).toEqual({
+      from: "~tomato",
+      fromLabel: "Tomato",
+      to: "~flour",
+      toLabel: "Flour",
+    });
+  });
+
+  it("announces the merge in a polite live region that is not a status", async () => {
+    const { user, container } = renderList([TOMATO, FLOUR]);
+    const live = container.querySelector('[aria-live="polite"]') as HTMLElement;
+    expect(live).not.toHaveAttribute("role");
+    expect(live).toBeEmptyDOMElement();
+    await user.click(mergeButton("Tomato"));
+    await user.click(within(dialog()).getByRole("radio", { name: /Flour/ }));
+
+    await user.click(within(dialog()).getByRole("button", { name: "Merge" }));
+
+    await waitFor(() => expect(live).toHaveTextContent("Merged Tomato into Flour"));
+  });
+
+  it("moves the focus to the checkbox of the line that remains", async () => {
+    const { user } = renderList([TOMATO, FLOUR]);
+    await user.click(mergeButton("Tomato"));
+    await user.click(within(dialog()).getByRole("radio", { name: /Flour/ }));
+
+    await user.click(within(dialog()).getByRole("button", { name: "Merge" }));
+
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Tick off Flour" })).toHaveFocus());
+  });
+
+  it("leaves the focus alone when the merge fails", async () => {
+    actions.mergeGroceryLines.mockResolvedValueOnce("invalid");
+    const { user, container } = renderList([TOMATO, FLOUR]);
+    await user.click(mergeButton("Tomato"));
+    await user.click(within(dialog()).getByRole("radio", { name: /Flour/ }));
+
+    await user.click(within(dialog()).getByRole("button", { name: "Merge" }));
+
+    expect(await within(dialog()).findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Tick off Flour" })).not.toHaveFocus();
+    expect(container.querySelector('[aria-live="polite"]')).toBeEmptyDOMElement();
+  });
+
+  it("has no axe violations with merge buttons, open or closed", async () => {
+    const { user, container } = renderList([TOMATO, FLOUR, MILK]);
+    await expectNoAxeViolations(container);
+    await user.click(mergeButton("Tomato"));
+    await expectNoAxeViolations(container);
+  });
+
+  it("says it in German", async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[TOMATO, FLOUR]} />, { locale: "de" });
+
+    await user.click(screen.getByRole("button", { name: "Tomato mit einer anderen Zeile zusammenführen" }));
+    await user.click(within(dialog()).getByRole("radio", { name: /Flour/ }));
+    await user.click(within(dialog()).getByRole("button", { name: "Zusammenführen" }));
+
+    await waitFor(() => expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent("Tomato mit Flour zusammengeführt"));
+    expect(screen.getByRole("checkbox", { name: "Flour abhaken" })).toHaveFocus();
   });
 });

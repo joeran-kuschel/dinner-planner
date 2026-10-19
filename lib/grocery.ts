@@ -10,6 +10,7 @@
 import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
 import { categoryLabel, GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
+import type { Canonicaliser } from "@/lib/ingredients/canonical";
 
 export type IngredientInput = {
   name: string;
@@ -42,16 +43,47 @@ export type GroceryLine = {
 };
 
 /**
- * Identity of a grocery line. Ingredients only combine when both the name and
- * the unit match, so "200 g tomatoes" never merges with "2 tomatoes".
+ * Identity of a grocery line without the dictionary or any merge rule. Ingredients only combine when both the
+ * name and the unit match, so "200 g tomatoes" never merges with "2 tomatoes".
  */
 export function groceryKey(name: string, unit: string | null | undefined): string {
   return `${name.trim().toLowerCase()}|${(unit ?? "").trim().toLowerCase()}`;
 }
 
-/** Collapse the week's meals into one deduplicated shopping list. */
-export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "manual" | "checked">[] {
-  const lines = new Map<string, Omit<GroceryLine, "manual" | "checked">>();
+/** Names and units exactly as typed: the identity of a line when no dictionary or rule is in play. */
+export const PLAIN_NAMES: Canonicaliser = {
+  identify: (name, unit) => {
+    const unitId = (unit ?? "").trim().toLowerCase();
+    return { key: groceryKey(name, unit), nameId: name.trim().toLowerCase(), unitId, ownUnitId: unitId, factor: 1 };
+  },
+  keyOfStored: (key) => key,
+  nameLabel: () => null,
+  aliases: (name) => [name.trim().toLowerCase()],
+  amount: ({ quantity, typedUnit }) => ({ quantity, unit: typedUnit }),
+  unitLabel: () => null,
+};
+
+/** Something added to the list by hand: its amount is added to the planned line it shares its key with. */
+export type ExtraAmount = { name: string; quantity: number | null; unit: string | null };
+
+/**
+ * Collapse the week's meals into one deduplicated shopping list. With a canonicaliser (the dictionary and the
+ * user's merge rules) the same ingredient in another spelling or language, and a synonym unit, is one line.
+ * An extra added by hand that is the same line (`extras`) adds its amount to it: 200 g flour planned and
+ * "2 kg flour" added by hand are 2.2 kg. An extra without an amount adds nothing, and a line "to taste" stays so.
+ */
+export function aggregateIngredients(
+  meals: MealInput[],
+  canon: Canonicaliser = PLAIN_NAMES,
+  extras: readonly ExtraAmount[] = [],
+): Omit<GroceryLine, "manual" | "checked">[] {
+  // Amounts are summed in the line's base unit ("g" for "kg") and turned back for display at the end.
+  type Sum = Omit<GroceryLine, "manual" | "checked"> & {
+    unitId: string;
+    ownUnitIds: Set<string>;
+    typedUnit: string | null;
+  };
+  const lines = new Map<string, Sum>();
 
   for (const meal of meals) {
     if (!meal.recipe) continue;
@@ -64,18 +96,21 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
       const name = ingredient.name.trim();
       if (!name) continue;
 
-      const key = groceryKey(name, ingredient.unit);
-      const scaled = ingredient.quantity === null ? null : ingredient.quantity * scale;
-      const existing = lines.get(key);
+      const id = canon.identify(name, ingredient.unit);
+      const scaled = ingredient.quantity === null ? null : ingredient.quantity * scale * id.factor;
+      const existing = lines.get(id.key);
 
       if (!existing) {
-        lines.set(key, {
-          key,
-          label: name,
+        lines.set(id.key, {
+          key: id.key,
+          label: canon.nameLabel(id.nameId) ?? name,
           quantity: scaled,
           unit: ingredient.unit,
           category: ingredient.category,
           sources: [meal.recipe.name],
+          unitId: id.unitId,
+          ownUnitIds: new Set([id.ownUnitId]),
+          typedUnit: ingredient.unit,
         });
         continue;
       }
@@ -84,6 +119,7 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
       // a partial total would understate what to buy.
       existing.quantity =
         existing.quantity === null || scaled === null ? null : existing.quantity + scaled;
+      existing.ownUnitIds.add(id.ownUnitId);
       // Recipes may file the same ingredient differently. The category that comes first in the
       // shop wins, whatever the order of the meals, so the line never moves when the plan changes.
       if (GROCERY_CATEGORIES.indexOf(ingredient.category) < GROCERY_CATEGORIES.indexOf(existing.category)) {
@@ -95,7 +131,20 @@ export function aggregateIngredients(meals: MealInput[]): Omit<GroceryLine, "man
     }
   }
 
-  return [...lines.values()].sort((a, b) => a.label.localeCompare(b.label));
+  for (const extra of extras) {
+    const id = canon.identify(extra.name, extra.unit);
+    const line = lines.get(id.key);
+    if (!line || extra.quantity === null) continue;
+    if (line.quantity !== null) line.quantity += extra.quantity * id.factor;
+    line.ownUnitIds.add(id.ownUnitId);
+  }
+
+  return [...lines.values()]
+    .map(({ unitId, ownUnitIds, typedUnit, ...line }) => ({
+      ...line,
+      ...canon.amount({ unitId, ownUnitIds, quantity: line.quantity, typedUnit }),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**

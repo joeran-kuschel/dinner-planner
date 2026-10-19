@@ -96,7 +96,7 @@ test.describe("accessibility", () => {
     await page.getByRole("textbox", { name: "Item", exact: true }).fill("Bin bags");
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByRole("button", { name: "Remove Bin bags" })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "Tick off Eggs", exact: true })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Tick off Egg", exact: true })).toBeVisible();
 
     await expectAccessible(page);
   });
@@ -108,7 +108,7 @@ test.describe("accessibility", () => {
     await planRecipe(page, "Tuesday", name);
 
     await page.goto("/groceries?week=2027-06-14");
-    const eggs = page.getByRole("checkbox", { name: "Tick off Eggs", exact: true });
+    const eggs = page.getByRole("checkbox", { name: "Tick off Egg", exact: true });
     await eggs.click();
     await expect(eggs).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();

@@ -128,6 +128,18 @@ model PantryStaple {
   name String @unique
 }
 
+/// A merge the user made on the grocery list: lines named `fromName` are listed as `toName`. Both are name ids
+/// (see lib/ingredients/canonical.ts): `~tomato` for a name in the dictionary, else a typed name, normalised.
+/// The labels are the names as the user saw them. Applied whenever the list is rendered, on top of the dictionary.
+model GroceryMergeRule {
+  id        String   @id @default(cuid())
+  fromName  String   @unique
+  toName    String
+  fromLabel String
+  toLabel   String
+  createdAt DateTime @default(now())
+}
+
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
   id        String   @id @default(cuid())

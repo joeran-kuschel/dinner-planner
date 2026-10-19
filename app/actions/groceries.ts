@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseQuantity, readText } from "@/lib/form-data";
-import { groceryKey } from "@/lib/grocery";
 import { parseGroceryCategory } from "@/lib/grocery-category";
+import { createCanonicaliser } from "@/lib/ingredients/canonical";
+import { MAX_MERGE_RULES, MAX_RULE_LABEL, MAX_RULE_NAME, readNameId, wouldLoop } from "@/lib/ingredients/merge-rules";
+import { loadMergeRules } from "@/lib/ingredients/server";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { parseDayKey, startOfWeek } from "@/lib/week";
 import { requireAccess } from "@/lib/access-guard";
 
@@ -57,7 +60,8 @@ export async function addGroceryExtra(formData: FormData) {
   const quantity = parseQuantity(readText(formData, "quantity"));
 
   const category = parseGroceryCategory(formData.get("category"));
-  const key = groceryKey(label, unit);
+  // The same key a derived line gets, so an extra named like an ingredient of the plan is that line.
+  const key = createCanonicaliser({ locale: DEFAULT_LOCALE, rules: await loadMergeRules() }).identify(label, unit).key;
 
   // Adding the same extra twice updates the amount instead of erroring on the
   // (weekStart, key) unique constraint.
@@ -93,6 +97,48 @@ export async function removeGroceryExtra(formData: FormData) {
     if (!id) throw new Error("removeGroceryExtra: missing `id`");
     await prisma.groceryEntry.delete({ where: { id } });
   }
+  revalidatePath("/groceries");
+}
+
+/**
+ * Merge a line into another one: from now on, in every week, lines named `from` are listed as `to`. Both are
+ * name ids (a dictionary group like `~tomato`, or a typed name, normalised) that the page sent with the line.
+ * The merge is a rule, not a change to any line, because the list is derived. Answers "merged", or why not:
+ * "invalid" (nothing to merge, or two names that would send each other round in a circle) or "limit" (too many
+ * rules). Merging a name again moves it to the new target.
+ */
+export async function mergeGroceryLines(formData: FormData): Promise<"merged" | "invalid" | "limit"> {
+  await requireAccess();
+  const from = readNameId(readText(formData, "from"));
+  const to = readNameId(readText(formData, "to"));
+  if (!from || !to || from.length > MAX_RULE_NAME || to.length > MAX_RULE_NAME) return "invalid";
+
+  // Reading the rules and writing one are separate statements: two merges at the same moment (a->b and b->a) could
+  // both pass the loop check. For one household that is a race of its own making, and a loop in the data is cut
+  // short when it is read (`followRules`), so it is not made atomic.
+  const rules = await loadMergeRules();
+  if (wouldLoop(rules, from, to)) return "invalid";
+  if (rules.length >= MAX_MERGE_RULES && !rules.some((rule) => rule.from === from)) return "limit";
+
+  const fromLabel = readText(formData, "fromLabel").slice(0, MAX_RULE_LABEL) || from;
+  const toLabel = readText(formData, "toLabel").slice(0, MAX_RULE_LABEL) || to;
+  await prisma.groceryMergeRule.upsert({
+    where: { fromName: from },
+    update: { toName: to, fromLabel, toLabel },
+    create: { fromName: from, toName: to, fromLabel, toLabel },
+  });
+
+  revalidatePath("/groceries");
+  return "merged";
+}
+
+/** Undo a merge: the lines it joined are listed apart again. One undone in another tab is gone already. */
+export async function unmergeGroceryLines(formData: FormData) {
+  await requireAccess();
+  const id = readText(formData, "id");
+  if (!id) throw new Error("unmergeGroceryLines: missing `id`");
+
+  await prisma.groceryMergeRule.deleteMany({ where: { id } });
   revalidatePath("/groceries");
 }
 

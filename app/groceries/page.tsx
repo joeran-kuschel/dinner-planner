@@ -3,6 +3,7 @@ import Link from "next/link";
 import { addGroceryExtra } from "@/app/actions/groceries";
 import { GroceryList, type GroceryListLine } from "@/components/grocery-list";
 import { GroceryShare } from "@/components/grocery-share";
+import { MergedLinesSection } from "@/components/merged-lines-section";
 import { PantrySection } from "@/components/pantry-section";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
@@ -11,6 +12,9 @@ import { CategorySelect } from "@/components/category-select";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
 import { carriedEntries, carryRowsWhere } from "@/lib/grocery-carry";
+import { createCanonicaliser, nameIdOfKey } from "@/lib/ingredients/canonical";
+import { canonicalRows, withCanonicalKeys } from "@/lib/ingredients/rows";
+import { loadMergeRules } from "@/lib/ingredients/server";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
@@ -26,7 +30,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, entries, earlierEntries, staples, ingredientNames] = await Promise.all([
+  const [meals, storedEntries, storedEarlierEntries, staples, ingredientNames, rules] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
       include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
@@ -37,11 +41,30 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     prisma.pantryStaple.findMany({ orderBy: { name: "asc" } }),
     // What a staple can be, offered while typing one.
     prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
+    loadMergeRules(),
   ]);
+
+  // What a line is called and counted in follows the dictionary and the user's merges; rows stored under an
+  // older key are read under the canonical one (lib/ingredients/canonical.ts).
+  const canon = createCanonicaliser({ locale, rules });
+  const entries = canonicalRows(storedEntries, canon);
+  const earlierEntries = withCanonicalKeys(storedEarlierEntries, canon);
+  // A hand-added line is named in the page's language like a derived one when the dictionary knows it.
+  const shown = (entry: { key: string; label: string; unit: string | null; quantity: number | null }) => ({
+    label: canon.nameLabel(nameIdOfKey(entry.key)) ?? entry.label,
+    unit: canon.unitLabel(entry.unit, entry.quantity) ?? entry.unit,
+  });
 
   const entriesByKey = new Map(entries.map((entry) => [entry.key, entry]));
   // Hand-added entries still unticked from earlier weeks, by key: they are listed here too.
   const carried = new Map(carriedEntries(earlierEntries, weekStart).map((entry) => [entry.key, entry]));
+  // A carried entry with no row of its own in this week (a row means it was ticked, deleted or added again here).
+  const rowKeys = new Set(entries.filter((entry) => entry.manual || entry.dismissed).map((entry) => entry.key));
+  // What was added by hand adds its amount to the planned line it shares its key with.
+  const handAddedAmounts = [
+    ...entries.filter((entry) => entry.manual && !entry.dismissed),
+    ...[...carried.values()].filter((entry) => !rowKeys.has(entry.key)),
+  ].map((entry) => ({ name: entry.label, quantity: entry.quantity, unit: entry.unit }));
 
   // Derived lines come from the plan; stored entries only contribute tick state.
   const derived: (GroceryLine & { entryId: string | null })[] = aggregateIngredients(
@@ -58,6 +81,8 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
         })),
       },
     })),
+    canon,
+    handAddedAmounts,
   ).map((line) => {
     const entry = entriesByKey.get(line.key);
     return {
@@ -78,9 +103,8 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     .filter((entry) => entry.manual && !entry.dismissed && !derivedKeys.has(entry.key))
     .map((entry) => ({
       key: entry.key,
-      label: entry.label,
+      ...shown(entry),
       quantity: entry.quantity,
-      unit: entry.unit,
       category: entry.category,
       sources: [] as string[],
       manual: true,
@@ -89,15 +113,12 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       carriedWeeks: carried.get(entry.key)?.weeksAgo,
     }));
 
-  // A carried entry with no row of its own in this week (a row means it was ticked, deleted or added again here).
-  const rowKeys = new Set(entries.filter((entry) => entry.manual || entry.dismissed).map((entry) => entry.key));
   const carriedLines = [...carried.values()]
     .filter((entry) => !rowKeys.has(entry.key) && !derivedKeys.has(entry.key))
     .map((entry) => ({
       key: entry.key,
-      label: entry.label,
+      ...shown(entry),
       quantity: entry.quantity,
-      unit: entry.unit,
       category: entry.category,
       sources: [] as string[],
       manual: true,
@@ -108,9 +129,10 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
 
   const allLines = [...derived, ...extras, ...carriedLines].sort((a, b) => a.label.localeCompare(b.label));
   // A pantry staple only decides which derived lines are shown; nothing about a line is stored for it.
+  // A staple is every name the dictionary has for it: "Salz" hides the line a page in English calls "Salt".
   const pantryView = applyStaples(
     allLines,
-    staples.map((staple) => staple.name),
+    staples.flatMap((staple) => canon.aliases(staple.name)),
     showPantry,
   );
   const lines: GroceryListLine[] = pantryView.lines;
@@ -202,6 +224,16 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
           showHidden={showPantry}
           toggleHref={`/groceries?week=${weekKey}${showPantry ? "" : "&pantry=show"}`}
           suggestions={suggestions}
+        />
+      </div>
+
+      <div className="print:hidden">
+        <MergedLinesSection
+          rules={rules.map((rule) => ({
+            id: rule.id,
+            from: canon.nameLabel(rule.from) ?? rule.fromLabel,
+            to: canon.nameLabel(rule.to) ?? rule.toLabel,
+          }))}
         />
       </div>
     </div>
