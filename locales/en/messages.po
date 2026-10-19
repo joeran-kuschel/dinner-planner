@@ -15,10 +15,19 @@ msgstr "“Serves” is how many people eat; the grocery list scales the amounts
 msgid "({selected} selected)"
 msgstr "({selected} selected)"
 
+#. placeholder {0}: rules.length
+#: components/merged-lines-section.tsx
+msgid "{0, plural, one {# merge} other {# merges}}"
+msgstr "{0, plural, one {# merge} other {# merges}}"
+
 #: components/day-card.tsx
 #: components/recipe-search-box.tsx
 msgid "{count, plural, one {# suggestion} other {# suggestions}}"
 msgstr "{count, plural, one {# suggestion} other {# suggestions}}"
+
+#: components/merged-lines-section.tsx
+msgid "{from} is listed as {to}"
+msgstr "{from} is listed as {to}"
 
 #: components/pantry-section.tsx
 msgid "{hiddenCount, plural, one {# item hidden} other {# items hidden}}"
@@ -31,6 +40,11 @@ msgstr "{hiddenCount, plural, one {Show the # hidden item} other {Show the # hid
 #: lib/recipe-facts.ts
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# ingredient} other {# ingredients}}"
+
+#. placeholder {0}: target.label
+#: components/merge-lines-dialog.tsx
+msgid "{label} will be listed as {0}."
+msgstr "{label} will be listed as {0}."
 
 #: app/page.tsx
 msgid "{plannedCount} of 7 planned"
@@ -147,6 +161,7 @@ msgstr "Bakery"
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
 #: components/leftovers-dialog.tsx
+#: components/merge-lines-dialog.tsx
 #: components/recipe-form.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -426,10 +441,18 @@ msgstr "Leftovers from {weekday}"
 msgid "Leftovers on {weekday}"
 msgstr "Leftovers on {weekday}"
 
+#: components/merged-lines-section.tsx
+msgid "Lines you merged with “Merge”. They are listed as one line in every week."
+msgstr "Lines you merged with “Merge”. They are listed as one line in every week."
+
 #: app/recipes/new/page.tsx
 #: components/import-recipe-dialog.tsx
 msgid "Link to the recipe"
 msgstr "Link to the recipe"
+
+#: components/merge-lines-dialog.tsx
+msgid "List it as"
+msgstr "List it as"
 
 #: components/site-nav.tsx
 msgid "Main"
@@ -438,6 +461,27 @@ msgstr "Main"
 #: lib/grocery-category.ts
 msgid "Meat and fish"
 msgstr "Meat and fish"
+
+#: components/merge-lines-dialog.tsx
+msgid "Merge"
+msgstr "Merge"
+
+#: components/merge-lines-dialog.tsx
+msgid "Merge {label}"
+msgstr "Merge {label}"
+
+#: components/merge-lines-dialog.tsx
+msgid "Merge {label} with another line"
+msgstr "Merge {label} with another line"
+
+#. placeholder {0}: to.label
+#: components/grocery-list.tsx
+msgid "Merged {from} into {0}"
+msgstr "Merged {from} into {0}"
+
+#: components/merged-lines-section.tsx
+msgid "Merged lines"
+msgstr "Merged lines"
 
 #: app/recipes/[id]/page.tsx
 #: components/recipe-form.tsx
@@ -525,6 +569,10 @@ msgstr "Note for {weekday}"
 msgid "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
 msgstr "Nothing here yet. A recipe needs a name and its ingredients — the method is optional."
 
+#: components/merged-lines-section.tsx
+msgid "Nothing merged yet."
+msgstr "Nothing merged yet."
+
 #: components/grocery-list.tsx
 msgid "Nothing to buy yet. Plan some dinners and their ingredients land here."
 msgstr "Nothing to buy yet. Plan some dinners and their ingredients land here."
@@ -592,6 +640,10 @@ msgstr "Pick a recipe or type a dinner…"
 #: components/leftovers-dialog.tsx
 msgid "Pick the dinner this day eats the rest of. The grocery list stays as it is: raise “Serves” on that dinner to cook enough."
 msgstr "Pick the dinner this day eats the rest of. The grocery list stays as it is: raise “Serves” on that dinner to cook enough."
+
+#: components/merge-lines-dialog.tsx
+msgid "Pick the line to list this one as from now on, in every week. Amounts in the same unit add up. You can undo it under “Merged lines”."
+msgstr "Pick the line to list this one as from now on, in every week. Amounts in the same unit add up. You can undo it under “Merged lines”."
 
 #: lib/units.ts
 msgid "piece"
@@ -852,6 +904,14 @@ msgstr "The plan changed in the meantime, so nothing was saved. The list shows w
 msgid "The source has to be a web address starting with http:// or https://."
 msgstr "The source has to be a web address starting with http:// or https://."
 
+#: components/merge-lines-dialog.tsx
+msgid "There are too many merges already. Undo one under “Merged lines” first."
+msgstr "There are too many merges already. Undo one under “Merged lines” first."
+
+#: components/merge-lines-dialog.tsx
+msgid "These lines cannot be merged. Please try again."
+msgstr "These lines cannot be merged. Please try again."
+
 #: components/pantry-section.tsx
 msgid "Things you always have at home. They are left off the grocery list."
 msgstr "Things you always have at home. They are left off the grocery list."
@@ -901,13 +961,22 @@ msgstr "today"
 msgid "tsp"
 msgstr "tsp"
 
+#: components/merged-lines-section.tsx
+msgid "Undid merging {from} into {to}"
+msgstr "Undid merging {from} into {to}"
+
 #: components/day-card.tsx
+#: components/merged-lines-section.tsx
 msgid "Undo"
 msgstr "Undo"
 
 #: components/day-card.tsx
 msgid "Undo clearing {weekday}"
 msgstr "Undo clearing {weekday}"
+
+#: components/merged-lines-section.tsx
+msgid "Undo merging {from} into {to}"
+msgstr "Undo merging {from} into {to}"
 
 #: app/groceries/page.tsx
 #: components/recipe-form.tsx

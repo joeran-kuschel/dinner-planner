@@ -64,7 +64,7 @@ page is closed until wanted; its summary says how many lines it hides this week 
   salt), but a part of a name does not count: the staple "oil" does not hide "olive oil". The staples are the same for every
   week.
 - Lines you added by hand are never hidden, also when one has the same name and unit as a line from the plan (the page
-  shows those as one line).
+  shows those as one line, with the amounts added up, see "Same ingredient, one line").
 - At 200 staples the field and **Add** are switched off, with the note "The list is full: 200 staples. Remove one to add
   another." After a ✕ removes a staple, the focus moves to the add field (not to a neighbouring chip, whose ✕ a
   following Enter would press), and a status line says "Removed salt from the pantry staples" for screen readers. A
@@ -136,10 +136,36 @@ Under the header, **Copy list** and **Print** take the list to the shop.
 
 Both buttons are shown only when the list has lines. German: **Liste kopieren**, **Drucken**, "Kopiert".
 
+## Same ingredient, one line
+
+The same ingredient under different names is one line: "Tomaten" in a German recipe and "tomatoes" in an English one, a
+clove of garlic and "Knoblauchzehe", "1 EL" and "1 tbsp". The amounts add up, and the line lists every recipe that needs it. The
+name and the unit are shown in the language of the page, in the singular or plural the amount needs ("1 Zehe", "10,5 Zehen"),
+and switching the language changes them without reloading. A name the app does not know stays as it was typed. A line you added by hand that is the same ingredient as a planned line
+(2 kg flour added by hand, 200 g "Mehl" planned) is shown once, with the amounts added up (2.2 kg), as long as both have an amount. Amounts in
+different units are not added ("200 g tomato" and "2 pieces tomato" are two lines), and a spoon, cup or pinch is never turned into
+grams or millilitres; only g and kg, and ml and l, share a line. Details and the dictionary: [Merging grocery lines](../backend/grocery-merge.md).
+
+### Merge
+
+Where the app does not know that two lines are the same, merge them yourself. Every line that has another line in the same unit
+has a small **Merge** button (an arrow joining two lines, with the name "Merge *Tomatoes* with another line") beside the ✕. It
+opens a dialog:
+
+- **List it as** offers the other lines in the same unit, each with its amount. Choose one with the arrow keys or the pointer; a line
+  made of the chosen name keeps its name, this line's name is listed as that one from now on, in **every week**, and the amounts add up.
+- The line under the choices says what will happen ("Tomatoes will be listed as Tomato."). **Merge** is available once a line is
+  chosen; **Cancel** and **Escape** close the dialog without merging.
+- Afterwards the polite status says "Merged Tomatoes into Tomato" and the focus is on the tick box of the line that remains.
+
+Under the list, **Merged lines** (closed until wanted, with a count) lists every merge you made ("Tomatoes is listed as Tomato") with an
+**Undo** that lists the lines apart again. German: **Zusammenführen**, **Zusammengeführte Zeilen**, **Rückgängig**.
+
 ## Accessibility
 
 - Each section is a landmark region named by its heading, so screen reader users can jump from section to section by
   heading or region.
+- The **Merge** buttons are named after their line and are 36 px, 44 px on a touch screen ([Buttons](buttons.md)); the dialog is a native modal dialog (focus goes to the first choice, Tab stays inside, Escape closes, the focus returns to the button), and the merge is announced in a polite live region of its own.
 - Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes. The ✕ is a 32 px button, 44 px on a touch screen ([Buttons](buttons.md)). A ticked line is put back on the list by clicking it again; there is no button that unticks everything.
 - Ticked lines are struck through and muted rather than faded, which keeps their text at AA contrast.
 - The copy confirmation is a polite status region that is in the page from the start, so it is announced when its text

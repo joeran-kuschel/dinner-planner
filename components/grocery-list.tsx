@@ -2,11 +2,13 @@
 
 import { t } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
-import { type FormEvent, useId, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { type FormEvent, useEffect, useId, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
 import { categoryLabel } from "@/lib/grocery-category";
+import { nameIdOfKey, unitIdOfKey } from "@/lib/ingredients/canonical";
+import { MergeLineButton, type MergeTarget } from "@/components/merge-lines-dialog";
 
 /** A line of the list; `pantry` marks one that a pantry staple would hide, shown because the user asked. */
 export type GroceryListLine = GroceryLine & {
@@ -25,6 +27,10 @@ export type GroceryListProps = {
 
 export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryListProps) {
   const { i18n } = useLingui();
+  const [announcement, setAnnouncement] = useState("");
+  // The line that takes the focus after a merge: the one the merged line is listed as now (the button that had
+  // the focus goes away with the line it merged).
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   if (lines.length === 0) {
     return (
@@ -38,6 +44,21 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
 
   const total = lines.length;
   const ticked = lines.filter((line) => line.checked).length;
+
+  // A line can be merged into any other line in the same unit: amounts in different units are never added.
+  const targetsFor = (line: GroceryListLine): MergeTarget[] =>
+    lines
+      .filter((other) => other.key !== line.key && unitIdOfKey(other.key) === unitIdOfKey(line.key))
+      .map((other) => ({
+        key: other.key,
+        nameId: nameIdOfKey(other.key),
+        label: other.label,
+        amount: formatGroceryQuantity(other, i18n),
+      }));
+  const merged = (from: string, to: MergeTarget) => {
+    setAnnouncement(t(i18n)`Merged ${from} into ${to.label}`);
+    setFocusKey(to.key);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,6 +74,11 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
           <div className="h-full bg-herb transition-[width]" style={{ width: `${(ticked / total) * 100}%` }} />
         </div>
       </div>
+
+      {/* A live region of its own, apart from the progress status above, which says how many lines are ticked. */}
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
 
       {/* A ticked line stays where it is, struck through, so the list does not move under the thumb. */}
       <div className="md:columns-2 md:gap-6 print:columns-2 print:gap-6 [&>*]:mb-6 [&>*]:break-inside-avoid">
@@ -72,7 +98,15 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
             </h2>
             <div className="card divide-y divide-border print:divide-y-0">
               {group.map((line) => (
-                <GroceryRow key={line.key} weekStart={weekStart} line={line} />
+                <GroceryRow
+                  key={line.key}
+                  weekStart={weekStart}
+                  line={line}
+                  targets={targetsFor(line)}
+                  onMerged={merged}
+                  focusKey={focusKey}
+                  onFocused={() => setFocusKey(null)}
+                />
               ))}
             </div>
           </section>
@@ -102,8 +136,23 @@ function useHydrated() {
  * line saying where it comes from, and the amount. The box flips at once while the server saves;
  * if the save fails, it flips back.
  */
-function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListLine }) {
+function GroceryRow({
+  weekStart,
+  line,
+  targets,
+  onMerged,
+  focusKey,
+  onFocused,
+}: {
+  weekStart: string;
+  line: GroceryListLine;
+  targets: MergeTarget[];
+  onMerged: (from: string, to: MergeTarget) => void;
+  focusKey: string | null;
+  onFocused: () => void;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
+  const checkbox = useRef<HTMLInputElement>(null);
   const { i18n } = useLingui();
   const { label } = line;
   const [checked, setChecked] = useOptimistic(line.checked);
@@ -111,6 +160,12 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
   const hydrated = useHydrated();
   const noteId = useId();
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (focusKey !== line.key) return;
+    checkbox.current?.focus();
+    onFocused();
+  }, [focusKey, line.key, onFocused]);
 
   // The box flips for the time of the save and shows what is stored again once it ends, so a save
   // that fails leaves the box as it was; the message says so. The form is submitted by hand, not
@@ -165,6 +220,7 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
 
         <label className="flex min-h-14 cursor-pointer items-center gap-3 p-3 print:min-h-0 print:p-0 print:py-0.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-accent">
           <input
+            ref={checkbox}
             type="checkbox"
             checked={checked}
             disabled={!hydrated}
@@ -193,6 +249,12 @@ function GroceryRow({ weekStart, line }: { weekStart: string; line: GroceryListL
           </p>
         )}
       </form>
+
+      {targets.length > 0 && (
+        <div className="pr-1 print:hidden">
+          <MergeLineButton from={{ nameId: nameIdOfKey(line.key), label: line.label }} targets={targets} onMerged={onMerged} />
+        </div>
+      )}
 
       {/* Only hand-added lines can be deleted; derived ones come back from the plan. */}
       {line.manual && (line.entryId || line.carriedWeeks !== undefined) && (

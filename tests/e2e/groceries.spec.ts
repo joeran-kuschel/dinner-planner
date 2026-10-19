@@ -69,7 +69,7 @@ test.describe("groceries", () => {
     await expect(groceryRow(page, "Rice")).toContainText(risotto);
     await expect(groceryRow(page, "Rice")).toContainText(pilaf);
     await expect(groceryRow(page, "Onion")).toContainText(/1\.5$/);
-    await expect(groceryRow(page, "Garlic")).toContainText("1 cloves");
+    await expect(groceryRow(page, "Garlic")).toContainText("1 clove");
     // One unquantified source makes the merged line "to taste".
     await expect(groceryRow(page, "Salt")).toContainText("to taste");
   });
@@ -87,7 +87,7 @@ test.describe("groceries", () => {
     await planRecipe(page, "Monday", name);
 
     await page.goto("/groceries?week=2027-04-12");
-    const carrots = page.getByRole("checkbox", { name: "Tick off Carrots", exact: true });
+    const carrots = page.getByRole("checkbox", { name: "Tick off Carrot", exact: true });
     await expect(carrots).not.toBeChecked();
     // The box flips at once; the reload below shows what the server saved.
     await expect(carrots).toBeEnabled();
@@ -96,13 +96,13 @@ test.describe("groceries", () => {
     await expect(page.getByRole("status").filter({ hasText: "1 of 2 ticked off" })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "Tick off Carrot", exact: true })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "Tick off Lemon", exact: true })).not.toBeChecked();
 
     // Clicking a ticked line again puts it back on the list. The box is disabled until the page is
     // interactive, so a click right after the reload is never lost; once the save is through the
     // box must still show what was saved.
-    const again = page.getByRole("checkbox", { name: "Tick off Carrots", exact: true });
+    const again = page.getByRole("checkbox", { name: "Tick off Carrot", exact: true });
     await expect(again).toBeEnabled();
     const saved = page.waitForResponse((response) => response.request().method() === "POST");
     await again.click();
@@ -110,7 +110,7 @@ test.describe("groceries", () => {
     await expect(page.getByRole("status").filter({ hasText: "0 of 2 ticked off" })).toBeVisible();
     await expect(again).not.toBeChecked();
     await page.reload();
-    await expect(page.getByRole("checkbox", { name: "Tick off Carrots", exact: true })).not.toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "Tick off Carrot", exact: true })).not.toBeChecked();
   });
 
   test("groups the list by shop section under headings, and a ticked item stays in its section", async ({ page }) => {
@@ -135,7 +135,7 @@ test.describe("groceries", () => {
       "Other (1)",
     ]);
     const produce = page.getByRole("region", { name: "Fruit and vegetables (1)" });
-    await expect(produce.getByRole("checkbox", { name: "Tick off Tomatoes" })).toBeVisible();
+    await expect(produce.getByRole("checkbox", { name: "Tick off Tomato" })).toBeVisible();
     await expectAccessible(page);
 
     const dairy = page.getByRole("region", { name: "Dairy and eggs (1)" });

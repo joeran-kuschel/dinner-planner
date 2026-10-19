@@ -127,6 +127,17 @@ unticked at the end of its week appears in the following weeks until it is ticke
 ends it; deleting a carried line writes a `dismissed` row, so the earlier weeks keep it. Details:
 `documentation/backend/grocery-carry-over.md`.
 
+**A grocery line is what it is whatever it was called: the same ingredient in another spelling or
+language, and a synonym unit, is one line.** A line's key is `<name id>|<unit id>`
+(`lib/ingredients/canonical.ts`): a name in the bundled dictionary (`lib/ingredients/names.ts`, English and German, the first
+name of a language is the one shown) is `~<group>`, the user's merges (`GroceryMergeRule`, applied at render time) go on top,
+and a unit in `lib/ingredients/measures.ts` counts in its base ("kg" in "g", "EL" and "tbsp" are one). **Units are never converted**
+except a metric unit and its own multiple, since a tablespoon of salt and one of mustard seeds weigh differently. A name belongs
+to one dictionary group only (a test checks): Kümmel is caraway, Kreuzkümmel is cumin. Stored `GroceryEntry` rows keep their old
+keys and are read through `keyOfStored()` / `canonicalRows()`; build a key with the canonicaliser, never by hand. The page names
+lines and units in the page language, and `aggregateIngredients(meals, canon)` without a canonicaliser (`PLAIN_NAMES`) is the old
+behaviour. Details: `documentation/backend/grocery-merge.md`.
+
 **Pantry staples hide derived grocery lines at render time and store nothing on
 the lines.** `PantryStaple` is a global table of normalised names (the same
 `normalize` as tags); `splitStaples()` (`lib/pantry.ts`) runs after the aggregation,
@@ -221,6 +232,7 @@ lib/
   week.ts               day/week helpers — see "Dates" above
   grocery.ts            grocery aggregation, grouping + formatting
   grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
+  ingredients/          canonical.ts (a line's key and name), names.ts (the English/German dictionary), measures.ts (units), merge-rules.ts, rows.ts; server.ts loads the user's merges
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)
   tags.ts               tag rules (normalising, limits, parsing a form's tags); safe for client code
