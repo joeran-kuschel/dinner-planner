@@ -6,11 +6,18 @@ import { ConfirmAction } from "@/components/confirm-action";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
+import { recipeTitle } from "@/lib/page-title";
 import { formatQuantity } from "@/lib/grocery";
 import { recipeFacts } from "@/lib/recipe-facts";
 import { isWebUrl } from "@/lib/recipe-form";
 import { readRecipeSearch, recipeListHref } from "@/lib/recipe-search";
 import { dayKey, formatWeekday, formatDayMonth, resolveWeekStart, startOfWeek, today } from "@/lib/week";
+
+export async function generateMetadata({ params }: PageProps<"/recipes/[id]">) {
+  const { id } = await params;
+  const title = await recipeTitle(id);
+  return title ? { title } : {};
+}
 
 export default async function RecipePage({ params, searchParams }: PageProps<"/recipes/[id]">) {
   const { id } = await params;

@@ -20,7 +20,7 @@ import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
 export async function generateMetadata() {
   const { i18n } = await getServerI18n();
-  return { title: t(i18n)`Groceries` };
+  return { title: t(i18n)`Grocery list` };
 }
 
 export default async function GroceriesPage({ searchParams }: PageProps<"/groceries">) {

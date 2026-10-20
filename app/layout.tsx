@@ -5,6 +5,7 @@ import { I18nClientProvider } from "@/components/i18n-provider";
 import { SiteNav } from "@/components/site-nav";
 import { CATALOGS } from "@/lib/i18n/catalogs";
 import { getServerI18n } from "@/lib/i18n/server";
+import { TITLE_SEPARATOR } from "@/lib/page-title";
 import "./globals.css";
 
 // Fonts are fetched at build time and served by the app itself, so nothing is requested from Google at run time.
@@ -26,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const appName = t(i18n)`Dinner Planner`;
   return {
     // Pages set only their own part of the title.
-    title: { default: appName, template: `%s · ${appName}` },
+    title: { default: appName, template: `%s${TITLE_SEPARATOR}${appName}` },
     description: t(i18n)`Plan the week's dinners, keep recipes, and get one grocery list.`,
   };
 }

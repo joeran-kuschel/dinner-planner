@@ -43,7 +43,7 @@ test.describe("the access gate", () => {
     await page.goto(`/access#${E2E_ACCESS_KEY}`);
 
     await expect(page).toHaveURL("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Dinner plan" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Week plan" })).toBeVisible();
     // The key is gone from the address bar and from the history.
     expect(page.url()).not.toContain(E2E_ACCESS_KEY);
     const cookie = await accessCookie(page);

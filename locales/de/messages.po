@@ -279,12 +279,9 @@ msgstr "Beschreibung des Fotos"
 msgid "Dinner for {weekday}"
 msgstr "Abendessen am {weekday}"
 
-#: app/page.tsx
-msgid "Dinner plan"
-msgstr "Essensplan"
-
 #: app/layout.tsx
 #: components/site-nav.tsx
+#: lib/page-title.ts
 msgid "Dinner Planner"
 msgstr "Abendessen-Planer"
 
@@ -299,6 +296,10 @@ msgstr "Den Rest essen von"
 #: app/recipes/[id]/page.tsx
 msgid "Edit"
 msgstr "Bearbeiten"
+
+#: app/recipes/[id]/edit/page.tsx
+msgid "Edit {name}"
+msgstr "{name} bearbeiten"
 
 #: app/recipes/[id]/edit/page.tsx
 msgid "Edit recipe"
@@ -353,7 +354,6 @@ msgstr "Gib dem Rezept einen Namen."
 msgid "Go to {title} on {weekday}"
 msgstr "Zu {title} am {weekday}"
 
-#: app/groceries/page.tsx
 #: components/site-nav.tsx
 msgid "Groceries"
 msgstr "Einkauf"
@@ -1002,3 +1002,7 @@ msgstr "Rezept ansehen für {weekday}"
 #: app/groceries/page.tsx
 msgid "Washing-up liquid"
 msgstr "Spülmittel"
+
+#: app/page.tsx
+msgid "Week plan"
+msgstr "Wochenplan"

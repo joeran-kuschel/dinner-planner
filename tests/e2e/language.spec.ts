@@ -29,7 +29,7 @@ test.describe("language", () => {
     const page = await context.newPage();
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Essensplan");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Wochenplan");
     await expect(page.getByRole("button", { name: "Deutsch" })).toHaveAttribute("aria-pressed", "true");
     await context.close();
   });
@@ -39,7 +39,7 @@ test.describe("language", () => {
     const page = await context.newPage();
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dinner plan");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Week plan");
     await context.close();
   });
 
@@ -55,7 +55,7 @@ test.describe("language", () => {
 
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Neues Rezept");
-    await expect(page).toHaveTitle("Neues Rezept · Abendessen-Planer");
+    await expect(page).toHaveTitle("Neues Rezept - Abendessen-Planer");
     await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Half-typed soup");
     await expect(page.getByLabel("Menge für Zutat 1", { exact: true })).toHaveValue("1,5");
     expect(await noReload()).toBe(true);
@@ -70,8 +70,8 @@ test.describe("language", () => {
   test("shows the week plan's dates and days in German", async ({ page }) => {
     await page.goto("/?week=2028-01-03");
     await switchTo(page, "Deutsch");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Essensplan");
-    await expect(page).toHaveTitle("Abendessen-Planer");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Wochenplan");
+    await expect(page).toHaveTitle("Wochenplan - Abendessen-Planer");
     await expect(page.getByText(/^3\. Jan\. – 9\. Jan\. 2028 · 0 von 7 geplant$/)).toBeVisible();
     await expect(page.getByRole("heading", { level: 3, name: "Montag" })).toBeVisible();
     await expect(page.getByText("3. Jan.", { exact: true })).toBeVisible();
@@ -98,7 +98,7 @@ test.describe("language", () => {
 
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Einkaufsliste");
-    await expect(page).toHaveTitle("Einkauf · Abendessen-Planer");
+    await expect(page).toHaveTitle("Einkaufsliste - Abendessen-Planer");
     // The add form is a closed fold-out; its German name opens it.
     await page.locator("details summary", { hasText: /^Etwas anderes hinzufügen$/ }).click();
     await expect(page.getByText("* Pflichtfeld")).toBeVisible();
@@ -116,7 +116,7 @@ test.describe("language", () => {
     await page.goto("/");
     await switchTo(page, "English");
     await page.reload();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dinner plan");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Week plan");
     await context.close();
   });
 
