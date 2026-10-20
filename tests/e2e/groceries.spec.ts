@@ -498,3 +498,40 @@ test.describe("hand-added entries carried over", () => {
     await expect(box(page, item)).toHaveCount(0);
   });
 });
+
+test.describe("small amounts", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("a pinch of salt shows only its name, the copied text agrees, and a hand-added entry keeps its amount", async ({ page }) => {
+    const name = unique("Soup");
+    await createRecipe(page, {
+      name,
+      ingredients: [
+        { quantity: "2", unit: "pinches", name: "Salt", category: "Pantry" },
+        { quantity: "300", unit: "g", name: "Lentils", category: "Pantry" },
+      ],
+    });
+    await page.goto("/?week=2027-12-06");
+    await planRecipe(page, "Monday", name);
+    await page.goto("/groceries?week=2027-12-06");
+
+    await expect(groceryRow(page, "Salt")).toBeVisible();
+    await expect(groceryRow(page, "Salt")).not.toContainText("pinch");
+    await expect(groceryRow(page, "Lentils")).toContainText("300 g");
+
+    await page.getByRole("button", { name: "Copy list" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "Grocery list · 6 Dec – 12 Dec 2027\n\nPantry\n- 300 g Lentils\n- Salt",
+    );
+
+    await openAddForm(page);
+    await page.getByLabel("Amount", { exact: true }).fill("3");
+    await page.getByLabel("Unit", { exact: true }).fill("pinches");
+    await page.getByRole("textbox", { name: "Item", exact: true }).fill("Salt");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(groceryRow(page, "Salt")).toContainText("5 pinches");
+    await expectAccessible(page);
+  });
+});

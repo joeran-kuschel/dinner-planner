@@ -89,6 +89,19 @@ base unit, so g and kg add up). An entry without an amount adds nothing, and a l
 carries the tick state and is not hidden by a pantry staple. Because the key no longer depends on the language or the spelling, this
 happens for "2 kg flour" and "Mehl" too, not only for the identical name.
 
+## Small amounts (#61)
+
+The last step of the list, after adding up, merging and the hand-added amounts: `aggregateIngredients` sets `small` on a line when
+`isSmallAmount(unitId, quantity)` (`lib/ingredients/measures.ts`) says so, on the **merged total in the base unit**: any amount of a
+unit flagged `small: true` in the unit table (tsp, tbsp, pinch, dash, knife tip, so "EL", "TL", "Prise" and "Messerspitze" too), or a
+weight under `SMALL_WEIGHT_GRAMS` (100 g; a kilogram amount is already counted in g). Deciding on the total is why 60 g and 50 g of
+tomatoes stay visible. A line without an amount and a line in any other unit (piece, clove, cup, ml, l) is never small.
+
+`small` changes the display only: the key, the quantity and the tick state are untouched. the list component leaves the amount out (the merge dialog still shows it, as it is where a total is
+decided) and `groceryListText` writes "- Salt" for a small line, so the screen, the copy and the printout agree. The page clears `small` on a line
+that has a hand-added or carried entry with the same key behind it (`handAdded`, even one without an amount), since what was typed by hand is never changed. Volumes are not covered. Without a
+dictionary (`PLAIN_NAMES`) the unit is the typed one, so only the units named exactly like a unit id ("g", "tsp") count.
+
 ## Not done yet (#73)
 
 Stage 2 (merging more spellings automatically, such as plurals that are not in the dictionary) and stage 3 (suggesting a merge where the

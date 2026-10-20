@@ -209,3 +209,120 @@ describe("aggregateIngredients with hand-added extras", () => {
     expect(aggregateIngredients(meals, en, [])).toEqual(aggregateIngredients(meals, en));
   });
 });
+
+describe("aggregateIngredients: small amounts", () => {
+  const smallOf = (meals: MealInput[], canon = en, extras: Parameters<typeof aggregateIngredients>[2] = []) =>
+    Object.fromEntries(aggregateIngredients(meals, canon, extras).map((l) => [l.label, l.small]));
+
+  it.each([
+    ["99 g", 99, "g", true],
+    ["100 g", 100, "g", false],
+    ["0.05 kg", 0.05, "kg", true],
+    ["0.2 kg", 0.2, "kg", false],
+    ["0.1 kg", 0.1, "kg", false],
+  ])("%s: small is %s", (_name, quantity, unit, small) => {
+    expect(aggregateIngredients([meal("A", [ing("Flour", quantity, unit)])], en)[0].small).toBe(small);
+  });
+
+  it("keeps the amount on a small line, only flagging it", () => {
+    expect(aggregateIngredients([meal("A", [ing("Flour", 40, "g")])], en)[0]).toMatchObject({ quantity: 40, unit: "g", small: true });
+  });
+
+  it("is not fooled by float noise: 33.3333 g three times is 99.9999 g, below 100", () => {
+    expect(aggregateIngredients([meal("A", [ing("Flour", 33.3333, "g"), ing("Flour", 33.3333, "g"), ing("Flour", 33.3333, "g")])], en)[0].small).toBe(true);
+  });
+
+  it("is not fooled by float noise: ten times 10 g reaching exactly 100 is not small", () => {
+    const parts = Array.from({ length: 10 }, () => ing("Flour", 10, "g"));
+    expect(aggregateIngredients([meal("A", parts)], en)[0].small).toBe(false);
+  });
+
+  it("decides on the sum across recipes, not on each part", () => {
+    const shown = aggregateIngredients([meal("A", [ing("Flour", 80, "g")]), meal("B", [ing("Flour", 60, "g")])], en);
+    expect(shown[0]).toMatchObject({ quantity: 140, small: false });
+    const dropped = aggregateIngredients([meal("A", [ing("Flour", 40, "g")]), meal("B", [ing("Flour", 30, "g")])], en);
+    expect(dropped[0]).toMatchObject({ quantity: 70, small: true });
+  });
+
+  it("adds 60 g tomatoes and 50 g tomato into one shown line of 110 g", () => {
+    const lines = aggregateIngredients([meal("A", [ing("tomatoes", 60, "g")]), meal("B", [ing("tomato", 50, "g")])], en);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ quantity: 110, small: false });
+  });
+
+  it("decides on the scaled amount", () => {
+    expect(aggregateIngredients([meal("A", [ing("Flour", 60, "g")], 4, 2)], en)[0].small).toBe(false);
+    expect(aggregateIngredients([meal("A", [ing("Flour", 60, "g")], 1, 2)], en)[0].small).toBe(true);
+  });
+
+  it.each([
+    ["tsp", "TL"],
+    ["teaspoon", "Teelöffel"],
+    ["tbsp", "EL"],
+    ["tablespoons", "Esslöffel"],
+    ["pinch", "Prise"],
+    ["pinches", "Prisen"],
+    ["dash", "Spritzer"],
+    ["knife tip", "Messerspitze"],
+    ["knifepoint", "Msp"],
+  ])("flags %s and %s as small, even in large numbers", (english, german) => {
+    for (const unit of [english, german]) {
+      for (const canon of [en, de]) {
+        expect(aggregateIngredients([meal("A", [ing("Salt", 500, unit)])], canon)[0].small, `${unit}`).toBe(true);
+      }
+    }
+  });
+
+  it("adds a spoon and its synonym into one small line", () => {
+    const lines = aggregateIngredients([meal("A", [ing("Salz", 1, "TL")]), meal("B", [ing("salt", 2, "tsp")])], en);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ quantity: 3, small: true });
+  });
+
+  it("never flags a line without an amount (to taste)", () => {
+    expect(aggregateIngredients([meal("A", [ing("Salt", null)])], en)[0]).toMatchObject({ quantity: null, small: false });
+  });
+
+  it("keeps a line to taste when one part has no amount, and does not flag it", () => {
+    const line = aggregateIngredients([meal("A", [ing("Salt", 1, "tsp"), ing("Salt", null, "tsp")])], en)[0];
+    expect(line.quantity).toBeNull();
+    expect(line.small).toBe(false);
+  });
+
+  it.each([
+    ["piece"],
+    ["clove"],
+    ["cup"],
+    ["ml"],
+    ["l"],
+  ])("never flags a small number in %s", (unit) => {
+    expect(aggregateIngredients([meal("A", [ing("Thing", 1, unit)])], en)[0].small).toBe(false);
+    expect(aggregateIngredients([meal("A", [ing("Thing", 0.01, unit)])], en)[0].small).toBe(false);
+  });
+
+  it("never flags a unitless count", () => {
+    expect(aggregateIngredients([meal("A", [ing("Onion", 1)])], en)[0].small).toBe(false);
+  });
+
+  it("lets a hand-added extra push a small line over the limit", () => {
+    const meals = [meal("A", [ing("flour", 60, "g")])];
+    expect(smallOf(meals)).toEqual({ Flour: true });
+    const lines = aggregateIngredients(meals, en, [{ name: "Flour", quantity: 0.5, unit: "kg" }]);
+    expect(lines[0]).toMatchObject({ quantity: 560, small: false });
+  });
+
+  it("keeps a line small when the extra is small too", () => {
+    const lines = aggregateIngredients([meal("A", [ing("flour", 20, "g")])], en, [{ name: "Flour", quantity: 30, unit: "g" }]);
+    expect(lines[0]).toMatchObject({ quantity: 50, small: true });
+  });
+
+  it("works without a canonicaliser (plain names)", () => {
+    const small = aggregateIngredients([meal("A", [ing("Flour", 99, "g"), ing("Salt", 2, "tsp")])], PLAIN_NAMES);
+    expect(Object.fromEntries(small.map((l) => [l.label, l.small]))).toEqual({ Flour: true, Salt: true });
+    expect(aggregateIngredients([meal("A", [ing("Flour", 100, "g")])], PLAIN_NAMES)[0].small).toBe(false);
+  });
+
+  it("defaults to the plain canonicaliser", () => {
+    expect(aggregateIngredients([meal("A", [ing("Flour", 5, "g")])])[0].small).toBe(true);
+  });
+});
