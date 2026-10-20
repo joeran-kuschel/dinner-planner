@@ -8,6 +8,7 @@ import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
 import { isPlanned, LEFTOVERS_DAYS, leftoverCountFor, leftoverSourcesFor } from "@/lib/leftovers";
+import { absoluteTitle } from "@/lib/page-title";
 import { SERVINGS_HINT_ID } from "@/lib/planner";
 import {
   addDays,
@@ -21,6 +22,11 @@ import {
   today,
   weekDays,
 } from "@/lib/week";
+
+export async function generateMetadata() {
+  const { i18n } = await getServerI18n();
+  return { title: absoluteTitle(t(i18n)`Week plan`, i18n) };
+}
 
 export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
   const { week } = await searchParams;
@@ -52,7 +58,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 id="week-plan-title" tabIndex={-1} className="page-title">
-            {t(i18n)`Dinner plan`}
+            {t(i18n)`Week plan`}
           </h1>
           <p className="mt-1 text-sm text-muted">
             {formatWeekRange(weekStart, locale)} ·{" "}

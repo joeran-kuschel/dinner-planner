@@ -152,6 +152,8 @@ and limits time (10 s) and size (2 MB after decompression). A downloaded picture
 `fetch` or `node:http(s)` for a user-supplied URL anywhere else (`tests/infra/recipe-import.test.ts` checks). `RECIPE_IMPORT_ALLOW_PRIVATE=1` lifts the rule for the
 Playwright server alone and must never appear in a manifest. Details: `documentation/backend/recipe-import.md`.
 
+**Every page sets its own title, and the layout adds " - Dinner Planner".** A page exports `generateMetadata` returning only its part (the same text as its `<h1>`; a recipe's name through `recipeTitle()` in `lib/page-title.ts`, cut at 60 characters); the template is in `app/layout.tsx`, and not-found keeps the bare app name. `tests/infra/page-titles.test.ts` fails for a `page.tsx` without one. Details: `documentation/ui/page-titles.md`.
+
 **Mutations must revalidate every view they touch.** The plan, the recipes and the
 grocery list all read the same data; each action calls `revalidatePath` for all
 the affected routes.

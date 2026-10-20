@@ -323,7 +323,7 @@ test.describe("week plan", () => {
     await confirmAction(page, "Clear the whole week", "Clear week");
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
     // The button is gone with the plan; the focus must not fall back to the top of the page.
-    await expect(page.getByRole("heading", { level: 1, name: "Dinner plan" })).toBeFocused();
+    await expect(page.getByRole("heading", { level: 1, name: "Week plan" })).toBeFocused();
     await page.reload();
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
   });

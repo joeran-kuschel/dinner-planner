@@ -7,6 +7,14 @@ import { prisma } from "@/lib/db";
 import { tagNames } from "@/lib/recipe-search";
 import { unitSuggestions } from "@/lib/units";
 import { getServerI18n } from "@/lib/i18n/server";
+import { recipeTitle } from "@/lib/page-title";
+
+export async function generateMetadata({ params }: PageProps<"/recipes/[id]/edit">) {
+  const { id } = await params;
+  const { i18n } = await getServerI18n();
+  const name = await recipeTitle(id);
+  return name ? { title: t(i18n)`Edit ${name}` } : {};
+}
 
 export default async function EditRecipePage({ params }: PageProps<"/recipes/[id]/edit">) {
   const { id } = await params;
