@@ -124,7 +124,7 @@ test.describe("grocery list: merging lines by hand", () => {
     await planOn(page, WEEK, "Monday", unique("Dish A"), [{ quantity: "100", unit: "g", name: first }]);
     await planOn(page, WEEK, "Tuesday", unique("Dish B"), [{ quantity: "250", unit: "g", name: second }]);
     // The merged name alone in another week.
-    await planOn(page, OTHER_WEEK, "Monday", unique("Dish C"), [{ quantity: "50", unit: "g", name: first }]);
+    await planOn(page, OTHER_WEEK, "Monday", unique("Dish C"), [{ quantity: "150", unit: "g", name: first }]);
 
     await page.goto(`/groceries?week=${WEEK}`);
     await expect(page.getByRole("checkbox", { name: /^Tick off / })).toHaveCount(2);
@@ -155,7 +155,7 @@ test.describe("grocery list: merging lines by hand", () => {
     await page.goto(`/groceries?week=${OTHER_WEEK}`);
     await expect(tick(page, second)).toBeVisible();
     await expect(tick(page, first)).toHaveCount(0);
-    await expect(groceryRow(page, second)).toContainText("50 g");
+    await expect(groceryRow(page, second)).toContainText("150 g");
 
     // Undo splits them again.
     await page.goto(`/groceries?week=${WEEK}`);

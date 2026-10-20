@@ -67,7 +67,7 @@ describe("aggregateIngredients", () => {
 
   it("builds one line per ingredient with key, label, quantity, unit and source", () => {
     expect(aggregateIngredients([meal("Pasta", [ing("Spaghetti", 200, "g")])])).toEqual([
-      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", category: "OTHER", sources: ["Pasta"] },
+      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", category: "OTHER", sources: ["Pasta"], small: false },
     ]);
   });
 
@@ -89,7 +89,7 @@ describe("aggregateIngredients", () => {
         meal("Salad", [ing("Tomatoes", 150, "g")]),
       ]);
       expect(lines).toEqual([
-        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", category: "OTHER", sources: ["Pasta", "Salad"] },
+        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", category: "OTHER", sources: ["Pasta", "Salad"], small: false },
       ]);
     });
 
@@ -135,7 +135,7 @@ describe("aggregateIngredients", () => {
     it("merges duplicates within one recipe and lists the recipe once", () => {
       const lines = aggregateIngredients([meal("Pizza", [ing("Cheese", 100, "g"), ing("Cheese", 50, "g")])]);
       expect(lines).toEqual([
-        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", category: "OTHER", sources: ["Pizza"] },
+        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", category: "OTHER", sources: ["Pizza"], small: false },
       ]);
     });
 
@@ -386,6 +386,37 @@ describe("groceryListText", () => {
         "Other\n- Napkins\n- 2 bottles Wine",
       ].join("\n\n"),
     );
+  });
+
+  it("writes only the name of a small line, in any language", () => {
+    const small = { ...base, label: "Salt", quantity: 2, unit: "tsp", small: true, sources: ["Risotto"] };
+    expect(groceryListText({ weekRange: "w", lines: [small] }, en)).toBe("Grocery list · w\n\nOther\n- Salt");
+    const german = groceryListText({ weekRange: "w", lines: [small] }, de);
+    expect(german.endsWith("\n- Salt")).toBe(true);
+    expect(german).not.toMatch(/TL|tsp|2/);
+  });
+
+  it("shows the amount of a small line when it is formatted for the merge dialog", () => {
+    expect(formatGroceryQuantity({ quantity: 2, unit: "tsp", sources: ["A"], small: true } as Parameters<typeof formatGroceryQuantity>[0], en)).toBe("2 tsp");
+  });
+
+  it("writes a line that is not small with its amount, and a small one with the amount left off", () => {
+    const text = groceryListText(
+      {
+        weekRange: "w",
+        lines: [
+          { ...base, label: "Flour", quantity: 99, unit: "g", small: true, sources: ["A"] },
+          { ...base, label: "Rice", quantity: 100, unit: "g", small: false, sources: ["A"] },
+        ],
+      },
+      en,
+    );
+    expect(text).toBe("Grocery list · w\n\nOther\n- Flour\n- 100 g Rice");
+  });
+
+  it("still leaves a ticked small line out", () => {
+    const text = groceryListText({ weekRange: "w", lines: [{ ...base, label: "Salt", quantity: 1, unit: "tsp", small: true, sources: ["A"], checked: true }] }, en);
+    expect(text).toBe("");
   });
 
   it("keeps the unit of a hand-added item that has no amount", () => {

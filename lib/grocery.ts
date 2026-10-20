@@ -11,6 +11,7 @@ import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
 import { categoryLabel, GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
 import type { Canonicaliser } from "@/lib/ingredients/canonical";
+import { isSmallAmount } from "@/lib/ingredients/measures";
 
 export type IngredientInput = {
   name: string;
@@ -40,6 +41,8 @@ export type GroceryLine = {
   sources: string[];
   manual: boolean;
   checked: boolean;
+  /** The total is too small to show ("1 pinch", under 100 g): the line keeps its name and loses its amount. */
+  small?: boolean;
 };
 
 /**
@@ -142,6 +145,8 @@ export function aggregateIngredients(
   return [...lines.values()]
     .map(({ unitId, ownUnitIds, typedUnit, ...line }) => ({
       ...line,
+      // Decided last, on the merged total in the base unit, so two small parts of one ingredient still add up.
+      small: isSmallAmount(unitId, line.quantity),
       ...canon.amount({ unitId, ownUnitIds, quantity: line.quantity, typedUnit }),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -186,7 +191,7 @@ export function formatQuantity(quantity: number | null, unit: string | null, i18
 
 /**
  * The list as plain text for the clipboard: the title with the week, then each shop section with one
- * "- amount name" line per item ("- 300 g Rice"; "- Salt (to taste)" when no amount is known; a hand-added
+ * "- amount name" line per item ("- 300 g Rice"; "- Salt" for a small amount; "- Salt (to taste)" when no amount is known; a hand-added
  * item without an amount is just its name, or "- Wine (bottles)" with a unit only). Ticked lines and lines a pantry staple hides are left out, since
  * they are not to be bought. Sections left empty by that are left out. Returns "" when nothing is left.
  */
@@ -199,6 +204,7 @@ export function groceryListText(
 
   const sections = groupByCategory(open).map(({ category, lines: group }) => {
     const items = group.map((line) => {
+      if (line.small) return `- ${line.label}`;
       if (line.quantity === null && line.sources.length > 0) return `- ${line.label} (${t(i18n)`to taste`})`;
       if (line.quantity === null) return line.unit ? `- ${line.label} (${line.unit})` : `- ${line.label}`;
       return `- ${formatQuantity(line.quantity, line.unit, i18n)} ${line.label}`;

@@ -241,7 +241,7 @@ function GroceryRow({
             )}
           </span>
 
-          <span className="shrink-0 text-sm text-muted">{formatGroceryQuantity(line, i18n)}</span>
+          {!line.small && <span className="shrink-0 text-sm text-muted">{formatGroceryQuantity(line, i18n)}</span>}
         </label>
         {failed && (
           <p role="alert" className="px-3 pb-3 text-sm text-danger">

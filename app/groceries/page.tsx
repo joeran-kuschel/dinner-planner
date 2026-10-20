@@ -85,11 +85,14 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     handAddedAmounts,
   ).map((line) => {
     const entry = entriesByKey.get(line.key);
+    const handAdded = Boolean(entry?.manual && !entry.dismissed) || (carried.has(line.key) && !entry?.dismissed);
     return {
       ...line,
       manual: false,
-      // A line added by hand with this name and unit is shown as this one line; a staple must not hide it.
-      handAdded: Boolean(entry?.manual && !entry.dismissed) || (carried.has(line.key) && !entry?.dismissed),
+      // A line added by hand with this name and unit is shown as this one line; a staple must not hide it,
+      // and its amount is never dropped.
+      handAdded,
+      small: line.small && !handAdded,
       checked: entry?.checked ?? false,
       entryId: entry?.id ?? null,
     };

@@ -651,3 +651,41 @@ describe("GroceryList: merging lines", () => {
     expect(screen.getByRole("checkbox", { name: "Flour abhaken" })).toHaveFocus();
   });
 });
+
+describe("a small amount", () => {
+  const PEPPER = line({ label: "Pepper", quantity: 2, unit: "tsp", sources: ["Chickpea curry"], small: true });
+
+  it("shows the name and no amount, and the line can still be ticked", async () => {
+    const { user } = renderList([RICE, PEPPER]);
+    const r = row("Pepper");
+    expect(r).not.toHaveTextContent("2 tsp");
+    expect(r).not.toHaveTextContent("tsp");
+    expect(row("Arborio rice")).toHaveTextContent("300 g");
+
+    await user.click(screen.getByRole("checkbox", { name: "Tick off Pepper" }));
+    expect(lastFormData(actions.toggleGroceryLine).get("key")).toBe(PEPPER.key);
+  });
+
+  it("still names its recipes", () => {
+    renderList([PEPPER]);
+    expect(row("Pepper")).toHaveTextContent("Chickpea curry");
+  });
+
+  it("keeps the amount of a line that is not small", () => {
+    renderList([{ ...PEPPER, small: false }]);
+    expect(row("Pepper")).toHaveTextContent("2 tsp");
+  });
+
+  it("has no axe violations", async () => {
+    const { container } = renderList([RICE, PEPPER]);
+    await expectNoAxeViolations(container);
+  });
+
+  it("is the same in German", async () => {
+    const { container } = renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[RICE, { ...PEPPER, unit: "TL" }]} />, { locale: "de" });
+    const r = screen.getByRole("checkbox", { name: "Pepper abhaken" }).closest("div")!;
+    expect(r).not.toHaveTextContent("TL");
+    await expectNoAxeViolations(container);
+  });
+});
+

@@ -146,6 +146,14 @@ and switching the language changes them without reloading. A name the app does n
 different units are not added ("200 g tomato" and "2 pieces tomato" are two lines), and a spoon, cup or pinch is never turned into
 grams or millilitres; only g and kg, and ml and l, share a line. Details and the dictionary: [Merging grocery lines](../backend/grocery-merge.md).
 
+### Small amounts
+
+A line whose total is small shows only its name: "Salt" instead of "1 pinch Salt". Small is any amount in a spoon or pinch-like
+unit (for example tsp, tbsp, EL, TL, pinch, Prise, dash, Spritzer, knife tip, Messerspitze) and any weight under 100 g in total. The total is the week's
+sum after equal lines are merged, so 60 g and 50 g of tomatoes read "110 g". The line stays on the list and can be ticked as usual.
+Lines "to taste", lines in other units (pieces, cloves, cups, ml, l) and things you added by hand, and a planned line you also added by hand, are shown as they are. The copied
+text and the printout leave the amount off in the same way. See [Merging grocery lines](../backend/grocery-merge.md#small-amounts-61).
+
 ### Merge
 
 Where the app does not know that two lines are the same, merge them yourself. Every line that has another line in the same unit

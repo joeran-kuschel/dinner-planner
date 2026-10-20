@@ -136,7 +136,7 @@ except a metric unit and its own multiple, since a tablespoon of salt and one of
 to one dictionary group only (a test checks): Kümmel is caraway, Kreuzkümmel is cumin. Stored `GroceryEntry` rows keep their old
 keys and are read through `keyOfStored()` / `canonicalRows()`; build a key with the canonicaliser, never by hand. The page names
 lines and units in the page language, and `aggregateIngredients(meals, canon)` without a canonicaliser (`PLAIN_NAMES`) is the old
-behaviour. Details: `documentation/backend/grocery-merge.md`.
+behaviour. The order of the list is: add up, merge (also hand-added amounts), then `small` (a pinch or spoon amount, or a weight under 100 g, loses its amount on screen, in the copy and in print; decided on the merged total, `isSmallAmount()` in `measures.ts`). Details: `documentation/backend/grocery-merge.md`.
 
 **Pantry staples hide derived grocery lines at render time and store nothing on
 the lines.** `PantryStaple` is a global table of normalised names (the same
