@@ -1,6 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
+  afterServerAction,
   createRecipe,
   expectAccessible,
   fillIngredients,
@@ -443,7 +444,8 @@ test.describe("hand-added entries carried over", () => {
     await page.goto(`/groceries?week=${W3}`);
     await expect(box(page, item)).toHaveAccessibleDescription("Added 2 weeks ago");
 
-    await box(page, item).click();
+    // The box flips at once, before the save is through: reload only after the server has answered.
+    await afterServerAction(page, () => box(page, item).click());
     await expect(box(page, item)).toBeChecked();
     await page.reload();
     await expect(box(page, item)).toBeChecked();
