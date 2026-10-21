@@ -1,0 +1,31 @@
+# Only this app's pods may open a connection to the database. Without a policy,
+# any pod in the shared cluster, in any namespace, can reach dinner-planner-db:5432
+# and only the database login stands in the way.
+#
+# Ingress only. Not affected, because they are no pod-to-pod connections: the
+# kubelet's probes, `pg_isready` and `kubectl exec` into the database pod (the
+# backup and restore scripts, db-common.sh). A pod started by hand (`kubectl run
+# … psql`) is refused: use `kubectl exec` into the database pod instead.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dinner-planner-db-from-app
+spec:
+  podSelector:
+    matchLabels:
+      app: dinner-planner-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # The app, with its migrate init container in the same pod.
+        - podSelector:
+            matchLabels:
+              app: dinner-planner
+        # The one-off seed Job (seed-job.yaml).
+        - podSelector:
+            matchLabels:
+              app: dinner-planner-seed
+      ports:
+        - port: 5432
+          protocol: TCP

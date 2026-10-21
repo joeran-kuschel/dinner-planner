@@ -7,6 +7,10 @@ metadata:
 spec:
   backoffLimit: 2
   template:
+    metadata:
+      # The label network-policy.yaml lets through to the database.
+      labels:
+        app: dinner-planner-seed
     spec:
       restartPolicy: Never
       containers:
