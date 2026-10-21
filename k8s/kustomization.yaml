@@ -9,6 +9,7 @@ resources:
   - namespace.yaml
   - postgres.yaml
   - app.yaml
+  - network-policy.yaml
   - ingress.yaml
 
 # `labels` rather than the deprecated `commonLabels`, and explicitly not in the

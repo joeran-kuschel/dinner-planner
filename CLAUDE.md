@@ -301,6 +301,10 @@ change.
   only applies what is unrecorded, so repeating it is a no-op. Seeding is
   separate and manual (`npm run k8s:seed`) — it must not resurrect sample
   recipes on every restart.
+- **Only the app's pods may reach the database.** `k8s/network-policy.yaml` admits TCP 5432 from pods labelled
+  `app: dinner-planner` (the app and its migrate init container) and `app: dinner-planner-seed` (the seed Job) and
+  refuses every other pod, in this namespace or another. A new pod that needs the database needs a label there; a
+  `kubectl run … psql` is refused, `kubectl exec` into the database pod is not. Details: `documentation/backend/database-network-policy.md`.
 - **Postgres is a StatefulSet with a PersistentVolumeClaim.** `PGDATA` points at
   a subdirectory because Postgres refuses to initialise into a volume that
   already contains `lost+found`.

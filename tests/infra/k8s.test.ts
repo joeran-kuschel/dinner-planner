@@ -183,6 +183,40 @@ describe("Kubernetes setup for Docker Desktop", () => {
     });
   });
 
+  describe("network policy for the database", () => {
+    const policy = () => resources("network-policy.yaml").find((r) => r?.kind === "NetworkPolicy")!;
+    const podLabels = (file: string, kind: string): Record<string, string> =>
+      resources(file).find((r) => r?.kind === kind)!.spec.template.metadata.labels;
+
+    it("is applied by every deploy, in the namespace's kustomization", () => {
+      expect(resources("kustomization.yaml")[0].resources).toContain("network-policy.yaml");
+    });
+
+    it("selects the database pod and lets in nothing but TCP 5432 from the app and the seed Job", () => {
+      const { podSelector, policyTypes, ingress } = policy().spec;
+      const service = resources("postgres.yaml").find((r) => r?.kind === "Service")!;
+
+      expect(podSelector.matchLabels).toEqual(podLabels("postgres.yaml", "StatefulSet"));
+      // Ingress only: an egress rule would also have to let the app out to the Ingress, DNS and the web.
+      expect(policyTypes).toEqual(["Ingress"]);
+      expect(ingress).toHaveLength(1);
+      expect(ingress[0].ports).toEqual([{ port: service.spec.ports[0].port, protocol: "TCP" }]);
+      expect(service.spec.ports[0].port).toBe(5432);
+      // Pods of this namespace only: a bare podSelector never matches another namespace, so no namespaceSelector.
+      expect(ingress[0].from).toHaveLength(2);
+      for (const peer of ingress[0].from) expect(Object.keys(peer)).toEqual(["podSelector"]);
+    });
+
+    it("names the labels the app's pod and the seed Job's pod really carry", () => {
+      const peers = policy().spec.ingress[0].from.map((peer: Resource) => peer.podSelector.matchLabels);
+
+      expect(peers).toEqual([podLabels("app.yaml", "Deployment"), podLabels("seed-job.yaml", "Job")]);
+      // The migrate init container is in the app's pod, so it is let in with the app.
+      const app = resources("app.yaml").find((r) => r?.kind === "Deployment")!;
+      expect(app.spec.template.spec.initContainers.map((c: Container) => c.name)).toContain("migrate");
+    });
+  });
+
   it("keeps the database password out of the manifests, the scripts and the docs", () => {
     const files = [...fs.readdirSync(K8S).map((file) => `k8s/${file}`), "compose.yaml", ".env.example", "README.md"];
 
