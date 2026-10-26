@@ -845,7 +845,8 @@ describe("RecipeForm", () => {
         await user.type(field("Description of the photo"), "Soup");
 
         for (let attempt = 1; attempt <= 3; attempt++) {
-          await user.click(screen.getByRole("button", { name: "Create recipe" }));
+          // The button reads "Saving…" until the refused save has settled, which on a slow machine is after the alert is there.
+          await user.click(await screen.findByRole("button", { name: "Create recipe" }));
           await waitFor(() => expect(action).toHaveBeenCalledTimes(attempt));
           await screen.findByRole("alert");
           expect(fileField().files?.[0]?.name).toBe("soup.jpg");
