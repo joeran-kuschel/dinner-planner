@@ -96,7 +96,9 @@ test.describe("favorites", () => {
 
     await page.goto("/recipes?fav=1&sort=planned");
     await page.getByRole("link", { name: new RegExp(name) }).click();
-    await page.getByRole("link", { name: /Recipes/ }).first().click();
+    // Wait for the recipe's page: on a slow machine the click would otherwise land on the list, where "Recipes" is the nav link.
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    await page.getByRole("main").getByRole("link", { name: /^← Recipes$/ }).click();
     await expect(page).toHaveURL(/fav=1/);
     await expect(page).toHaveURL(/sort=planned/);
   });
