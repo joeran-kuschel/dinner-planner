@@ -79,6 +79,8 @@ is the pull request's branch, checked before it is pushed and again before the p
    Run the suite on the branch being merged, since that is the code the merge brings in.
 2. Run `npm run check`: typecheck, lint, the entire Vitest suite and the Playwright specs, with time limits and
    no retries (see "Time and retry limits"). It takes about two minutes on a Mac, longer on CI. Don't assemble the stages yourself.
+   Before it, run the e2e specs that open the pages the change touches in one go (not only the new spec), so stale assertions
+   show up together and not one per gate run.
 3. Check that every changed behavior in step 1 is covered by a test. Write the missing tests, then run them.
 4. The push or merge is ready only if everything passes and nothing is untested. A flaky test is a failure: report it, don't
    rerun until it passes.
@@ -94,6 +96,13 @@ whole check; Playwright gives each test 10 seconds and stops at the first failur
 - **One re-run at most**, and only when an infrastructure cause stopped the check (a port in use, the database not
   started, `npm run check` saying "the database does not answer"). Name that cause in the report, fix only the cause
   (for example `npm run db:up`), then run `npm run check` once more.
+- **List every failing spec once when Playwright fails on a test.** The gate stops at the first failure, so each stale test
+  would otherwise cost a whole check run. When the Playwright stage failed on a test (not on an infrastructure cause), run
+  the specs once more *outside the gate*, without `--max-failures`, against the build the check just made:
+  `E2E_PREBUILT=1 npx playwright test --timeout=10000 --reporter=line`. This only lists failures and is not a retry: a test
+  that fails there or passes there is never "good enough" and never a reason to call the push ready. Fix the failures that
+  are stale or wrong tests, report anything that is a bug or looks flaky, then run `npm run check` once more as the gate.
+  Name both runs and the changed flag in the report.
 - **Never change flags or limits between runs** (timeouts, `--max-failures`, reporters) without saying so in the report.
 - If the whole-check limit is reached, stop and report which stages finished.
 - Don't reach for a longer timeout or another approach when a stage is slow: report the slow stage and its time.

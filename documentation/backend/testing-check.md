@@ -138,6 +138,14 @@ above 75% of the Playwright limit: split it** (a single slow run is mostly the r
 The `test-engineer` agent follows the same rules: no re-run unless a named infrastructure cause (a port in use, the
 database not started) was the reason, and never with changed flags.
 
+One exception keeps the gate fast: because Playwright stops at the first failure, a change that makes several tests stale
+(a new line on a card, a new query parameter in an address) used to cost one full check run per stale test (#7: four runs,
+about twelve minutes). When the Playwright stage fails on a test, the agent runs the specs once outside the gate, without
+`--max-failures` (`E2E_PREBUILT=1 npx playwright test --timeout=10000 --reporter=line`), fixes every test that is merely
+out of date and then runs `npm run check` once more. That listing run is a diagnosis, not a retry: it never decides that a
+push is ready, and the report names both runs. Before the gate, the agent also runs the specs that open the changed pages
+together.
+
 ## When to change it
 
 The limits and flags are in `PHASES` in `scripts/check-lib.ts`. `tests/infra/check.test.ts` pins the limits and the two
