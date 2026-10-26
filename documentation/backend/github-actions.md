@@ -13,7 +13,7 @@ agent runs on the developer's machine, so a green run there and a green run here
 2. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
 3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
    (`npx next typegen`: the typecheck reads `PageProps` and `LayoutProps` from `.next/types`, which only `next dev` and
-   `next build` write, so a fresh checkout has none), installs Chromium for Playwright and runs `npm run check`.
+   `next build` write, so a fresh checkout has none), installs Chromium for Playwright ("Installing the browser" below) and runs `npm run check`.
 4. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
    `test-results`, kept for 7 days. The check runs Playwright with the line reporter, so there is no HTML report; the
    last lines of any failing stage are in the job log.
@@ -76,6 +76,35 @@ Hard-coded secrets are the job of GitHub's separate **secret scanning** (with pu
 The run's summary page shows the stage times as a table with the share of each stage's limit, and a stage above 60% of its
 limit gets a warning annotation (`publishToGitHub()` in `scripts/check-lib.ts`, which does nothing outside GitHub
 Actions). See [testing-check.md](testing-check.md#keeping-an-eye-on-the-time) for the thresholds and what to do about them.
+
+## Installing the browser
+
+Two steps before `npm run check`.
+
+- **The cache.** The downloaded browser (`~/.cache/ms-playwright`, about 150 MB) is kept between runs by `actions/cache`, under a key made of
+  the hash of Playwright's `package.json` (so only a new Playwright version downloads it again). That saves the download, nothing more:
+  the cache is saved when the whole job succeeds, so a run whose check fails downloads again next time, and a pull request's cache
+  is its own (a fork cannot write into the scope that `main` reads).
+- **The install with a limit.** `npx playwright install --with-deps chromium` also installs the browser's system libraries, which comes from
+  apt on every run, since a runner starts empty. That is the part that stalled: on 2026-10-26 one run waited 11 minutes for it (a normal run
+  takes about 25 s), with nothing wrong in the code. So in essence (the real script is in `check.yml`):
+
+  ```bash
+  for attempt in 1 2 3; do
+    timeout --kill-after=10 120 npx playwright install --with-deps chromium && exit 0
+    # a warning on the run, and between attempts: timeout 30 sudo dpkg --configure -a
+  done
+  exit 1
+  ```
+
+  An attempt that takes more than 120 s (apt, plus the download when the cache was empty) is stopped and tried again, three times at most,
+  and a retry shows up as a warning on the run. The step as a whole is limited to 10 minutes (`timeout-minutes`). A stuck mirror then costs a
+  few minutes instead of a quarter of an hour, and when all three attempts fail the step fails, so the check never runs without a browser.
+
+What is not known: whether `timeout` reaches an apt that Playwright started through `sudo` (the first signal is relayed by `sudo`;
+the later `--kill-after` may not reach a root process), and so whether a retry can still find the apt lock held. A real stuck run will show;
+the warning on the run says when a retry happened. `tests/infra/github-actions.test.ts` runs the script with a fake `timeout` and
+checks the cases of a first-time success, a retry and three failures.
 
 ## Limits
 
