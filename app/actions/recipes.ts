@@ -11,6 +11,7 @@ import { parseGroceryCategory } from "@/lib/grocery-category";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
 import { MAX_PHOTO_ALT_LENGTH } from "@/lib/recipe-photo-shared";
+import { safeSitePath } from "@/lib/safe-path";
 import {
   isWebUrl,
   MAX_PREP_MINUTES,
@@ -198,7 +199,8 @@ export async function createRecipe(
   );
 
   revalidateRecipeViews();
-  redirect(`/recipes/${recipe.id}`);
+  // "Save and leave" says where the visitor was going; anything but a path of this site is ignored.
+  redirect(safeSitePath(formData.get("next")) ?? `/recipes/${recipe.id}`);
 }
 
 export async function updateRecipe(
@@ -235,7 +237,7 @@ export async function updateRecipe(
   );
 
   revalidateRecipeViews();
-  redirect(`/recipes/${id}`);
+  redirect(safeSitePath(formData.get("next")) ?? `/recipes/${id}`);
 }
 
 /** The nested write for the recipe's photo row; nothing when the photo stays as it is. */

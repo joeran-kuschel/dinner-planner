@@ -104,6 +104,27 @@ Creating and editing use the same form.
 Saving replaces the recipe's ingredients with the rows in the form, in that order. When the server rejects the form, for
 example for a blank name, the message is announced and everything typed is still in the form.
 
+### Leaving the form with changes
+
+The form asks before a stray click throws away what was typed. It asks only when something differs from how the form opened: a form
+left untouched, one whose change was undone (typing a letter and deleting it) and one that was just saved never ask. Any field counts,
+the ingredient rows (adding one too), the tags and a chosen photo. A recipe read from a link counts as changed from the start, since
+leaving would throw the import away.
+
+- **The app's own links and buttons** (the menu, the logo, "Back to recipes", "Cancel") open a dialog, **Leave without saving?**, with
+  three buttons in one row where the screen has room (they wrap on a narrow phone): **Stay**, **Leave without saving** and **Save and
+  leave**. The focus starts on **Stay**, **Escape** also stays, and the focus goes back to the link that was clicked. German: **Hier
+  bleiben**, **Ohne Speichern verlassen**, **Speichern und verlassen**.
+- **Save and leave** sends the form as the save button does, then opens the link that was clicked (not the recipe's page). A form that
+  is not complete (no name) closes the dialog, stays on the page and says what is missing; one the server refuses stays with what was
+  typed and shows its message.
+- **The browser's back and forward buttons** ask the same way where the browser lets a page cancel them (it has the Navigation API,
+  and the step goes to a page the app showed itself). When you come back from a page you reached by typing an address or reloading,
+  or in a browser without that API, the browser's own prompt asks instead, as for a reload.
+- **Reload, closing the tab and typing another address** show the browser's own prompt ("Leave site?"), set only while the form is
+  changed. A link to another website is such a leave, so the browser asks about that one too.
+- Switching the language does not leave the page, so it asks nothing and keeps what was typed.
+
 ## Adding a recipe from a link
 
 On the recipe list, **New recipe** is a split button. The main part opens the empty form, as always; the arrow beside it

@@ -53,6 +53,13 @@ touching forms. What is already handled:
   recipe actions echo the submitted values back in `RecipeFormState.values` and
   the form re-fills from those, re-keyed on `attempt`.
 
+**Leaving the recipe form with changes asks first.** `components/leave-guard.tsx` (inside the form) compares a snapshot of the
+fields (`lib/form-snapshot.ts`) with the one from when the form opened, and then covers three ways out: `beforeunload` for the
+browser's own, a capture-phase click listener for the app's links (Next.js has no hook to block a navigation), and the Navigation
+API's `navigate` event for the back and forward buttons (no API, no guard for those). "Save and leave" submits the form with a hidden
+`next` path, which the actions only follow through `safeSitePath()` (`lib/safe-path.ts`: never another site). The guard is off while
+the form is saving, so the save's own redirect passes. Details: `documentation/backend/unsaved-changes.md`.
+
 **A `"use server"` file may only export async functions.** Exporting a constant
 or an object from `app/actions/*` compiles and type-checks, then fails at
 runtime. Shared constants and types live in `lib/` (`planner.ts`,

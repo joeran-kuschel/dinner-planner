@@ -878,3 +878,46 @@ describe("recipe photos", () => {
     });
   });
 });
+
+describe("Save and leave: where a saved recipe goes", () => {
+  it("opens the address that was asked for after creating, when it is a path of this site", async () => {
+    await expectRedirect(createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ next: "/recipes?tag=soup" })), "/recipes?tag=soup");
+    expect(await prisma.recipe.count()).toBe(1);
+  });
+
+  it("opens it after updating, with the recipe saved first", async () => {
+    const recipe = await prisma.recipe.create({ data: { name: "Old", servings: 2 } });
+
+    await expectRedirect(
+      updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: recipe.id, name: "New", next: "/groceries?week=2027-01-04" })),
+      "/groceries?week=2027-01-04",
+    );
+
+    expect((await prisma.recipe.findUniqueOrThrow({ where: { id: recipe.id } })).name).toBe("New");
+  });
+
+  it.each([
+    ["another host", "//evil.example/x"],
+    ["a backslash host", "/\\evil.example"],
+    ["a full address", "https://evil.example/"],
+    ["javascript:", "javascript:alert(1)"],
+    ["dot segments that collapse to another host", "/.//evil.example"],
+    ["an encoded dot segment", "/%2e//evil.example"],
+    ["no slash", "recipes"],
+    ["an empty value", ""],
+  ])("ignores %s and goes to the recipe as a save does", async (_what, next) => {
+    await expect(createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ next }))).rejects.toMatchObject({
+      url: expect.stringMatching(/^\/recipes\/\w+$/),
+    });
+    const recipe = await prisma.recipe.findFirstOrThrow();
+    const again = updateRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ id: recipe.id, next }));
+    await expectRedirect(again, `/recipes/${recipe.id}`);
+  });
+
+  it("does not redirect when the form is refused, whatever the address", async () => {
+    const state = await createRecipe(EMPTY_RECIPE_FORM_STATE, recipeForm({ name: "", next: "/recipes" }));
+
+    expect(state.error).not.toBeNull();
+    expect(await prisma.recipe.count()).toBe(0);
+  });
+});

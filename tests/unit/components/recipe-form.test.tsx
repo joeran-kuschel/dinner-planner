@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { polyfillDialog } from "@/tests/support/dialog";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState, type RecipeFormValues } from "@/lib/recipe-form";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
@@ -54,9 +55,12 @@ function renderForm(
   action: Action = vi.fn<Action>(async (prev) => prev),
   recipe?: Recipe,
   unitSuggestions?: string[],
+  initialValues?: RecipeFormValues,
 ) {
   const user = userEvent.setup();
-  const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} unitSuggestions={unitSuggestions} />);
+  const result = renderWithI18n(
+    <RecipeForm action={action} recipe={recipe} unitSuggestions={unitSuggestions} initialValues={initialValues} />,
+  );
   return { user, ...result };
 }
 
@@ -1121,5 +1125,68 @@ describe("RecipeForm", () => {
       await screen.findByRole("alert");
       await expectNoAxeViolations(container);
     });
+  });
+});
+
+describe("RecipeForm: leaving with unsaved changes", () => {
+  beforeAll(() => polyfillDialog());
+
+  /** A click on "Cancel" as a user makes it; false when something stopped it. */
+  const clickCancel = () => {
+    let proceeded = true;
+    act(() => {
+      proceeded = screen.getByRole("link", { name: "Cancel" }).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    });
+    return proceeded;
+  };
+  const dialog = () => document.querySelector("dialog") as HTMLDialogElement;
+
+  it("lets a form that was not touched go", () => {
+    renderForm();
+    expect(clickCancel()).toBe(true);
+    expect(dialog().hasAttribute("open")).toBe(false);
+  });
+
+  it("asks once a field was changed, in the new form and the edit form", async () => {
+    const { user } = renderForm();
+    await user.type(field("Name"), "Soup");
+    expect(clickCancel()).toBe(false);
+    expect(dialog().hasAttribute("open")).toBe(true);
+  });
+
+  it("asks after a change in the edit form, not before", async () => {
+    const { user } = renderForm(undefined, RISOTTO);
+    expect(clickCancel()).toBe(true);
+
+    await user.clear(field("Serves"));
+    await user.type(field("Serves"), "6");
+    expect(clickCancel()).toBe(false);
+  });
+
+  it("asks after an ingredient row is added or a tag taken away", async () => {
+    const { user } = renderForm(undefined, RISOTTO);
+    await user.click(screen.getByRole("button", { name: "Remove tag italian" }));
+    await waitFor(() => expect(clickCancel()).toBe(false));
+  });
+
+  it("asks from the start for a recipe read from a link: it is not saved yet", () => {
+    renderForm(undefined, undefined, undefined, { ...REJECTED_VALUES, name: "Imported soup" });
+    expect(clickCancel()).toBe(false);
+  });
+
+  it("keeps asking after a refused save, since what was typed is still not saved", async () => {
+    const { user } = renderForm(rejectingAction(NAME_MISSING));
+    await user.type(field("Name"), "Soup");
+    await user.click(screen.getByRole("button", { name: "Create recipe" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+
+    expect(clickCancel()).toBe(false);
+  });
+
+  it("has the hidden field that Save and leave fills in, outside what was typed", () => {
+    renderForm();
+    const next = document.querySelector('input[name="next"]') as HTMLInputElement;
+    expect(next).toHaveAttribute("type", "hidden");
+    expect(next.value).toBe("");
   });
 });
