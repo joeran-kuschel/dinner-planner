@@ -146,6 +146,24 @@ and switching the language changes them without reloading. A name the app does n
 different units are not added ("200 g tomato" and "2 pieces tomato" are two lines), and a spoon, cup or pinch is never turned into
 grams or millilitres; only g and kg, and ml and l, share a line. Details and the dictionary: [Merging grocery lines](../backend/grocery-merge.md).
 
+A name the dictionary does not know also joins its plural: "Quinces" and "quince" in two recipes are one line, shown under the singular.
+That happens only when both are on the list (a recipe or a hand-added entry of that week, or one carried over), so a name that merely
+ends like a plural ("Kuchen", "Wein") is never cut. It knows only regular endings, English (-s, -es, -ies, -ves) and German (-n, -e).
+
+### What a line combines
+
+A line made of more than one spelling ("Tomaten" and "tomatoes", "Quinces" and "quince", a merge you made) says so:
+
+- **Tooltip.** The line's **Merge** button shows "Combines Tomaten, tomatoes" when the pointer is on it or the keyboard focus is
+  (**Escape** puts it away; it stays while the pointer moves onto it). A screen reader reads the same words as the description of the line's
+  tick box and of the button, without hovering.
+- **The dialog** lists the spellings under **This line combines**, each with **List separately**.
+- **List separately** (the button's name is "List separately: Tomaten") keeps that spelling on a line of its own, from now on, in every week: "Tomaten" no longer joins "tomatoes" (the
+  dictionary) and "Quinces" no longer joins "quince" (the plural rule). The polite status says "Tomaten is listed on its own line" and the
+  focus goes to that line. Amounts of the lines that were one are not split by hand: each line has what its own recipes need.
+- A line that combines spellings but has no other line to merge into has the button anyway, for this; it is named "Show what Tomaten combines", and its dialog ("Spellings of Tomaten") has only the spellings.
+- On a touch screen there is no hover, so the dialog is the way to see what a line combines (and a screen reader reads it with the tick box).
+
 ### Small amounts
 
 A line whose total is small shows only its name: "Salt" instead of "1 pinch Salt". Small is any amount in a spoon or pinch-like
@@ -166,13 +184,15 @@ opens a dialog:
   chosen; **Cancel** and **Escape** close the dialog without merging.
 - Afterwards the polite status says "Merged Tomatoes into Tomato" and the focus is on the tick box of the line that remains.
 
-Under the list, **Merged lines** (closed until wanted, with a count) lists every merge you made ("Tomatoes is listed as Tomato") with an
-**Undo** that lists the lines apart again. German: **Zusammenführen**, **Zusammengeführte Zeilen**, **Rückgängig**.
+Under the list, **Merged lines** (closed until wanted, with a count of rules) lists every merge you made ("Tomatoes is listed as Tomato") with an
+**Undo** that lists the lines apart again, and every spelling you keep on its own line ("Tomaten is kept on its own line") with an **Undo**
+that lets it merge again. German: **Zusammenführen**, **Zusammengeführte Zeilen**, **Rückgängig**, **Einzeln aufführen**.
 
 ## Accessibility
 
 - Each section is a landmark region named by its heading, so screen reader users can jump from section to section by
   heading or region.
+- The tooltip is not the only way to read what a line combines: the same words are the description of the line's tick box. It is dismissible, hoverable and stays while it is pointed at or focused (WCAG 1.4.13).
 - The **Merge** buttons are named after their line and are 36 px, 44 px on a touch screen ([Buttons](buttons.md)); the dialog is a native modal dialog (focus goes to the first choice, Tab stays inside, Escape closes, the focus returns to the button), and the merge is announced in a polite live region of its own.
 - Each checkbox is named after its item ("Tick off Rice"), and each ✕ after the line it removes. The ✕ is a 32 px button, 44 px on a touch screen ([Buttons](buttons.md)). A ticked line is put back on the list by clicking it again; there is no button that unticks everything.
 - Ticked lines are struck through and muted rather than faded, which keeps their text at AA contrast.

@@ -9,6 +9,7 @@ import {
   planRecipe,
   tabTo,
   unique,
+  uniqueWord,
 } from "@/tests/e2e/support/helpers";
 
 // Merging duplicate lines on the grocery list: the bundled dictionary (Tomaten and tomatoes are one line, whatever the
@@ -26,6 +27,8 @@ async function planOn(page: Page, week: string, weekday: string, name: string, i
 
 const tick = (page: Page, label: string) => page.getByRole("checkbox", { name: `Tick off ${label}`, exact: true });
 const mergeButton = (page: Page, label: string) => page.getByRole("button", { name: `Merge ${label} with another line`, exact: true });
+// A line with no other line in its unit to merge into has this button instead, to see and split what it combines.
+const combinesButton = (page: Page, label: string) => page.getByRole("button", { name: `Show what ${label} combines`, exact: true });
 const announcement = (page: Page) => page.locator('p[aria-live="polite"]');
 const openMerged = (page: Page) => page.locator("summary", { hasText: /^Merged lines/ }).click();
 
@@ -294,5 +297,118 @@ test.describe("grocery list: merging lines in German", () => {
     );
     await expect(page.getByText("Noch nichts zusammengeführt.")).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /abhaken$/ })).toHaveCount(2);
+  });
+});
+
+test.describe("grocery list: plurals, the spellings a line combines, and keeping one apart", () => {
+  // A name the dictionary does not know, so only the plural rule can join it: ends in "e", so "…es" is its plural.
+  const stem = () => `${uniqueWord("quince")}e`;
+
+  async function planPlural(page: Page, singular: string) {
+    await planOn(page, WEEK, "Monday", unique("Compote"), [{ quantity: "3", name: `${singular}s` }]);
+    await planOn(page, WEEK, "Tuesday", unique("Tart"), [{ quantity: "1", name: singular }]);
+    await page.goto(`/groceries?week=${WEEK}`);
+  }
+
+  test("a plural joins its singular when both are on the list, and not otherwise", async ({ page }) => {
+    const singular = stem();
+    const alone = stem();
+    await planOn(page, WEEK, "Wednesday", unique("Jam"), [{ quantity: "2", name: `${alone}s` }]);
+    await planPlural(page, singular);
+
+    await expect(tick(page, singular)).toBeVisible();
+    await expect(groceryRow(page, singular)).toContainText("4");
+    // A plural whose singular is not on the list stays as it is.
+    await expect(tick(page, `${alone}s`)).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: /^Tick off / })).toHaveCount(2);
+  });
+
+  test("the line's merge button says what it combines in a tooltip, with the keyboard too, and Escape puts it away", async ({ page }) => {
+    const singular = stem();
+    await planPlural(page, singular);
+
+    // Put away it is still there for a screen reader (`sr-only`), so it is told by its class.
+    const tip = page.getByRole("tooltip");
+    const button = combinesButton(page, singular);
+    await expect(tip).toHaveClass(/\bsr-only\b/);
+    await button.hover();
+    await expect(tip).not.toHaveClass(/\bsr-only\b/);
+    await expect(tip).toHaveText(`Combines ${singular}s, ${singular}`);
+    await page.mouse.move(0, 0);
+    await expect(tip).toHaveClass(/\bsr-only\b/);
+
+    await button.focus();
+    await expect(tip).not.toHaveClass(/\bsr-only\b/);
+    await page.keyboard.press("Escape");
+    await expect(tip).toHaveClass(/\bsr-only\b/);
+    await expect(tick(page, singular)).toHaveAccessibleDescription(`Combines ${singular}s, ${singular}`);
+  });
+
+  test("lists the spellings in the dialog and keeps one on a line of its own, and undoes it", async ({ page }) => {
+    const singular = stem();
+    await planPlural(page, singular);
+
+    await combinesButton(page, singular).click();
+    const dialog = page.getByRole("dialog", { name: `Spellings of ${singular}` });
+    await expect(dialog.getByRole("heading", { name: "This line combines" })).toBeVisible();
+    await expectAccessible(page);
+
+    await afterServerAction(page, () => dialog.getByRole("button", { name: `List separately: ${singular}s`, exact: true }).click());
+
+    await expect(tick(page, `${singular}s`)).toBeFocused();
+    await expect(tick(page, singular)).toBeVisible();
+    await expect(groceryRow(page, `${singular}s`)).toContainText("3");
+    await expect(groceryRow(page, singular)).toContainText("1");
+    await expect(announcement(page)).toHaveText(`${singular}s is listed on its own line`);
+
+    // It is a rule in the list of merges, and a reload keeps it.
+    await page.reload();
+    await openMerged(page);
+    await expect(page.getByText(`${singular}s is kept on its own line`)).toBeVisible();
+    await expectAccessible(page);
+
+    await afterServerAction(page, () =>
+      page.getByRole("button", { name: `Undo keeping ${singular}s on its own line`, exact: true }).click(),
+    );
+    await expect(tick(page, singular)).toBeVisible();
+    await expect(tick(page, `${singular}s`)).toHaveCount(0);
+    await expect(groceryRow(page, singular)).toContainText("4");
+  });
+
+  test("keeps a dictionary name apart too, in every week, and the tick stays with its line", async ({ page }) => {
+    await planOn(page, WEEK, "Monday", unique("Pasta"), [{ quantity: "200", unit: "g", name: "Tomaten" }]);
+    await planOn(page, WEEK, "Tuesday", unique("Salad"), [{ quantity: "300", unit: "g", name: "tomatoes" }]);
+    await planOn(page, OTHER_WEEK, "Monday", unique("Soup"), [{ quantity: "100", unit: "g", name: "Tomaten" }]);
+    await page.goto(`/groceries?week=${WEEK}`);
+    await expect(groceryRow(page, "Tomato")).toContainText("500 g");
+
+    await combinesButton(page, "Tomato").click();
+    await afterServerAction(page, () =>
+      page.getByRole("dialog", { name: "Spellings of Tomato" }).getByRole("button", { name: "List separately: Tomaten", exact: true }).click(),
+    );
+    await expect(groceryRow(page, "Tomaten")).toContainText("200 g");
+    await expect(groceryRow(page, "Tomato")).toContainText("300 g");
+
+    await page.goto(`/groceries?week=${OTHER_WEEK}`);
+    await expect(groceryRow(page, "Tomaten")).toContainText("100 g");
+
+    await afterServerAction(page, () => tick(page, "Tomaten").click());
+    await page.reload();
+    await expect(tick(page, "Tomaten")).toBeChecked();
+  });
+
+  test("says it in German", async ({ page }) => {
+    const singular = stem();
+    await planPlural(page, singular);
+    await page.context().addCookies([{ name: "locale", value: "de", url: "http://localhost:3100" }]);
+    await page.goto(`/groceries?week=${WEEK}`);
+
+    const button = page.getByRole("button", { name: `Anzeigen, was ${singular} zusammenfasst`, exact: true });
+    await button.hover();
+    await expect(page.getByRole("tooltip")).toHaveText(`Fasst zusammen: ${singular}s, ${singular}`);
+    await expect(page.getByRole("tooltip")).not.toHaveClass(/\bsr-only\b/);
+    await button.click();
+    await expect(page.getByRole("heading", { name: "Diese Zeile fasst zusammen" })).toBeVisible();
+    await expectAccessible(page);
   });
 });

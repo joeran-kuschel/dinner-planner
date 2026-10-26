@@ -7,7 +7,7 @@ import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
 import { categoryLabel } from "@/lib/grocery-category";
-import { nameIdOfKey, unitIdOfKey } from "@/lib/ingredients/canonical";
+import { nameIdOfKey, normalizeName, unitIdOfKey } from "@/lib/ingredients/canonical";
 import { MergeLineButton, type MergeTarget } from "@/components/merge-lines-dialog";
 
 /** A line of the list; `pantry` marks one that a pantry staple would hide, shown because the user asked. */
@@ -31,6 +31,15 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
   // The line that takes the focus after a merge: the one the merged line is listed as now (the button that had
   // the focus goes away with the line it merged).
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  // The same for a spelling put on a line of its own: the line is found by its name, since its key is new.
+  const [focusName, setFocusName] = useState<string | null>(null);
+
+  // A focus target that no line took is dropped once the page has been drawn again, so a later line cannot take it.
+  // (In a timer, after the rows' own effects had their chance to take it.)
+  useEffect(() => {
+    const timer = setTimeout(() => setFocusName(null), 0);
+    return () => clearTimeout(timer);
+  }, [lines]);
 
   if (lines.length === 0) {
     return (
@@ -58,6 +67,10 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
   const merged = (from: string, to: MergeTarget) => {
     setAnnouncement(t(i18n)`Merged ${from} into ${to.label}`);
     setFocusKey(to.key);
+  };
+  const separated = (name: string) => {
+    setAnnouncement(t(i18n)`${name} is listed on its own line`);
+    setFocusName(normalizeName(name));
   };
 
   return (
@@ -104,8 +117,13 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
                   line={line}
                   targets={targetsFor(line)}
                   onMerged={merged}
+                  onSeparated={separated}
                   focusKey={focusKey}
-                  onFocused={() => setFocusKey(null)}
+                  focusName={focusName}
+                  onFocused={() => {
+                    setFocusKey(null);
+                    setFocusName(null);
+                  }}
                 />
               ))}
             </div>
@@ -141,14 +159,18 @@ function GroceryRow({
   line,
   targets,
   onMerged,
+  onSeparated,
   focusKey,
+  focusName,
   onFocused,
 }: {
   weekStart: string;
   line: GroceryListLine;
   targets: MergeTarget[];
   onMerged: (from: string, to: MergeTarget) => void;
+  onSeparated: (name: string) => void;
   focusKey: string | null;
+  focusName: string | null;
   onFocused: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -159,13 +181,15 @@ function GroceryRow({
   const [failed, setFailed] = useState(false);
   const hydrated = useHydrated();
   const noteId = useId();
+  const partsId = useId();
+  const combined = line.parts?.join(", ") ?? "";
   const [, startTransition] = useTransition();
 
   useEffect(() => {
-    if (focusKey !== line.key) return;
+    if (focusKey !== line.key && focusName !== normalizeName(line.label)) return;
     checkbox.current?.focus();
     onFocused();
-  }, [focusKey, line.key, onFocused]);
+  }, [focusKey, focusName, line.key, line.label, onFocused]);
 
   // The box flips for the time of the save and shows what is stored again once it ends, so a save
   // that fails leaves the box as it was; the message says so. The form is submitted by hand, not
@@ -227,7 +251,7 @@ function GroceryRow({
             onChange={() => formRef.current?.requestSubmit()}
             className="size-6 shrink-0 accent-[var(--herb)]"
             aria-label={t(i18n)`Tick off ${label}`}
-            aria-describedby={line.carriedWeeks ? noteId : undefined}
+            aria-describedby={[line.carriedWeeks ? noteId : null, line.parts ? partsId : null].filter(Boolean).join(" ") || undefined}
           />
 
           <span className="flex min-w-0 flex-1 flex-col">
@@ -237,6 +261,12 @@ function GroceryRow({
             {notes.length > 0 && (
               <span id={noteId} className="text-sm text-muted">
                 {notes.join(" · ")}
+              </span>
+            )}
+            {/* The tooltip's words for a screen reader, which does not hover. */}
+            {line.parts && (
+              <span id={partsId} className="sr-only">
+                {t(i18n)`Combines ${combined}`}
               </span>
             )}
           </span>
@@ -250,9 +280,15 @@ function GroceryRow({
         )}
       </form>
 
-      {targets.length > 0 && (
+      {(targets.length > 0 || line.parts) && (
         <div className="pr-1 print:hidden">
-          <MergeLineButton from={{ nameId: nameIdOfKey(line.key), label: line.label }} targets={targets} onMerged={onMerged} />
+          <MergeLineButton
+            from={{ nameId: nameIdOfKey(line.key), label: line.label }}
+            targets={targets}
+            parts={line.parts}
+            onMerged={onMerged}
+            onSeparated={onSeparated}
+          />
         </div>
       )}
 

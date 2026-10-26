@@ -7,9 +7,11 @@ import { formData } from "@/tests/support/db";
 import { MAX_MERGE_RULES, MAX_RULE_LABEL, MAX_RULE_NAME } from "@/lib/ingredients/merge-rules";
 import {
   addGroceryExtra,
+  keepGroceryNameSeparate,
   mergeGroceryLines,
   removeGroceryExtra,
   toggleGroceryLine,
+  unkeepGroceryName,
   unmergeGroceryLines,
 } from "@/app/actions/groceries";
 
@@ -613,5 +615,115 @@ describe("unmergeGroceryLines", () => {
     await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Aubergine" }));
 
     expect((await entries())[0].key).toBe("aubergine|");
+  });
+});
+
+const kept = () => prisma.groceryKeepSeparate.findMany({ orderBy: { name: "asc" } });
+const keep = (fields: Record<string, string>) => keepGroceryNameSeparate(formData(fields));
+
+describe("keepGroceryNameSeparate", () => {
+  it("stores the name normalised and as typed, revalidates the list and says it kept it", async () => {
+    expect(await keep({ label: "  Tomaten " })).toBe("kept");
+
+    expect(await kept()).toEqual([expect.objectContaining({ name: "tomaten", label: "Tomaten" })]);
+    expectGroceriesRevalidated();
+  });
+
+  it("keeps one row when the same name is kept again, in any case", async () => {
+    await keep({ label: "Tomaten" });
+    await keep({ label: "TOMATEN " });
+
+    expect(await kept()).toHaveLength(1);
+  });
+
+  it.each([["missing", {}], ["blank", { label: "   " }], ["a bar only", { label: "|" }]])("answers invalid for a %s name", async (_what, fields) => {
+    expect(await keep(fields)).toBe("invalid");
+    expect(await kept()).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("cuts the label and refuses a name that is too long to be an ingredient", async () => {
+    await keep({ label: "x".repeat(MAX_RULE_LABEL + 20) });
+    expect((await kept())[0].label).toHaveLength(MAX_RULE_LABEL);
+    expect(MAX_RULE_NAME).toBeGreaterThanOrEqual(MAX_RULE_LABEL);
+  });
+
+  it("stops at the limit, but still accepts a name that is kept already", async () => {
+    await prisma.groceryKeepSeparate.createMany({
+      data: Array.from({ length: MAX_MERGE_RULES }, (_, i) => ({ name: `n${i}`, label: `n${i}` })),
+    });
+
+    expect(await keep({ label: "one more" })).toBe("limit");
+    expect(await keep({ label: "n3" })).toBe("kept");
+    expect(await prisma.groceryKeepSeparate.count()).toBe(MAX_MERGE_RULES);
+  });
+});
+
+describe("unkeepGroceryName", () => {
+  it("removes only the given name and revalidates the list", async () => {
+    await keep({ label: "Tomaten" });
+    await keep({ label: "Quinces" });
+    const [quinces] = await kept();
+    vi.mocked(revalidatePath).mockClear();
+
+    await unkeepGroceryName(formData({ id: quinces.id }));
+
+    expect((await kept()).map((row) => row.name)).toEqual(["tomaten"]);
+    expectGroceriesRevalidated();
+  });
+
+  it("does not fail for an id that is gone, but throws for a missing one", async () => {
+    await unkeepGroceryName(formData({ id: "nope" }));
+    await expect(unkeepGroceryName(formData({}))).rejects.toThrow("missing `id`");
+  });
+});
+
+describe("addGroceryExtra and the plural fold", () => {
+  const add = (label: string) => addGroceryExtra(formData({ weekStart: dayKey(WEEK), label, quantity: "1" }));
+
+  it("keys an extra like the page does: a plural of a name on the page is that name", async () => {
+    const recipe = await prisma.recipe.create({
+      data: { name: "Tart", servings: 2, ingredients: { create: [{ name: "quince", quantity: 1, unit: null, position: 0 }] } },
+    });
+    await prisma.plannedMeal.create({ data: { date: WEEK, recipeId: recipe.id, servings: 2 } });
+
+    await add("Quinces");
+
+    expect((await entries())[0]).toMatchObject({ key: "quince|", label: "Quinces" });
+  });
+
+  it("makes one row of a plural and its singular both added by hand: the second goes into the row of the first", async () => {
+    await add("Quinces");
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "quince", quantity: "2" }));
+
+    const rows = await entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ label: "quince", quantity: 2 });
+  });
+
+  it("does not count an earlier week's entry that was ticked or deleted", async () => {
+    await prisma.groceryEntry.create({ data: { weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true, checked: true } });
+
+    await add("Quinces");
+
+    expect((await entries())[0].key).toBe("quinces|");
+  });
+
+  it("counts a carried entry", async () => {
+    await prisma.groceryEntry.create({ data: { weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true } });
+
+    await add("Quinces");
+
+    expect((await entries())[0].key).toBe("quince|");
+  });
+});
+
+describe("addGroceryExtra and the names kept apart", () => {
+  it("stores the key of the name as typed for a name that is kept on its own line", async () => {
+    await keep({ label: "Tomaten" });
+
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Tomaten", quantity: "1", unit: "g" }));
+
+    expect((await entries())[0]).toMatchObject({ key: "tomaten|g", label: "Tomaten" });
   });
 });

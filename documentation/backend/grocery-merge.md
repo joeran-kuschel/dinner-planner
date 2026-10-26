@@ -10,7 +10,8 @@ built, from a bundled dictionary and from the merges the user made.
 A line's key is `<name id>|<unit id>` (`lib/ingredients/canonical.ts`, safe for client code):
 
 - **Name id.** A name in the dictionary (`lib/ingredients/names.ts`) is `~<group id>` (`~tomato`, `~caraway`). Any other name
-  is the typed name trimmed, inner whitespace collapsed and lowercased. The user's merge rules are applied on top and
+  is the typed name trimmed, inner whitespace collapsed and lowercased, or its singular when it is a plural of a name on the page
+  (see "Plurals" below), unless the user keeps it on its own line (see "Names kept on their own line"). The user's merge rules are applied on top and
   followed as a chain (`followRules`, at most 20 steps), so a name merged into a name that was merged again ends at the last.
 - **Unit id.** A unit in the table (`lib/ingredients/measures.ts`) is its base: "kg" counts in "g", "l" in "ml", "EL" and
   "tbsp" are both "tbsp". A unit that is not in the table stays as typed (lowercased) and merges only with itself.
@@ -26,6 +27,49 @@ tsp. Amounts in different units are not added: "200 g tomato" and "2 pieces toma
 `nameLabel(nameId)` (the name to show), `unitLabel(unit, quantity)`, `amount(...)` (the amount to show for a line summed in its
 base unit), `aliases(name)` and `keyOfStored(key)`. `aggregateIngredients(meals, canon)` takes one; without it
 (`PLAIN_NAMES` in `lib/grocery.ts`) names and units count exactly as typed, which is what the older tests and callers get.
+
+## Plurals
+
+A name that is not in the dictionary also joins its regular plural: "quinces" and "quince", "Rüben" and "Rübe". `singularCandidates()`
+(`lib/ingredients/plurals.ts`, safe for client code) lists the singulars a name could have, most specific first: English `-ies`→`y`, `-ves`→`f`/`fe`,
+`-oes`/`-ches`/`-shes`/`-xes`/`-sses`/`-zes` lose `es`, any other `-s` (not after s, u or i) is cut; German `-n` (after e, l or r) and `-e` are cut. The last word of a
+name only ("cherry tomatoes"), at least three letters are left, and a short list of names is never cut (couscous, hummus, asparagus, …).
+
+**A name folds only when one of its candidates is on the page**, never on the ending alone: `createCanonicaliser({ names })` gets every ingredient
+name of the week's recipes and every hand-added entry that is on the list (this week's that is not deleted, an earlier week's that is still carried: not ticked, not
+deleted; `pageNames()` in `lib/ingredients/rows.ts`, which the page calls before it aggregates), and `identify()`
+folds a name to the first candidate that is in that set. So "shallots" next to "shallot" is one line, and a lone "Kuchen" or "Wein" is never turned into "Kuche" or
+"Wei". The key still carries the unit, so "pepper" in a pinch and "peppers" in pieces stay two lines. The singular wins the label: a line is shown under the spelling
+it is counted as (`quince`), whichever recipe comes first, unless the dictionary or a merge names it. `keyOfStored` runs the same fold, so a row written under
+"quinces|" is read as "quince|" while "quince" is on the page. `addGroceryExtra` builds its key with the same names (`loadPageNames()`, the same queries in `lib/ingredients/server.ts`), and
+updates the row of this week that the page already reads as that line instead of writing a second one. A rule made for "shallots" applies to "shallot" too: the page folds the rule's name the way it folds a name.
+
+**The limit.** Because a plural folds only while its singular is on the page, a key is not fixed for good: a tick written under "shallot|" no longer matches when the recipe with
+"shallot" leaves the week and the line is "shallots|" again (the same happens to any key when a recipe's ingredient is renamed). Nothing is lost or ticked by accident: the line is
+unticked, and the row waits under its key. Folding on the ending alone would not have this, but it could not tell "olives" (olive) from "leaves" (leaf), or cut "Wein" and "Kuchen" safely.
+
+## What a line combines
+
+`aggregateIngredients` records the typed spellings that went into a line, by their normalised form (recipe ingredients and hand-added entries).
+A line of two or more spellings carries them as `parts` (`["Tomaten", "tomatoes"]`, in the order found); a line of one has no `parts`. They are display only:
+the tooltip on the line's merge button, its description for a screen reader, and the list in the merge dialog (`components/merge-lines-dialog.tsx`,
+`components/grocery-list.tsx`) read them. The merge rules the user made are in `parts` too, since they join spellings the same way.
+
+## Names kept on their own line
+
+`GroceryKeepSeparate` (`prisma/schema.prisma`, global): a unique `name` (normalised like a merge rule's `fromName`) and the `label` the user saw. It is the way to undo an
+automatic merge, by the dictionary or the plural rule: `createCanonicaliser({ keepSeparate })` gives such a name the id of its own typed name, so it joins neither the dictionary
+group nor a singular, and other names do not fold into it. It is also not sent anywhere by a hand merge (`GroceryMergeRule`): "List separately" on a spelling
+that a merge had joined puts it apart, and the rule stays in "Merged lines" (undo it there to merge again). A pantry staple still matches a kept name by its dictionary names (`aliases`). `loadKeepSeparate()` (`lib/ingredients/server.ts`)
+reads them; `addGroceryExtra` builds its keys with them too, so an entry added under a kept name is stored under the key the page reads.
+
+| Action (`app/actions/groceries.ts`) | Does |
+| ---- | ---- |
+| `keepGroceryNameSeparate` | Reads `label` (cut to 80 characters), normalises it and upserts by `name`: keeping a name again changes nothing. Answers `invalid` for nothing or a name that is too long, `limit` at 300 names (`MAX_MERGE_RULES`, a name already kept still answers `kept`), else `kept`. |
+| `unkeepGroceryName` | Deletes by `id`; one already gone is not an error, a missing `id` throws. |
+
+Both start with `requireAccess()` and revalidate `/groceries`. Ticks written while the lines were one keep the key they got then, as after undoing a hand merge
+(below): after "List separately" the separated line starts unticked, and a row under the merged key belongs to the line that kept that key.
 
 ## What is shown
 
@@ -104,5 +148,5 @@ dictionary (`PLAIN_NAMES`) the unit is the typed one, so only the units named ex
 
 ## Not done yet (#73)
 
-Stage 2 (merging more spellings automatically, such as plurals that are not in the dictionary) and stage 3 (suggesting a merge where the
-app is not sure, with "Merge" and "Keep separate") are separate.
+Stage 3 (suggesting a merge where the app is not sure, with "Merge" and "Keep separate") is separate. Stage 2 is done: the dictionary, the
+unit table, the plural rule, the spellings a line combines and the names kept apart.

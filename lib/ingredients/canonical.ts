@@ -4,7 +4,9 @@
  *
  * A line's key is `<name id>|<unit id>`:
  * - The name id is `~<group>` for a name in the dictionary (`names.ts`, so "Tomaten" and "tomatoes" are `~tomato`),
- *   else the typed name trimmed and lowercased. The user's merge rules (`MergeRule`, stored in the database) are
+ *   else the typed name trimmed and lowercased. A name that is a regular plural of another name on the list
+ *   ("shallots" with "shallot", `plurals.ts`) is that name. A name the user wants kept on its own line
+ *   (`keepSeparate`) is neither. The user's merge rules (`MergeRule`, stored in the database) are
  *   applied on top, so a merged name ends up as the name it was merged into.
  * - The unit id is the unit's base (`measures.ts`): "kg" counts in "g", "l" in "ml", "EL" and "tbsp" are both
  *   "tbsp". A unit that is not in the table stays as typed. Units are never converted, except a metric unit and
@@ -17,6 +19,7 @@
 import type { Locale } from "@/lib/i18n/config";
 import { type Measure, MEASURES } from "@/lib/ingredients/measures";
 import { type NameGroup, NAME_GROUPS } from "@/lib/ingredients/names";
+import { singularCandidates } from "@/lib/ingredients/plurals";
 
 /** A merge the user made: lines named `from` are listed as `to`. Both are name ids. */
 export type MergeRule = { from: string; to: string; fromLabel: string; toLabel: string };
@@ -110,8 +113,27 @@ export function followRules(nameId: string, rules: ReadonlyMap<string, MergeRule
   return id;
 }
 
-export function createCanonicaliser({ locale, rules = [] }: { locale: Locale; rules?: readonly MergeRule[] }): Canonicaliser {
-  const ruleByFrom = new Map(rules.map((rule) => [rule.from, rule]));
+export type CanonicaliserOptions = {
+  locale: Locale;
+  rules?: readonly MergeRule[];
+  /** Every ingredient name on the page (recipes and entries): a plural folds into its singular only if that is there. */
+  names?: Iterable<string>;
+  /** Names (as typed, any case) that stay on a line of their own, whatever the dictionary or the plural rule say. */
+  keepSeparate?: Iterable<string>;
+};
+
+export function createCanonicaliser({ locale, rules = [], names = [], keepSeparate = [] }: CanonicaliserOptions): Canonicaliser {
+  const present = new Set([...names].map(normalizeName));
+  const separate = new Set([...keepSeparate].map(normalizeName));
+
+  /** The name id of a typed name, before the merge rules: its dictionary group, its singular on the list, or itself. */
+  const baseId = (name: string): string => {
+    const own = normalizeName(name);
+    if (separate.has(own)) return own;
+    if (groupByName.has(own)) return baseNameId(name);
+    const singular = singularCandidates(own).find((form) => present.has(form) && !separate.has(form));
+    return singular ? baseNameId(singular) : own;
+  };
   const labelByTarget = new Map<string, string>();
   for (const rule of rules) if (!labelByTarget.has(rule.to)) labelByTarget.set(rule.to, rule.toLabel);
 
@@ -119,9 +141,14 @@ export function createCanonicaliser({ locale, rules = [] }: { locale: Locale; ru
   const unitName = (measure: Measure, quantity: number | null = null) =>
     (quantity !== null && quantity !== 1 && measure.plural?.[locale]) || firstName(measure, locale);
 
+  // A rule made for "shallots" still applies when the page counts that name as "shallot".
+  const ruleByFrom = new Map(rules.map((rule) => [baseId(rule.from), rule]));
+
   const identify: Canonicaliser["identify"] = (name, unit) => {
-    const group = groupByName.get(normalizeName(name));
-    const nameId = followRules(baseNameId(name), ruleByFrom);
+    const own = normalizeName(name);
+    const group = separate.has(own) ? undefined : groupByName.get(own);
+    // A name the user keeps on its own line is not sent anywhere by a merge either.
+    const nameId = separate.has(own) ? own : followRules(baseId(name), ruleByFrom);
     const unitSource = normalizeName(unit ?? "") || group?.impliesUnit || "";
     const measure = measureByName.get(unitSource);
     const ownUnitId = measure?.id ?? unitSource;

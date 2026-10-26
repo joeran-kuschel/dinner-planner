@@ -140,6 +140,15 @@ model GroceryMergeRule {
   createdAt DateTime @default(now())
 }
 
+/// A spelling the user wants on a line of its own: the dictionary and the plural rule leave this name alone
+/// (lib/ingredients/canonical.ts). `name` is normalised like a merge rule's name; `label` is how the user saw it.
+model GroceryKeepSeparate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  label     String
+  createdAt DateTime @default(now())
+}
+
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
   id        String   @id @default(cuid())

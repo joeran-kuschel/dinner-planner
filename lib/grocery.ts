@@ -10,7 +10,7 @@
 import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
 import { categoryLabel, GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
-import type { Canonicaliser } from "@/lib/ingredients/canonical";
+import { type Canonicaliser, normalizeName } from "@/lib/ingredients/canonical";
 import { isSmallAmount } from "@/lib/ingredients/measures";
 
 export type IngredientInput = {
@@ -41,6 +41,11 @@ export type GroceryLine = {
   sources: string[];
   manual: boolean;
   checked: boolean;
+  /**
+   * The spellings this line combines, as typed ("Tomaten", "tomatoes"), when it combines more than one. Whatever
+   * brought them together: the dictionary, a plural, a merge the user made or a hand-added entry.
+   */
+  parts?: string[];
   /** The total is too small to show ("1 pinch", under 100 g): the line keeps its name and loses its amount. */
   small?: boolean;
 };
@@ -66,6 +71,13 @@ export const PLAIN_NAMES: Canonicaliser = {
   unitLabel: () => null,
 };
 
+/** Notes a typed spelling of a line, once per normalised form, as first typed. */
+function addSpelling(spellings: Map<string, string>, name: string) {
+  const spelling = name.trim();
+  const key = normalizeName(spelling);
+  if (key && !spellings.has(key)) spellings.set(key, spelling);
+}
+
 /** Something added to the list by hand: its amount is added to the planned line it shares its key with. */
 export type ExtraAmount = { name: string; quantity: number | null; unit: string | null };
 
@@ -85,6 +97,9 @@ export function aggregateIngredients(
     unitId: string;
     ownUnitIds: Set<string>;
     typedUnit: string | null;
+    nameId: string;
+    /** Every spelling typed for the line, by its normalised form. */
+    spellings: Map<string, string>;
   };
   const lines = new Map<string, Sum>();
 
@@ -114,9 +129,12 @@ export function aggregateIngredients(
           unitId: id.unitId,
           ownUnitIds: new Set([id.ownUnitId]),
           typedUnit: ingredient.unit,
+          nameId: id.nameId,
+          spellings: new Map([[normalizeName(name), name]]),
         });
         continue;
       }
+      addSpelling(existing.spellings, name);
 
       // An unquantified ingredient makes the whole line unquantifiable — showing
       // a partial total would understate what to buy.
@@ -137,14 +155,20 @@ export function aggregateIngredients(
   for (const extra of extras) {
     const id = canon.identify(extra.name, extra.unit);
     const line = lines.get(id.key);
-    if (!line || extra.quantity === null) continue;
+    if (!line) continue;
+    addSpelling(line.spellings, extra.name);
+    if (extra.quantity === null) continue;
     if (line.quantity !== null) line.quantity += extra.quantity * id.factor;
     line.ownUnitIds.add(id.ownUnitId);
   }
 
   return [...lines.values()]
-    .map(({ unitId, ownUnitIds, typedUnit, ...line }) => ({
+    .map(({ unitId, ownUnitIds, typedUnit, nameId, spellings, ...line }) => ({
       ...line,
+      // A name the dictionary or a merge names keeps that name; otherwise the spelling the line is counted under
+      // (the singular of "shallots" and "shallot"), so the label does not depend on which recipe comes first.
+      label: canon.nameLabel(nameId) ?? spellings.get(nameId) ?? line.label,
+      ...(spellings.size > 1 ? { parts: [...spellings.values()] } : {}),
       // Decided last, on the merged total in the base unit, so two small parts of one ingredient still add up.
       small: isSmallAmount(unitId, line.quantity),
       ...canon.amount({ unitId, ownUnitIds, quantity: line.quantity, typedUnit }),

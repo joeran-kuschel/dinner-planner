@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseQuantity, readText } from "@/lib/form-data";
 import { parseGroceryCategory } from "@/lib/grocery-category";
-import { createCanonicaliser } from "@/lib/ingredients/canonical";
+import { createCanonicaliser, normalizeName } from "@/lib/ingredients/canonical";
 import { MAX_MERGE_RULES, MAX_RULE_LABEL, MAX_RULE_NAME, readNameId, wouldLoop } from "@/lib/ingredients/merge-rules";
-import { loadMergeRules } from "@/lib/ingredients/server";
+import { loadKeepSeparate, loadMergeRules, loadPageNames } from "@/lib/ingredients/server";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { parseDayKey, startOfWeek } from "@/lib/week";
 import { requireAccess } from "@/lib/access-guard";
@@ -61,12 +61,24 @@ export async function addGroceryExtra(formData: FormData) {
 
   const category = parseGroceryCategory(formData.get("category"));
   // The same key a derived line gets, so an extra named like an ingredient of the plan is that line.
-  const key = createCanonicaliser({ locale: DEFAULT_LOCALE, rules: await loadMergeRules() }).identify(label, unit).key;
+  const [rules, separate, names] = await Promise.all([loadMergeRules(), loadKeepSeparate(), loadPageNames(weekStart)]);
+  const canon = createCanonicaliser({
+    locale: DEFAULT_LOCALE,
+    rules,
+    names: [...names, label],
+    keepSeparate: separate.map((entry) => entry.name),
+  });
+  // A row of this week that the page already reads as this line (written under another spelling, such as the plural
+  // before the singular was on the list) is the one that is updated, so a line never has two rows of its own.
+  const key = canon.identify(label, unit).key;
+  const existing = (await prisma.groceryEntry.findMany({ where: { weekStart, manual: true }, select: { key: true } })).find(
+    (row) => canon.keyOfStored(row.key) === key,
+  );
 
   // Adding the same extra twice updates the amount instead of erroring on the
   // (weekStart, key) unique constraint.
   await prisma.groceryEntry.upsert({
-    where: { weekStart_key: { weekStart, key } },
+    where: { weekStart_key: { weekStart, key: existing?.key ?? key } },
     // Adding an item that was deleted from this week (and from the weeks after it) brings it back.
     update: { label, quantity, unit, category, manual: true, dismissed: false },
     create: { weekStart, key, label, quantity, unit, category, manual: true },
@@ -139,6 +151,36 @@ export async function unmergeGroceryLines(formData: FormData) {
   if (!id) throw new Error("unmergeGroceryLines: missing `id`");
 
   await prisma.groceryMergeRule.deleteMany({ where: { id } });
+  revalidatePath("/groceries");
+}
+
+/**
+ * Keep a spelling on a line of its own: the dictionary and the plural rule leave "Tomaten" alone from now on, in every
+ * week, so it is listed apart from "tomatoes". Answers "kept", "invalid" (nothing, or a name that is too long) or
+ * "limit" (too many). Keeping a name again changes nothing. Undone with `unkeepGroceryName`.
+ */
+export async function keepGroceryNameSeparate(formData: FormData): Promise<"kept" | "invalid" | "limit"> {
+  await requireAccess();
+  const label = readText(formData, "label").slice(0, MAX_RULE_LABEL);
+  const name = normalizeName(label);
+  if (!name || name.length > MAX_RULE_NAME) return "invalid";
+
+  if (!(await prisma.groceryKeepSeparate.findUnique({ where: { name } })) && (await prisma.groceryKeepSeparate.count()) >= MAX_MERGE_RULES) {
+    return "limit";
+  }
+  await prisma.groceryKeepSeparate.upsert({ where: { name }, update: {}, create: { name, label } });
+
+  revalidatePath("/groceries");
+  return "kept";
+}
+
+/** Let a name be merged by the dictionary and the plural rule again. One undone in another tab is gone already. */
+export async function unkeepGroceryName(formData: FormData) {
+  await requireAccess();
+  const id = readText(formData, "id");
+  if (!id) throw new Error("unkeepGroceryName: missing `id`");
+
+  await prisma.groceryKeepSeparate.deleteMany({ where: { id } });
   revalidatePath("/groceries");
 }
 

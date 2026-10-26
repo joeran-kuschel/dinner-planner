@@ -10,6 +10,7 @@ export async function resetDatabase(): Promise<void> {
     prisma.tag.deleteMany(),
     prisma.pantryStaple.deleteMany(),
     prisma.groceryMergeRule.deleteMany(),
+    prisma.groceryKeepSeparate.deleteMany(),
   ]);
 }
 
