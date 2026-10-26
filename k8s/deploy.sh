@@ -24,6 +24,8 @@ source k8s/db-secret.sh
 source k8s/tls-secret.sh
 # shellcheck source=k8s/access-secret.sh
 source k8s/access-secret.sh
+# shellcheck source=k8s/image-cleanup.sh
+source k8s/image-cleanup.sh
 KUBE_CONTEXT="$CLUSTER"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
@@ -37,6 +39,18 @@ if ! "${KUBECTL[@]}" get nodes >/dev/null 2>&1; then
   echo "The '$CLUSTER' cluster is not reachable. Start Docker Desktop and turn on" >&2
   echo "Kubernetes in Settings → Kubernetes, then run this again." >&2
   exit 1
+fi
+
+# The node that images are imported into, and the tag the app runs now: the one to roll back to, kept when old images
+# are removed (empty on the first deploy).
+NODE="$("${KUBECTL[@]}" get nodes -o jsonpath='{.items[0].metadata.name}')"
+ROLLBACK_KNOWN=1
+if previous_image="$("${KUBECTL[@]}" -n "$NAMESPACE" get deployment dinner-planner -o jsonpath='{.spec.template.spec.containers[0].image}' --ignore-not-found 2>/dev/null)"; then
+  PREVIOUS_TAG="$(printf '%s' "$previous_image" | sed -n 's/.*:\([0-9]\{14\}\)$/\1/p')"
+else
+  # Not "there is none" (that answers with nothing) but "could not ask": no image is removed then.
+  PREVIOUS_TAG=""
+  ROLLBACK_KNOWN=0
 fi
 
 # The nginx ingress controller serves https://dinner.local. It is shared with
@@ -80,6 +94,12 @@ else
   echo "Created the $ACCESS_SECRET Secret. Print the link for your devices with: npm run k8s:access-link"
 fi
 
+step "Checking the free disk space on the node"
+# Docker Desktop's disk holds every image of every deploy. Under 2 GB the old images of this project go first;
+# if that is not enough the deploy stops here, before it starts a rollout that cannot finish (Postgres cannot start
+# on a full disk). The tags kept: the new one, the one the app runs now, and any a pod uses.
+ensure_free_space "$TAG" "$PREVIOUS_TAG" || exit 1
+
 step "Building images ($TAG)"
 docker build --target app --tag "$APP_IMAGE" .
 docker build --target migrator --tag "$MIGRATOR_IMAGE" .
@@ -88,7 +108,6 @@ step "Loading images into the cluster"
 # Docker Desktop runs Kubernetes as a kind node with its own image store, so an
 # image built on the host is invisible to it until it is imported into the
 # node. The manifests use `imagePullPolicy: Never`, so nothing is ever pulled.
-NODE="$("${KUBECTL[@]}" get nodes -o jsonpath='{.items[0].metadata.name}')"
 for image in "$APP_IMAGE" "$MIGRATOR_IMAGE"; do
   docker save "$image" | docker exec -i "$NODE" ctr --namespace k8s.io images import -
 done
@@ -117,6 +136,11 @@ if ! "${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/dinner-planner --
   "${KUBECTL[@]}" -n "$NAMESPACE" logs deployment/dinner-planner -c migrate --tail=40 || true
   exit 1
 fi
+
+step "Removing old images"
+# Only now, when the new version is running: a failed deploy keeps every image the old pod might need. The new tag and
+# the one before it stay, so there is always one version to go back to.
+prune_images "$TAG" "$PREVIOUS_TAG"
 
 step "Ready"
 

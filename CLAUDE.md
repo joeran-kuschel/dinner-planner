@@ -291,6 +291,14 @@ change.
   each image into the node (`docker save … | docker exec -i <node> ctr -n k8s.io
   images import -`), and the manifests use `imagePullPolicy: Never`.
   `tests/infra/k8s.test.ts` checks both.
+- **A deploy cleans up after itself.** Every deploy leaves two images behind, and the node's disk is Docker Desktop's whole VM
+  disk: when it filled up (2026-10-16) Postgres could not start. `k8s/image-cleanup.sh` (sourced by `deploy.sh`) removes the
+  `dinner-planner` and `dinner-planner-migrator` images with a 14-digit timestamp tag from the node and the host once the
+  rollout succeeded, keeping the new tag, the tag the app ran before (the rollback) and any tag a pod uses (and the second `sha256:…`
+  reference each import leaves, which holds the layers, goes with its tag); if it cannot read what the pods use it removes
+  nothing; no other repository is ever touched (the node is shared). Before building, `deploy.sh` needs 2 GB free on the node: under that it removes old
+  images first and stops with advice (`docker builder prune`, old volumes) if it is still short. Details:
+  `documentation/backend/image-cleanup.md`.
 - **Every script pins `--context docker-desktop`.** Never let a deploy follow
   whatever context happens to be current (`tests/infra/k8s.test.ts` checks this too).
 - **The nginx ingress controller is shared** with other apps on this cluster
