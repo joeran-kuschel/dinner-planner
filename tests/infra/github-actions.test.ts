@@ -104,6 +104,7 @@ describe("the GitHub Actions check", () => {
           `echo "timeout $*" >> "${dir}/calls"\nif [ "$1" = "30" ]; then shift; exec "$@"; fi\nn=$(grep -c '^timeout --kill-after' "${dir}/calls")\n[ "$n" -le ${failures} ] && exit 124\nexit 0`,
         );
         fake("sudo", `echo "sudo $*" >> "${dir}/calls"`);
+        fake("sleep", "exit 0");
         const result = spawnSync("bash", ["-e", "-c", install!.run!], {
           encoding: "utf8",
           env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
@@ -129,12 +130,31 @@ describe("the GitHub Actions check", () => {
       expect(result.stdout).toContain("::warning::Installing the browser did not finish within 120 seconds, or failed (attempt 1 of 3).");
     });
 
+    it("stops the root apt that `timeout` cannot reach before it tries again, since it would keep the dpkg lock", () => {
+      const result = runInstall(1);
+      expect(result.status).toBe(0);
+      const killed = result.calls.filter((call) => call.startsWith("sudo pkill"));
+      expect(killed).toEqual(["apt-get", "apt", "dpkg", "http", "https"].map((name) => `sudo pkill -KILL -x ${name}`));
+      // Before the next attempt, and before dpkg is asked to finish: a lock held by a live process cannot be repaired.
+      const timeouts = result.calls.map((call, index) => [call, index] as const).filter(([call]) => call.startsWith("timeout --kill-after"));
+      const configure = result.calls.indexOf("timeout 30 sudo dpkg --configure -a");
+      const lastKill = result.calls.lastIndexOf("sudo pkill -KILL -x https");
+      expect(timeouts[0][1]).toBeLessThan(result.calls.indexOf("sudo pkill -KILL -x apt-get"));
+      expect(lastKill).toBeLessThan(configure);
+      expect(configure).toBeLessThan(timeouts[1][1]);
+    });
+
+    it("never removes a lock file", () => {
+      expect(install?.run).not.toMatch(/rm\s+.*lock/);
+    });
+
     it("fails the step after the third failed attempt, so the check does not run without a browser", () => {
       const result = runInstall(3);
       expect(result.status).toBe(1);
       expect(result.calls.filter((call) => call.startsWith("timeout --kill-after"))).toHaveLength(3);
-      // The cleanup comes after an attempt that another follows, not after the last.
+      // The cleanup comes after an attempt that another follows, not after the last: two rounds of it.
       expect(result.calls.filter((call) => call.startsWith("timeout 30"))).toHaveLength(2);
+      expect(result.calls.filter((call) => call === "sudo pkill -KILL -x apt-get")).toHaveLength(2);
     });
   });
 
