@@ -32,6 +32,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- Tooling: `npm run check` builds the app next to lint and Vitest and starts Playwright's server from that build (and typechecks beside Playwright), instead of building at the start of Playwright's stage: about a minute shorter on GitHub.
 - Tooling: `npm run k8s:deploy` removes the old images of its own earlier deploys once the new version runs (keeping the new one and the one before it for a rollback), and checks the free disk space of the cluster's node first: under 2 GB it removes old images, and stops with advice if that is not enough, instead of starting a rollout that cannot finish ([#84](https://github.com/joeran-kuschel/dinner-planner/issues/84)).
 - Tooling: GitHub scans the code for security problems with CodeQL on every push to `main`, every pull request and once a week (a repository setting, documented in `documentation/backend/github-actions.md`).
 - Tooling: `npm run check` shows how much of its time limit each stage used, warns when a stage passes 60% of it (also as a warning and a summary table on GitHub), and the rule for splitting Playwright over several CI jobs is written down ([#64](https://github.com/joeran-kuschel/dinner-planner/issues/64)).

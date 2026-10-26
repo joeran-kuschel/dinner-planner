@@ -2,8 +2,8 @@
 
 `npm run check` is the whole check that has to pass before every push and every merge: typecheck, lint, the Vitest
 suite and the Playwright specs. It is what the `test-engineer` agent runs (`.claude/agents/test-engineer.md`), and you can
-run it yourself. On the developer's Mac it takes about two minutes (115 to 127 s with 182 Playwright specs; it was 56 s when this was
-written), most of it Playwright's build and run.
+run it yourself. On the developer's Mac it takes about three minutes (184 s on 2026-10-26, with about 250 Playwright specs and a warm build cache; it was
+56 s when this was written), most of it the Playwright run (about 150 s).
 
 ```bash
 npm run check
@@ -12,12 +12,13 @@ npm run check
 ```
 Stage       Result                              Seconds
 i18n        passed                              0.4
-typecheck   passed                              2.4
-lint        passed                              4.1
-vitest      passed                              8.4
-playwright  passed                              47.3
+build       passed                              8.3
+lint        passed                              9.1
+vitest      passed                             33.9
+typecheck   passed                              1.7
+playwright  passed                            149.5
 
-Check passed in 56.1 s
+Check passed in 183.9 s
 ```
 
 The exit code is 0 only when every stage passed. The code is in `scripts/check.ts` (the command) and
@@ -31,10 +32,15 @@ can be merged: [github-actions.md](github-actions.md).
 1. **i18n**: compiles the translation catalogs once. `npm run typecheck` is not used, because it compiles them again
    (`pretypecheck`), and Vitest's global setup would compile them a third time while the typecheck reads the files.
    The script sets `CHECK_CATALOGS_COMPILED`, which makes that setup skip its own compile.
-2. **typecheck, lint and vitest**, together.
-3. **playwright**, on its own: its build would compete with the others for the processor. It gets 10 seconds per
-   test (the default is 30) and stops at the first failure, so a locator that no longer matches costs 10 seconds
-   and not minutes.
+2. **build, lint and vitest**, together. The build is the production build (`npx next build`) that Playwright's server runs
+   on; it used to be made at the start of the Playwright stage, a minute or more of waiting on its own. It is `next build` and not
+   `npm run build`, which would compile the catalogs again while Vitest reads them. The build also type-checks the whole
+   project, so a type error stops the check here.
+3. **typecheck and playwright**, together. `tsc --noEmit` only reads the route types the build wrote, so it can run beside
+   Playwright (and stays as the explicit gate). Playwright starts its server from the finished build: the stage sets
+   `E2E_PREBUILT=1` (`playwright.config.ts` then leaves `npm run build` out of the server's command; `npm run test:e2e` alone still
+   builds, so it keeps working by itself). It gets 10 seconds per test (the default is 30) and stops at the first failure, so a
+   locator that no longer matches costs 10 seconds and not minutes.
 
 Before anything starts, the script checks that something answers on the host and port of `DATABASE_URL`. If not, it
 stops at once with "the database does not answer" instead of letting tests hang. Start the database with `npm run db:up`.
@@ -73,11 +79,15 @@ touched, whatever their age. The cleanup is best effort: the setup also runs for
 | Stage | Limit |
 |---|---|
 | i18n | 1 minute |
+| build | 4 minutes |
 | typecheck | 2 minutes |
 | lint | 2 minutes |
 | vitest | 3 minutes |
-| playwright (build and all specs) | 8 minutes |
+| playwright (all specs; the build is its own stage) | 8 minutes |
 | the whole check | 11 minutes |
+
+The Playwright stage no longer includes the build, so its time is shorter than the figures below (they were measured with it); the 360 s trigger
+of [#64](https://github.com/joeran-kuschel/dinner-planner/issues/64) is therefore further away than it was.
 
 The limits are set for GitHub's runners, which need roughly two to three times as long as a Mac: with 182 specs the Playwright
 stage took 105 to 130 s on the Mac and 220 to 300 s on the runner, and the earlier 5 minutes failed the check when the stage

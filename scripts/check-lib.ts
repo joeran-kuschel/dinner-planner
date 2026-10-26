@@ -26,15 +26,21 @@ const TAIL_CHARS = 20_000;
 export const PHASES: Stage[][] = [
   [{ name: "i18n", command: "npm run i18n:compile", limitMs: MINUTE }],
   [
-    { name: "typecheck", command: "npx tsc --noEmit", limitMs: 2 * MINUTE },
+    // The production build Playwright's server runs on, made here next to the others instead of at the start of Playwright's
+    // stage. `next build` and not `npm run build`: that one would compile the catalogs a second time while Vitest reads them.
+    { name: "build", command: "npx next build", limitMs: 4 * MINUTE },
     { name: "lint", command: "npm run lint", limitMs: 2 * MINUTE },
     { name: "vitest", command: "npx vitest run", limitMs: 3 * MINUTE },
   ],
-  // A slow test is a failing test: 10 s per test, and stop at the first failure.
   [
+    // After the build, which writes the route types it reads (and type-checks the whole project too, so a type error has
+    // already stopped the check before this phase).
+    { name: "typecheck", command: "npx tsc --noEmit", limitMs: 2 * MINUTE },
+    // A slow test is a failing test: 10 s per test, and stop at the first failure. E2E_PREBUILT: the server starts from the
+    // build above instead of building its own (playwright.config.ts).
     {
       name: "playwright",
-      command: "npx playwright test --timeout=10000 --max-failures=1 --reporter=line",
+      command: "E2E_PREBUILT=1 npx playwright test --timeout=10000 --max-failures=1 --reporter=line",
       limitMs: 8 * MINUTE,
     },
   ],

@@ -6,6 +6,10 @@ loadEnv({ quiet: true });
 
 const PORT = 3100;
 
+// `npm run check` builds the app once, next to the other stages, and sets this for Playwright: the server then starts from
+// that build instead of building its own (a minute or more). Alone (`npm run test:e2e`) there is no flag, so it builds.
+const PREBUILT = process.env.E2E_PREBUILT === "1";
+
 // The end-to-end server gets its own schema in the development database,
 // created fresh from the migrations on every run (tests/e2e/support/prepare-db.ts), so tests
 // never see or change the `public` data. Tests run one after another on that schema, and it is
@@ -71,7 +75,7 @@ export default defineConfig({
     // running undisturbed.
     command: [
       "npx tsx tests/e2e/support/prepare-db.ts",
-      "npm run build",
+      ...(PREBUILT ? [] : ["npm run build"]),
       "cp -R public .next/standalone/",
       "cp -R .next/static .next/standalone/.next/",
       "node .next/standalone/server.js",

@@ -58,14 +58,26 @@ async function isGone(pid: number): Promise<boolean> {
 }
 
 describe("the real plan", () => {
-  it("has the limits: 2, 2, 3 and 8 minutes per stage, 11 for the whole check", () => {
+  it("has the limits: 4 minutes for the build, 2, 2, 3 and 8 minutes for the other stages, 11 for the whole check", () => {
     const limits = Object.fromEntries(PHASES.flat().map((s) => [s.name, s.limitMs / 60_000]));
-    expect(limits).toMatchObject({ typecheck: 2, lint: 2, vitest: 3, playwright: 8 });
+    expect(limits).toMatchObject({ build: 4, typecheck: 2, lint: 2, vitest: 3, playwright: 8 });
     expect(TOTAL_LIMIT_MS).toBe(11 * 60_000);
   });
 
-  it("runs typecheck, lint and Vitest together, after the catalogs are compiled and before Playwright", () => {
-    expect(PHASES.map((phase) => phase.map((s) => s.name))).toEqual([["i18n"], ["typecheck", "lint", "vitest"], ["playwright"]]);
+  it("builds, lints and runs Vitest together after the catalogs are compiled, then typechecks next to Playwright", () => {
+    expect(PHASES.map((phase) => phase.map((s) => s.name))).toEqual([
+      ["i18n"],
+      ["build", "lint", "vitest"],
+      ["typecheck", "playwright"],
+    ]);
+  });
+
+  it("builds with `next build`, since `npm run build` compiles the catalogs again while Vitest reads them", () => {
+    expect(PHASES.flat().find((s) => s.name === "build")!.command).toBe("npx next build");
+  });
+
+  it("tells Playwright that the build is done, so its server does not build a second time", () => {
+    expect(PHASES.flat().find((s) => s.name === "playwright")!.command).toMatch(/^E2E_PREBUILT=1 npx playwright test /);
   });
 
   it("stops Playwright at the first failure and gives each test 10 seconds", () => {
@@ -421,5 +433,40 @@ describe("the catalog compile in Vitest's global setup", () => {
     const { default: compileCatalogs } = await import("../support/compile-catalogs");
     compileCatalogs();
     expect(execFileSync).toHaveBeenCalledWith("npx", expect.arrayContaining(["lingui", "compile"]), expect.anything());
+  });
+});
+
+describe("Playwright's server", () => {
+  // The config is read with the flag set or not, the way `npm run check` and `npm run test:e2e` start it.
+  async function serverCommand(prebuilt: boolean): Promise<string> {
+    vi.resetModules();
+    vi.stubEnv("E2E_PREBUILT", prebuilt ? "1" : "");
+    vi.stubEnv("DATABASE_URL", process.env.DATABASE_URL ?? "postgresql://user:pass@localhost:5433/db");
+    const config = (await import("@/playwright.config")).default;
+    return (config.webServer as { command: string }).command;
+  }
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("builds its own app when started alone", async () => {
+    const command = await serverCommand(false);
+    expect(command).toContain("npm run build");
+    expect(command.indexOf("prepare-db")).toBeLessThan(command.indexOf("npm run build"));
+    expect(command.indexOf("npm run build")).toBeLessThan(command.indexOf("node .next/standalone/server.js"));
+  });
+
+  it.each(["0", "false", ""])("builds its own app when the flag is %j: only 1 means a build was made", async (value) => {
+    vi.resetModules();
+    vi.stubEnv("E2E_PREBUILT", value);
+    vi.stubEnv("DATABASE_URL", process.env.DATABASE_URL ?? "postgresql://user:pass@localhost:5433/db");
+    const config = (await import("@/playwright.config")).default;
+    expect((config.webServer as { command: string }).command).toContain("npm run build");
+  });
+
+  it("starts from the build of the check when told, and still prepares the database and lays out the standalone server", async () => {
+    const command = await serverCommand(true);
+    expect(command).not.toContain("npm run build");
+    expect(command).toContain("prepare-db");
+    expect(command).toContain("cp -R .next/static .next/standalone/.next/");
+    expect(command).toContain("node .next/standalone/server.js");
   });
 });
