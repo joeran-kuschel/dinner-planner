@@ -13,8 +13,8 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
 import { carriedEntries, carryRowsWhere } from "@/lib/grocery-carry";
 import { createCanonicaliser, nameIdOfKey } from "@/lib/ingredients/canonical";
-import { canonicalRows, withCanonicalKeys } from "@/lib/ingredients/rows";
-import { loadMergeRules } from "@/lib/ingredients/server";
+import { canonicalRows, pageNames, withCanonicalKeys } from "@/lib/ingredients/rows";
+import { loadKeepSeparate, loadMergeRules } from "@/lib/ingredients/server";
 import { applyStaples, normalizeStaple } from "@/lib/pantry";
 import { addDays, dayKey, formatWeekRange, resolveWeekStart } from "@/lib/week";
 
@@ -30,7 +30,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, storedEntries, storedEarlierEntries, staples, ingredientNames, rules] = await Promise.all([
+  const [meals, storedEntries, storedEarlierEntries, staples, ingredientNames, rules, separate] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
       include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
@@ -42,11 +42,14 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
     // What a staple can be, offered while typing one.
     prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
     loadMergeRules(),
+    loadKeepSeparate(),
   ]);
 
   // What a line is called and counted in follows the dictionary and the user's merges; rows stored under an
   // older key are read under the canonical one (lib/ingredients/canonical.ts).
-  const canon = createCanonicaliser({ locale, rules });
+  // A plural folds into its singular only when that is on the page too: the names of the recipes and the entries.
+  const names = pageNames({ meals, entries: storedEntries, earlierEntries: storedEarlierEntries });
+  const canon = createCanonicaliser({ locale, rules, names, keepSeparate: separate.map((entry) => entry.name) });
   const entries = canonicalRows(storedEntries, canon);
   const earlierEntries = withCanonicalKeys(storedEarlierEntries, canon);
   // A hand-added line is named in the page's language like a derived one when the dictionary knows it.
@@ -237,6 +240,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
             from: canon.nameLabel(rule.from) ?? rule.fromLabel,
             to: canon.nameLabel(rule.to) ?? rule.toLabel,
           }))}
+          separate={separate.map(({ id, label }) => ({ id, label }))}
         />
       </div>
     </div>

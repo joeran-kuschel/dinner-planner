@@ -8,6 +8,7 @@ import { renderWithI18n } from "@/tests/support/render";
 
 const actions = vi.hoisted(() => ({
   mergeGroceryLines: vi.fn<(formData: FormData) => Promise<"merged" | "invalid" | "limit">>(async () => "merged"),
+  keepGroceryNameSeparate: vi.fn<(formData: FormData) => Promise<"kept" | "invalid" | "limit">>(async () => "kept"),
 }));
 vi.mock("@/app/actions/groceries", () => actions);
 
@@ -15,6 +16,8 @@ beforeAll(() => polyfillDialog());
 beforeEach(() => {
   actions.mergeGroceryLines.mockReset();
   actions.mergeGroceryLines.mockResolvedValue("merged");
+  actions.keepGroceryNameSeparate.mockReset();
+  actions.keepGroceryNameSeparate.mockResolvedValue("kept");
 });
 
 const TARGETS: MergeTarget[] = [
@@ -22,14 +25,21 @@ const TARGETS: MergeTarget[] = [
   { key: "cherries|g", nameId: "cherries", label: "Cherries", amount: "to taste" },
 ];
 
-function renderButton(locale: "en" | "de" = "en", targets = TARGETS) {
+function renderButton(locale: "en" | "de" = "en", targets = TARGETS, parts?: string[]) {
   const user = userEvent.setup();
   const onMerged = vi.fn();
+  const onSeparated = vi.fn();
   const result = renderWithI18n(
-    <MergeLineButton from={{ nameId: "tomatillo", label: "Tomatillo" }} targets={targets} onMerged={onMerged} />,
+    <MergeLineButton
+      from={{ nameId: "tomatillo", label: "Tomatillo" }}
+      targets={targets}
+      parts={parts}
+      onMerged={onMerged}
+      onSeparated={onSeparated}
+    />,
     { locale },
   );
-  return { user, onMerged, ...result };
+  return { user, onMerged, onSeparated, ...result };
 }
 
 const dialog = () => document.querySelector("dialog") as HTMLDialogElement;
@@ -174,8 +184,8 @@ describe("MergeLineButton", () => {
     const user = userEvent.setup();
     const { container } = renderWithI18n(
       <>
-        <MergeLineButton from={{ nameId: "a", label: "A" }} targets={TARGETS} onMerged={vi.fn()} />
-        <MergeLineButton from={{ nameId: "b", label: "B" }} targets={TARGETS} onMerged={vi.fn()} />
+        <MergeLineButton from={{ nameId: "a", label: "A" }} targets={TARGETS} onMerged={vi.fn()} onSeparated={vi.fn()} />
+        <MergeLineButton from={{ nameId: "b", label: "B" }} targets={TARGETS} onMerged={vi.fn()} onSeparated={vi.fn()} />
       </>,
     );
     await user.click(screen.getByRole("button", { name: "Merge A with another line" }));
@@ -214,5 +224,110 @@ describe("MergeLineButton", () => {
       await user.click(screen.getByRole("button", { name: /zusammenführen/ }));
       await expectNoAxeViolations(container);
     });
+  });
+});
+
+describe("MergeLineButton: a line that combines spellings", () => {
+  const PARTS = ["Tomaten", "tomatoes"];
+  const tooltip = () => screen.getByRole("tooltip");
+
+  it("describes the button by the spellings, and has no native title that would say the same twice", () => {
+    renderButton("en", TARGETS, PARTS);
+    expect(openButton()).toHaveAccessibleDescription("Combines Tomaten, tomatoes");
+    expect(openButton()).not.toHaveAttribute("title");
+  });
+
+  it("has no tooltip for a line of one spelling", () => {
+    renderButton();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(openButton()).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("shows the tooltip while the pointer is on the button or the tooltip, and hides it when it leaves", async () => {
+    const { user } = renderButton("en", TARGETS, PARTS);
+    expect(tooltip()).toHaveClass("sr-only");
+
+    await user.hover(openButton());
+    expect(tooltip()).not.toHaveClass("sr-only");
+    await user.hover(tooltip());
+    expect(tooltip()).not.toHaveClass("sr-only");
+    await user.unhover(tooltip());
+    expect(tooltip()).toHaveClass("sr-only");
+  });
+
+  it("shows it on keyboard focus too, and Escape puts it away until the focus comes back", async () => {
+    const { user } = renderButton("en", TARGETS, PARTS);
+    await user.tab();
+    expect(openButton()).toHaveFocus();
+    expect(tooltip()).not.toHaveClass("sr-only");
+
+    await user.keyboard("{Escape}");
+    expect(tooltip()).toHaveClass("sr-only");
+    await user.tab();
+    await user.tab({ shift: true });
+    expect(tooltip()).not.toHaveClass("sr-only");
+  });
+
+  it("lists the spellings in the dialog, each with a button that names it", async () => {
+    const { user } = renderButton("en", TARGETS, PARTS);
+    await user.click(openButton());
+
+    const list = within(dialog()).getByRole("heading", { name: "This line combines" }).closest("section")!;
+    expect(within(list).getAllByRole("listitem").map((item) => item.firstElementChild?.textContent)).toEqual(PARTS);
+    expect(within(list).getByRole("button", { name: "List separately: Tomaten" })).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: "List separately: tomatoes" })).toBeInTheDocument();
+  });
+
+  it("keeps a spelling on its own line, closes and tells the list which", async () => {
+    const { user, onSeparated } = renderButton("en", TARGETS, PARTS);
+    await user.click(openButton());
+    await user.click(within(dialog()).getByRole("button", { name: "List separately: Tomaten" }));
+
+    await waitFor(() => expect(onSeparated).toHaveBeenCalledWith("Tomaten"));
+    expect(actions.keepGroceryNameSeparate.mock.calls[0][0].get("label")).toBe("Tomaten");
+    expect(dialog().open).toBe(false);
+  });
+
+  it.each([
+    ["limit", /too many/],
+    ["invalid", /cannot be merged/],
+  ] as const)("says so and stays open when the answer is %s", async (answer, message) => {
+    actions.keepGroceryNameSeparate.mockResolvedValue(answer);
+    const { user, onSeparated } = renderButton("en", TARGETS, PARTS);
+    await user.click(openButton());
+    await user.click(within(dialog()).getByRole("button", { name: "List separately: Tomaten" }));
+
+    expect(await within(dialog()).findByRole("alert")).toHaveTextContent(message);
+    expect(onSeparated).not.toHaveBeenCalled();
+    expect(dialog().open).toBe(true);
+  });
+
+  it("is a dialog with only the spellings when there is no other line to merge into", async () => {
+    const { user } = renderButton("en", [], PARTS);
+    // Nothing to merge into, so the button is not called "Merge …" and the dialog is not titled so.
+    expect(screen.queryByRole("button", { name: "Merge Tomatillo with another line" })).not.toBeInTheDocument();
+    await user.click(openButton("Show what Tomatillo combines"));
+
+    expect(within(dialog()).getByRole("heading", { name: "Spellings of Tomatillo" })).toBeInTheDocument();
+    expect(within(dialog()).getByRole("button", { name: "List separately: Tomaten" })).toBeInTheDocument();
+    expect(within(dialog()).queryByRole("radio")).not.toBeInTheDocument();
+    expect(within(dialog()).queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
+    expect(dialog()).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("has no axe violations, open or closed, in English and German", async () => {
+    const { container, user } = renderButton("en", TARGETS, PARTS);
+    await expectNoAxeViolations(container);
+    await user.click(openButton());
+    await expectNoAxeViolations(dialog());
+  });
+
+  it("says it in German", async () => {
+    const { user } = renderButton("de", TARGETS, PARTS);
+    const button = screen.getByRole("button", { name: "Tomatillo mit einer anderen Zeile zusammenführen" });
+    expect(button).toHaveAccessibleDescription("Fasst zusammen: Tomaten, tomatoes");
+    await user.click(button);
+    expect(within(dialog()).getByRole("heading", { name: "Diese Zeile fasst zusammen" })).toBeInTheDocument();
+    expect(within(dialog()).getByRole("button", { name: "Einzeln aufführen: Tomaten" })).toBeInTheDocument();
   });
 });

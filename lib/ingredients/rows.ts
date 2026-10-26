@@ -44,3 +44,21 @@ export function canonicalRows<T extends { key: string; checked: boolean; manual:
 export function withCanonicalKeys<T extends { key: string }>(rows: readonly T[], canon: Canonicaliser): T[] {
   return rows.map((row) => ({ ...row, key: canon.keyOfStored(row.key) }));
 }
+
+/**
+ * Every ingredient name that is really on the grocery page of a week: what its planned recipes need, and the hand-added
+ * entries that are on the list (this week's that are not deleted, and the earlier weeks' that are still carried:
+ * written by hand, not deleted, not ticked). A plural folds into its singular only when the singular is among them
+ * (`createCanonicaliser({ names })`); an entry that is gone from the list does not count.
+ */
+export function pageNames(input: {
+  meals: readonly { recipe: { ingredients: readonly { name: string }[] } | null }[];
+  entries: readonly { label: string; manual: boolean; dismissed: boolean }[];
+  earlierEntries: readonly { label: string; manual: boolean; dismissed: boolean; checked: boolean }[];
+}): string[] {
+  return [
+    ...input.meals.flatMap((meal) => meal.recipe?.ingredients.map((ingredient) => ingredient.name) ?? []),
+    ...input.entries.filter((entry) => entry.manual && !entry.dismissed).map((entry) => entry.label),
+    ...input.earlierEntries.filter((entry) => entry.manual && !entry.dismissed && !entry.checked).map((entry) => entry.label),
+  ];
+}

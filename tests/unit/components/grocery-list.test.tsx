@@ -1,5 +1,5 @@
 import { I18nProvider } from "@lingui/react";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ const actions = vi.hoisted(() => ({
   toggleGroceryLine: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   removeGroceryExtra: vi.fn<(formData: FormData) => Promise<void>>(async () => {}),
   mergeGroceryLines: vi.fn<(formData: FormData) => Promise<"merged" | "invalid" | "limit">>(async () => "merged"),
+  keepGroceryNameSeparate: vi.fn<(formData: FormData) => Promise<"kept" | "invalid" | "limit">>(async () => "kept"),
 }));
 vi.mock("@/app/actions/groceries", () => actions);
 
@@ -689,3 +690,59 @@ describe("a small amount", () => {
   });
 });
 
+
+describe("GroceryList: lines that combine spellings", () => {
+  beforeAll(() => polyfillDialog());
+
+  const TOMATO = line({ label: "Tomato", quantity: 500, unit: "g", sources: ["Soup", "Salad"], parts: ["Tomaten", "tomatoes"] });
+
+  it("tells a screen reader what the line combines, with the checkbox", () => {
+    renderList([TOMATO, RICE]);
+    expect(screen.getByRole("checkbox", { name: "Tick off Tomato" })).toHaveAccessibleDescription("Combines Tomaten, tomatoes");
+    expect(screen.getByRole("checkbox", { name: "Tick off Arborio rice" })).not.toHaveAccessibleDescription();
+  });
+
+  it("keeps the merge button on a line that stands alone, since that is where the spellings are", () => {
+    renderList([TOMATO]);
+    expect(screen.getByRole("button", { name: "Show what Tomato combines" })).toBeInTheDocument();
+    renderList([RICE]);
+    expect(screen.queryByRole("button", { name: "Merge Arborio rice with another line" })).not.toBeInTheDocument();
+  });
+
+  it("announces a spelling put on its own line and moves the focus to the line of that name", async () => {
+    const { user, rerender } = renderList([TOMATO, ONION]);
+    await user.click(screen.getByRole("button", { name: "Show what Tomato combines" }));
+    await user.click(within(document.querySelector("dialog")!).getByRole("button", { name: "List separately: Tomaten" }));
+
+    await waitFor(() => expect(actions.keepGroceryNameSeparate).toHaveBeenCalled());
+    expect(await screen.findByText("Tomaten is listed on its own line")).toBeInTheDocument();
+    // The page renders again with the two apart; the line named Tomaten gets the focus.
+    rerender(
+      <GroceryList
+        weekStart="2026-09-28"
+        lines={[line({ label: "Tomaten", quantity: 200, unit: "g" }), line({ label: "Tomato", quantity: 300, unit: "g" }), ONION]}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Tick off Tomaten" })).toHaveFocus());
+  });
+
+  it("does not hand the focus to a line that takes the name later", async () => {
+    const { user, rerender } = renderList([TOMATO, ONION]);
+    await user.click(screen.getByRole("button", { name: "Show what Tomato combines" }));
+    await user.click(within(document.querySelector("dialog")!).getByRole("button", { name: "List separately: Tomaten" }));
+    await screen.findByText("Tomaten is listed on its own line");
+    // The page is drawn again, and no line is named Tomaten: the focus target is dropped...
+    rerender(<GroceryList weekStart="2026-09-28" lines={[line({ label: "Tomato", quantity: 500, unit: "g" }), ONION]} />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    // ...so a line of that name that turns up later does not take the focus.
+    rerender(<GroceryList weekStart="2026-09-28" lines={[line({ label: "Tomaten", quantity: 5, unit: "g" }), ONION]} />);
+    expect(screen.getByRole("checkbox", { name: "Tick off Tomaten" })).not.toHaveFocus();
+  });
+
+  it("has no axe violations", async () => {
+    const { container } = renderList([TOMATO, RICE]);
+    await expectNoAxeViolations(container);
+  });
+});

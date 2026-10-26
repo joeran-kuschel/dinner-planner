@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCanonicaliser } from "@/lib/ingredients/canonical";
-import { canonicalRows, withCanonicalKeys } from "@/lib/ingredients/rows";
+import { canonicalRows, pageNames, withCanonicalKeys } from "@/lib/ingredients/rows";
 
 const canon = createCanonicaliser({ locale: "en" });
 const row = (
@@ -120,5 +120,36 @@ describe("withCanonicalKeys", () => {
       { key: "~tomato|tbsp", x: 1 },
       { key: "~milk|", x: 2 },
     ]);
+  });
+});
+
+describe("pageNames", () => {
+  const meals = [{ recipe: { ingredients: [{ name: "Quinces" }, { name: "Salt" }] } }, { recipe: null }];
+  const entry = (label: string, extra: Partial<{ manual: boolean; dismissed: boolean; checked: boolean }> = {}) => ({
+    label,
+    manual: true,
+    dismissed: false,
+    checked: false,
+    ...extra,
+  });
+
+  it("takes the recipes' ingredient names and the live hand-added entries", () => {
+    expect(pageNames({ meals, entries: [entry("quince"), entry("Soap")], earlierEntries: [] })).toEqual(["Quinces", "Salt", "quince", "Soap"]);
+  });
+
+  it("leaves out an entry that is deleted or only a tick row", () => {
+    expect(
+      pageNames({ meals: [], entries: [entry("gone", { dismissed: true }), entry("tick", { manual: false })], earlierEntries: [] }),
+    ).toEqual([]);
+  });
+
+  it("takes an earlier week's entry only while it is still carried: by hand, not deleted, not ticked", () => {
+    expect(
+      pageNames({
+        meals: [],
+        entries: [],
+        earlierEntries: [entry("carried"), entry("ticked", { checked: true }), entry("deleted", { dismissed: true }), entry("tick row", { manual: false })],
+      }),
+    ).toEqual(["carried"]);
   });
 });

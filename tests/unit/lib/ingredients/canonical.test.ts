@@ -368,3 +368,94 @@ describe("amount", () => {
     });
   });
 });
+
+describe("plurals outside the dictionary", () => {
+  const names = ["Quinces", "quince", "Rüben", "Rübe", "Kuchen", "Wein", "Peppers", "pepper"];
+  const canon = createCanonicaliser({ locale: "en", names });
+
+  it("lists a plural as its singular when the singular is on the page too", () => {
+    expect(canon.identify("Quinces", null).key).toBe("quince|");
+    expect(canon.identify("quince", null).key).toBe("quince|");
+    expect(canon.identify("Rüben", null).key).toBe("rübe|");
+  });
+
+  it("leaves a name alone whose singular is not on the page", () => {
+    expect(createCanonicaliser({ locale: "en", names: ["Quinces"] }).identify("Quinces", null).key).toBe("quinces|");
+    expect(canon.identify("Kuchen", null).key).toBe("kuchen|");
+    expect(canon.identify("Wein", null).key).toBe("wein|");
+  });
+
+  it("is the same without any names, as before", () => {
+    expect(en.identify("Quinces", null).key).toBe("quinces|");
+  });
+
+  it("keeps units apart even for names that fold", () => {
+    expect(canon.identify("Quinces", "piece").key).toBe("quince|piece");
+    expect(canon.identify("quince", "g").key).toBe("quince|g");
+  });
+
+  it("goes into the dictionary group of the singular", () => {
+    const withGroup = createCanonicaliser({ locale: "en", names: ["Bananas", "banana"] });
+    expect(withGroup.identify("Bananas", null).nameId).toBe(withGroup.identify("banana", null).nameId);
+  });
+
+  it("is read back the same by keyOfStored", () => {
+    expect(canon.keyOfStored("quinces|")).toBe("quince|");
+    expect(canon.keyOfStored("quince|")).toBe("quince|");
+  });
+
+  it("follows the user's merge rules on top of the fold", () => {
+    const merged = createCanonicaliser({ locale: "en", names, rules: [rule("quince", "~pear")] });
+    expect(merged.identify("Quinces", null).nameId).toBe("~pear");
+  });
+});
+
+describe("names kept on a line of their own", () => {
+  it("lists the name as typed, whatever the dictionary says", () => {
+    const canon = createCanonicaliser({ locale: "en", keepSeparate: ["Tomaten"] });
+    expect(canon.identify("Tomaten", "g").key).toBe("tomaten|g");
+    expect(canon.identify("tomatoes", "g").key).toBe("~tomato|g");
+    expect(canon.identify("Tomate", "g").key).toBe("~tomato|g");
+  });
+
+  it("is case and space insensitive", () => {
+    const canon = createCanonicaliser({ locale: "en", keepSeparate: ["  TOMATEN "] });
+    expect(canon.identify("tomaten", null).key).toBe("tomaten|");
+  });
+
+  it("stops a plural folding, and stops others folding into the name", () => {
+    const kept = createCanonicaliser({ locale: "en", names: ["Quinces", "quince"], keepSeparate: ["Quinces"] });
+    expect(kept.identify("Quinces", null).key).toBe("quinces|");
+    expect(kept.identify("quince", null).key).toBe("quince|");
+    const keptSingular = createCanonicaliser({ locale: "en", names: ["Quinces", "quince"], keepSeparate: ["quince"] });
+    expect(keptSingular.identify("Quinces", null).key).toBe("quinces|");
+  });
+
+  it("reads a stored key under the kept name", () => {
+    const canon = createCanonicaliser({ locale: "en", keepSeparate: ["Tomaten"] });
+    expect(canon.keyOfStored("tomaten|g")).toBe("tomaten|g");
+    expect(canon.keyOfStored("tomatoes|g")).toBe("~tomato|g");
+  });
+
+  it("is not sent anywhere by a merge rule either", () => {
+    const canon = createCanonicaliser({ locale: "en", keepSeparate: ["Tomaten"], rules: [rule("tomaten", "~tomato")] });
+    expect(canon.identify("Tomaten", null).nameId).toBe("tomaten");
+  });
+});
+
+describe("rules and the fold", () => {
+  it("applies a rule made for a plural to the singular the page now counts it as", () => {
+    const canon = createCanonicaliser({ locale: "en", names: ["Quinces", "quince"], rules: [rule("quinces", "~pear")] });
+    // The rule's name is read as the page reads names: "quinces" is "quince" here, so both are sent on.
+    expect(canon.identify("Quinces", null).nameId).toBe("~pear");
+    expect(canon.identify("quince", null).nameId).toBe("~pear");
+  });
+
+  it("does not send a name kept on its own line anywhere, even when a rule would", () => {
+    const canon = createCanonicaliser({ locale: "en", keepSeparate: ["kale"], rules: [rule("kale", "~cabbage")] });
+    expect(canon.identify("Kale", "g").key).toBe("kale|g");
+    expect(canon.identify("Savoy", "g").key).toBe("savoy|g");
+    const without = createCanonicaliser({ locale: "en", rules: [rule("kale", "~cabbage")] });
+    expect(without.identify("Kale", "g").key).toBe("~cabbage|g");
+  });
+});

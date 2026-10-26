@@ -136,7 +136,7 @@ except a metric unit and its own multiple, since a tablespoon of salt and one of
 to one dictionary group only (a test checks): Kümmel is caraway, Kreuzkümmel is cumin. Stored `GroceryEntry` rows keep their old
 keys and are read through `keyOfStored()` / `canonicalRows()`; build a key with the canonicaliser, never by hand. The page names
 lines and units in the page language, and `aggregateIngredients(meals, canon)` without a canonicaliser (`PLAIN_NAMES`) is the old
-behaviour. The order of the list is: add up, merge (also hand-added amounts), then `small` (a pinch or spoon amount, or a weight under 100 g, loses its amount on screen, in the copy and in print; decided on the merged total, `isSmallAmount()` in `measures.ts`). Details: `documentation/backend/grocery-merge.md`.
+behaviour. The order of the list is: add up, merge (also hand-added amounts), then `small` (a pinch or spoon amount, or a weight under 100 g, loses its amount on screen, in the copy and in print; decided on the merged total, `isSmallAmount()` in `measures.ts`). A name that is not in the dictionary also joins its regular plural (`lib/ingredients/plurals.ts`), but only when the singular is on the page too (`createCanonicaliser({ names })`: the page passes the week's ingredient and entry names), so an ending that only looks like a plural is never cut. A name in `GroceryKeepSeparate` is left alone by both (`keepSeparate`), and `addGroceryExtra` builds its key with them. A line that combines more than one spelling carries them as `parts`. Details: `documentation/backend/grocery-merge.md`.
 
 **Pantry staples hide derived grocery lines at render time and store nothing on
 the lines.** `PantryStaple` is a global table of normalised names (the same

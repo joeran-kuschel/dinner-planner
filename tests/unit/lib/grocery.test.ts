@@ -10,6 +10,7 @@ import {
   mealSources,
   type MealInput,
 } from "@/lib/grocery";
+import { createCanonicaliser } from "@/lib/ingredients/canonical";
 import { testI18n } from "@/tests/support/i18n";
 
 const en = testI18n("en");
@@ -441,5 +442,52 @@ describe("groceryListText", () => {
     expect(text).toContain("Einkaufsliste · 28. Sept. – 4. Okt. 2026");
     expect(text).toContain("Obst und Gemüse\n- 1,5 Onion");
     expect(text).toContain("- Salt (nach Geschmack)");
+  });
+});
+
+describe("aggregateIngredients: the spellings a line combines", () => {
+  const canon = (names: string[], keepSeparate: string[] = []) => createCanonicaliser({ locale: "en", names, keepSeparate });
+
+  it("lists them, in the order they were found, when a line combines more than one", () => {
+    const lines = aggregateIngredients(
+      [meal("Soup", [ing("Tomaten", 200, "g")]), meal("Salad", [ing("tomatoes", 300, "g")])],
+      canon(["Tomaten", "tomatoes"]),
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ label: "Tomato", quantity: 500, parts: ["Tomaten", "tomatoes"] });
+  });
+
+  it("has none for a line of one spelling, however often it occurs", () => {
+    const lines = aggregateIngredients(
+      [meal("Soup", [ing("Tomatoes", 200, "g")]), meal("Salad", [ing("tomatoes", 300, "g")])],
+      canon(["Tomatoes"]),
+    );
+    expect(lines[0]).not.toHaveProperty("parts");
+  });
+
+  it("adds what was added by hand", () => {
+    const lines = aggregateIngredients([meal("Soup", [ing("Tomaten", 200, "g")])], canon(["Tomaten", "tomatoes"]), [
+      { name: "tomatoes", quantity: 100, unit: "g" },
+    ]);
+    expect(lines[0]).toMatchObject({ quantity: 300, parts: ["Tomaten", "tomatoes"] });
+  });
+
+  it("names a plural line after its singular, whichever recipe comes first", () => {
+    const names = ["Quinces", "quince"];
+    const a = aggregateIngredients([meal("A", [ing("Quinces", 3)]), meal("B", [ing("quince", 1)])], canon(names));
+    const b = aggregateIngredients([meal("B", [ing("quince", 1)]), meal("A", [ing("Quinces", 3)])], canon(names));
+    expect(a[0]).toMatchObject({ label: "quince", quantity: 4, parts: ["Quinces", "quince"] });
+    expect(b[0]).toMatchObject({ label: "quince", quantity: 4, parts: ["quince", "Quinces"] });
+  });
+
+  it("keeps a name apart that the user keeps on its own line", () => {
+    const lines = aggregateIngredients(
+      [meal("Soup", [ing("Tomaten", 200, "g")]), meal("Salad", [ing("tomatoes", 300, "g")])],
+      canon(["Tomaten", "tomatoes"], ["Tomaten"]),
+    );
+    expect(lines.map((line) => [line.label, line.quantity, line.parts])).toEqual([
+      ["Tomaten", 200, undefined],
+      ["Tomato", 300, undefined],
+    ]);
   });
 });

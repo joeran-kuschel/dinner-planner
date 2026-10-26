@@ -15,10 +15,9 @@ msgstr "“Serves” is how many people eat; the grocery list scales the amounts
 msgid "({selected} selected)"
 msgstr "({selected} selected)"
 
-#. placeholder {0}: rules.length
 #: components/merged-lines-section.tsx
-msgid "{0, plural, one {# merge} other {# merges}}"
-msgstr "{0, plural, one {# merge} other {# merges}}"
+msgid "{count, plural, one {# rule} other {# rules}}"
+msgstr "{count, plural, one {# rule} other {# rules}}"
 
 #: components/day-card.tsx
 #: components/recipe-search-box.tsx
@@ -41,10 +40,22 @@ msgstr "{hiddenCount, plural, one {Show the # hidden item} other {Show the # hid
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 
+#: components/merged-lines-section.tsx
+msgid "{label} is kept on its own line"
+msgstr "{label} is kept on its own line"
+
 #. placeholder {0}: target.label
 #: components/merge-lines-dialog.tsx
 msgid "{label} will be listed as {0}."
 msgstr "{label} will be listed as {0}."
+
+#: components/grocery-list.tsx
+msgid "{name} is listed on its own line"
+msgstr "{name} is listed on its own line"
+
+#: components/merged-lines-section.tsx
+msgid "{name} may be merged again"
+msgstr "{name} may be merged again"
 
 #: app/page.tsx
 msgid "{plannedCount} of 7 planned"
@@ -206,6 +217,11 @@ msgstr "Closed the list as text."
 #: lib/units.ts
 msgid "clove"
 msgstr "clove"
+
+#: components/grocery-list.tsx
+#: components/merge-lines-dialog.tsx
+msgid "Combines {combined}"
+msgstr "Combines {combined}"
 
 #: components/grocery-share.tsx
 msgid "Copied"
@@ -442,8 +458,12 @@ msgid "Leftovers on {weekday}"
 msgstr "Leftovers on {weekday}"
 
 #: components/merged-lines-section.tsx
-msgid "Lines you merged with “Merge”. They are listed as one line in every week."
-msgstr "Lines you merged with “Merge”. They are listed as one line in every week."
+msgid "Lines kept apart"
+msgstr "Lines kept apart"
+
+#: components/merged-lines-section.tsx
+msgid "Lines you merged with “Merge”, and spellings you keep on a line of their own. They apply in every week."
+msgstr "Lines you merged with “Merge”, and spellings you keep on a line of their own. They apply in every week."
 
 #: app/recipes/new/page.tsx
 #: components/import-recipe-dialog.tsx
@@ -453,6 +473,14 @@ msgstr "Link to the recipe"
 #: components/merge-lines-dialog.tsx
 msgid "List it as"
 msgstr "List it as"
+
+#: components/merge-lines-dialog.tsx
+msgid "List separately"
+msgstr "List separately"
+
+#: components/merge-lines-dialog.tsx
+msgid "List separately: {part}"
+msgstr "List separately: {part}"
 
 #: components/site-nav.tsx
 msgid "Main"
@@ -800,6 +828,10 @@ msgstr "Serves"
 msgid "Serves {servings}"
 msgstr "Serves {servings}"
 
+#: components/merge-lines-dialog.tsx
+msgid "Show what {label} combines"
+msgstr "Show what {label} combines"
+
 #: app/recipes/[id]/page.tsx
 msgid "source"
 msgstr "source"
@@ -807,6 +839,10 @@ msgstr "source"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Source"
+
+#: components/merge-lines-dialog.tsx
+msgid "Spellings of {label}"
+msgstr "Spellings of {label}"
 
 #: components/recipe-search-box.tsx
 msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
@@ -846,6 +882,10 @@ msgstr "That address is not a web page."
 #: lib/access-pages.ts
 msgid "That link is not valid. Print the current one with {COMMAND}."
 msgstr "That link is not valid. Print the current one with {COMMAND}."
+
+#: components/merge-lines-dialog.tsx
+msgid "The app lists these spellings as one. You can put one on a line of its own; undo it under “Merged lines”."
+msgstr "The app lists these spellings as one. You can put one on a line of its own; undo it under “Merged lines”."
 
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
@@ -924,6 +964,10 @@ msgstr "This day could not be saved. It shows what is saved now; please try agai
 msgid "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
 msgstr "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
 
+#: components/merge-lines-dialog.tsx
+msgid "This line combines"
+msgstr "This line combines"
+
 #: lib/access-pages.ts
 msgid "This one-time step needs JavaScript. Turn it on for this page and open the link again."
 msgstr "This one-time step needs JavaScript. Turn it on for this page and open the link again."
@@ -973,6 +1017,10 @@ msgstr "Undo"
 #: components/day-card.tsx
 msgid "Undo clearing {weekday}"
 msgstr "Undo clearing {weekday}"
+
+#: components/merged-lines-section.tsx
+msgid "Undo keeping {label} on its own line"
+msgstr "Undo keeping {label} on its own line"
 
 #: components/merged-lines-section.tsx
 msgid "Undo merging {from} into {to}"

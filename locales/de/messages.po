@@ -15,10 +15,9 @@ msgstr "„Personen“ sagt, für wie viele gekocht wird; die Einkaufsliste rech
 msgid "({selected} selected)"
 msgstr "({selected} ausgewählt)"
 
-#. placeholder {0}: rules.length
 #: components/merged-lines-section.tsx
-msgid "{0, plural, one {# merge} other {# merges}}"
-msgstr "{0, plural, one {# Zusammenführung} other {# Zusammenführungen}}"
+msgid "{count, plural, one {# rule} other {# rules}}"
+msgstr "{count, plural, one {# Regel} other {# Regeln}}"
 
 #: components/day-card.tsx
 #: components/recipe-search-box.tsx
@@ -41,10 +40,22 @@ msgstr "{hiddenCount, plural, one {Den # ausgeblendeten Artikel anzeigen} other 
 msgid "{ingredients, plural, one {# ingredient} other {# ingredients}}"
 msgstr "{ingredients, plural, one {# Zutat} other {# Zutaten}}"
 
+#: components/merged-lines-section.tsx
+msgid "{label} is kept on its own line"
+msgstr "{label} steht auf einer eigenen Zeile"
+
 #. placeholder {0}: target.label
 #: components/merge-lines-dialog.tsx
 msgid "{label} will be listed as {0}."
 msgstr "{label} steht künftig als {0} auf der Liste."
+
+#: components/grocery-list.tsx
+msgid "{name} is listed on its own line"
+msgstr "{name} steht jetzt auf einer eigenen Zeile"
+
+#: components/merged-lines-section.tsx
+msgid "{name} may be merged again"
+msgstr "{name} darf wieder zusammengeführt werden"
 
 #: app/page.tsx
 msgid "{plannedCount} of 7 planned"
@@ -206,6 +217,11 @@ msgstr "Die Liste als Text wurde geschlossen."
 #: lib/units.ts
 msgid "clove"
 msgstr "Zehe"
+
+#: components/grocery-list.tsx
+#: components/merge-lines-dialog.tsx
+msgid "Combines {combined}"
+msgstr "Fasst zusammen: {combined}"
 
 #: components/grocery-share.tsx
 msgid "Copied"
@@ -442,8 +458,12 @@ msgid "Leftovers on {weekday}"
 msgstr "Reste am {weekday}"
 
 #: components/merged-lines-section.tsx
-msgid "Lines you merged with “Merge”. They are listed as one line in every week."
-msgstr "Zeilen, die du mit „Zusammenführen“ verbunden hast. Sie stehen in jeder Woche als eine Zeile auf der Liste."
+msgid "Lines kept apart"
+msgstr "Getrennt gehaltene Zeilen"
+
+#: components/merged-lines-section.tsx
+msgid "Lines you merged with “Merge”, and spellings you keep on a line of their own. They apply in every week."
+msgstr "Zeilen, die du mit „Zusammenführen“ verbunden hast, und Schreibweisen, die du auf einer eigenen Zeile hältst. Sie gelten in jeder Woche."
 
 #: app/recipes/new/page.tsx
 #: components/import-recipe-dialog.tsx
@@ -453,6 +473,14 @@ msgstr "Link zum Rezept"
 #: components/merge-lines-dialog.tsx
 msgid "List it as"
 msgstr "Aufführen als"
+
+#: components/merge-lines-dialog.tsx
+msgid "List separately"
+msgstr "Einzeln aufführen"
+
+#: components/merge-lines-dialog.tsx
+msgid "List separately: {part}"
+msgstr "Einzeln aufführen: {part}"
 
 #: components/site-nav.tsx
 msgid "Main"
@@ -800,6 +828,10 @@ msgstr "Personen"
 msgid "Serves {servings}"
 msgstr "{servings, plural, one {Für # Person} other {Für # Personen}}"
 
+#: components/merge-lines-dialog.tsx
+msgid "Show what {label} combines"
+msgstr "Anzeigen, was {label} zusammenfasst"
+
 #: app/recipes/[id]/page.tsx
 msgid "source"
 msgstr "Quelle"
@@ -807,6 +839,10 @@ msgstr "Quelle"
 #: components/recipe-form.tsx
 msgid "Source"
 msgstr "Quelle"
+
+#: components/merge-lines-dialog.tsx
+msgid "Spellings of {label}"
+msgstr "Schreibweisen von {label}"
 
 #: components/recipe-search-box.tsx
 msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
@@ -846,6 +882,10 @@ msgstr "Diese Adresse ist keine Webseite."
 #: lib/access-pages.ts
 msgid "That link is not valid. Print the current one with {COMMAND}."
 msgstr "Dieser Link ist nicht gültig. Lass dir den aktuellen ausgeben mit {COMMAND}."
+
+#: components/merge-lines-dialog.tsx
+msgid "The app lists these spellings as one. You can put one on a line of its own; undo it under “Merged lines”."
+msgstr "Die App führt diese Schreibweisen als eine Zeile auf. Du kannst eine auf eine eigene Zeile setzen; unter „Zusammengeführte Zeilen“ machst du das rückgängig."
 
 #: app/actions/recipes.ts
 msgid "The description of the photo can be at most {MAX_PHOTO_ALT_LENGTH} characters."
@@ -924,6 +964,10 @@ msgstr "Dieser Tag konnte nicht gespeichert werden. Er zeigt jetzt, was gespeich
 msgid "This day was changed elsewhere, so nothing was put back. It shows what is planned now."
 msgstr "Dieser Tag wurde woanders geändert, deshalb wurde nichts zurückgesetzt. Er zeigt, was jetzt geplant ist."
 
+#: components/merge-lines-dialog.tsx
+msgid "This line combines"
+msgstr "Diese Zeile fasst zusammen"
+
 #: lib/access-pages.ts
 msgid "This one-time step needs JavaScript. Turn it on for this page and open the link again."
 msgstr "Dieser einmalige Schritt braucht JavaScript. Schalte es für diese Seite ein und öffne den Link erneut."
@@ -973,6 +1017,10 @@ msgstr "Rückgängig"
 #: components/day-card.tsx
 msgid "Undo clearing {weekday}"
 msgstr "Rückgängig: {weekday} wurde geleert"
+
+#: components/merged-lines-section.tsx
+msgid "Undo keeping {label} on its own line"
+msgstr "Eigene Zeile für {label} rückgängig machen"
 
 #: components/merged-lines-section.tsx
 msgid "Undo merging {from} into {to}"
