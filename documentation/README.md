@@ -22,6 +22,7 @@ Feature documentation, split into the user interface and the backend.
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
 
+- [Image cleanup and disk space](backend/image-cleanup.md): what `deploy.sh` removes after a deploy, the free-space check, and what to do when the disk is full anyway
 - [Database backups](backend/database-backups.md): hourly dumps of the cluster database, restore, and the launchd job
 - [The pre-push / pre-merge check](backend/testing-check.md): `npm run check`, its stages, time limits and the no-retry rule
 - [GitHub Actions](backend/github-actions.md): the same check on every pull request and push to `main`, and CodeQL code scanning
