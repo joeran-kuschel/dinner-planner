@@ -60,6 +60,13 @@ API's `navigate` event for the back and forward buttons (no API, no guard for th
 `next` path, which the actions only follow through `safeSitePath()` (`lib/safe-path.ts`: never another site). The guard is off while
 the form is saving, so the save's own redirect passes. Details: `documentation/backend/unsaved-changes.md`.
 
+**Favorites and "last planned" are read, not stored, and every text says "planned".** `Recipe.favorite` is the one stored fact; when a recipe was
+last planned comes from the `PlannedMeal` days up to today (`lib/recipe-activity.ts`), turned into whole days on the server and passed down, so the
+browser's clock is never involved. `lib/cook-again.ts` ranks the dinner field's empty-field suggestions (favorites first, then the longest ago, never
+planned last) and picks "Cook again" (not planned in the week shown, due after 14 days or never, no `cocktail` / `base recipe` tag, at most five); its
+rows plan through the same `setPlannedMeal` as the day card. A suggestion's hint is `aria-hidden` and the option's `aria-describedby`, so its name stays the
+recipe's. Details: `documentation/backend/favorites.md`.
+
 **A `"use server"` file may only export async functions.** Exporting a constant
 or an object from `app/actions/*` compiles and type-checks, then fails at
 runtime. Shared constants and types live in `lib/` (`planner.ts`,

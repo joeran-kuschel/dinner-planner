@@ -17,10 +17,21 @@ export type RecipeSearch = {
   text: string;
   /** Every one of these tags must be on the recipe. */
   tags: string[];
+  /** Only the recipes marked as favorites. */
+  favorites: boolean;
+  /** The order of the list: by name, or the recipes planned longest ago first. */
+  sort: RecipeSort;
 };
 
+export type RecipeSort = "name" | "planned";
+
 /** The search as the list's address carries it (`?q=…&tag=…&tag=…`); anything else is ignored. */
-export function readRecipeSearch(params: { q?: string | string[]; tag?: string | string[] }): RecipeSearch {
+export function readRecipeSearch(params: {
+  q?: string | string[];
+  tag?: string | string[];
+  fav?: string | string[];
+  sort?: string | string[];
+}): RecipeSearch {
   // The address is user input: Postgres refuses a NUL character, and there is no use for more.
   const one = (value: string | string[] | undefined) => (typeof value === "string" ? rawText(value) : "");
   const many = (value: string | string[] | undefined) => (Array.isArray(value) ? value : value ? [value] : []);
@@ -30,14 +41,18 @@ export function readRecipeSearch(params: { q?: string | string[]; tag?: string |
   return {
     text: one(params.q).trim().slice(0, MAX_SEARCH_LENGTH),
     tags: [...new Set(tags)].slice(0, MAX_TAGS),
+    favorites: one(params.fav) === "1",
+    sort: one(params.sort) === "planned" ? "planned" : "name",
   };
 }
 
 /** The search as address parameters (`?q=…&tag=…`), empty when nothing filters. Encoded, so safe in an `href`. */
-function searchQuery({ text, tags }: RecipeSearch): string {
+function searchQuery({ text, tags, favorites, sort }: RecipeSearch): string {
   const params = new URLSearchParams();
   if (text) params.set("q", text);
   for (const tag of tags) params.append("tag", tag);
+  if (favorites) params.set("fav", "1");
+  if (sort === "planned") params.set("sort", "planned");
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -59,7 +74,7 @@ export function searchWords(text: string): string[] {
   return [...new Set(words)].slice(0, MAX_TAGS);
 }
 
-export function recipeSearchWhere({ text, tags }: RecipeSearch): Prisma.RecipeWhereInput {
+export function recipeSearchWhere({ text, tags, favorites }: RecipeSearch): Prisma.RecipeWhereInput {
   // The text, or one word of it, matches a recipe's name, one of its tags or one of its ingredients.
   const matches = (word: string): Prisma.RecipeWhereInput => {
     // `contains` hands `%` and `_` on as LIKE wildcards; a search for them means the characters.
@@ -80,7 +95,11 @@ export function recipeSearchWhere({ text, tags }: RecipeSearch): Prisma.RecipeWh
       ? matches(text)
       : { OR: [matches(text), { AND: words.map(matches) }] };
   return {
-    AND: [...(text ? [wholeOrWords] : []), ...tags.map((name) => ({ tags: { some: { name } } }))],
+    AND: [
+      ...(text ? [wholeOrWords] : []),
+      ...tags.map((name) => ({ tags: { some: { name } } })),
+      ...(favorites ? [{ favorite: true }] : []),
+    ],
   };
 }
 

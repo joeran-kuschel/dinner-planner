@@ -55,6 +55,26 @@ Exceptions, where nothing is planned from the half-typed text:
   composing text with an input method, leave the text in the field and plan nothing; the text is planned when the
   field is left for real.
 
+## Suggestions, favorites and Cook again
+
+**In the dinner field.** An empty field (a click or the arrow key on a day with nothing typed) lists the recipes ranked: the
+[favorites](recipes.md#favorites-and-when-a-recipe-was-last-planned) first, then by the longest time since a recipe was planned, a recipe
+never planned after those that were (in each group), and by name where that is equal. Under each name a line says what is known:
+"Favorite · last planned 3 weeks ago", "never planned". The line is for the eye; a screen reader has it as the option's description, so the option
+keeps its name and picking it plans the recipe as before. Once something is typed the matches stay in alphabetical order, with the hints.
+
+**Cook again** is a section beside the week from the `lg` breakpoint (a column of its own, kept in view while the week scrolls) and below the
+seven days on a smaller screen. It offers up to five recipes: those **not planned in the week shown**, that are **due** (last planned at least 14 days ago, or never) and that
+are **no cocktail and no base recipe** (tags `cocktail`, `cocktails`, `base recipe`, `base recipes`; `COOK_AGAIN_EXCLUDED_TAGS` in
+`lib/cook-again.ts`), ranked as above. Each row has the name, the same line as in the dinner field, a choice of the week's **free days from today on**
+(the first free one chosen) and a **Plan** button that plans the recipe for two people. It plans the recipe that was offered, by its id, and **only while the day is
+still free**: a day planned in another tab or window in the meantime is left alone (with its servings and note), and the row says "That day has been planned in the meantime. Pick another
+day." in an alert, keeps the focus on the day choice and refreshes the plan. The recipe then leaves the section (it is planned this week now), and the focus goes to the
+heading, or, when the section goes with it (the last recipe, or the last free day), to the dinner field of the day it was planned on. The section is not shown without a
+suggestion or without a free day. On a wide screen the column is kept in view while the week scrolls and is no taller than the screen (its rows scroll inside it). Its heading is a button (a disclosure with `aria-expanded`) that folds the section down to the heading and opens it again, on every screen width; it starts open and is not remembered across page loads.
+
+Only the week shown counts for "planned this week": a recipe planned for a day in a later week is still offered, and "last planned" counts days up to today only.
+
 ## Keyboard
 
 | Key                   | In the dinner field                                                                  |

@@ -73,8 +73,32 @@ export async function setPlannedMeal(formData: FormData) {
  */
 export async function restorePlannedMeal(formData: FormData): Promise<"restored" | "occupied"> {
   await requireAccess();
+  return (await setWhileEmpty(formData, "restorePlannedMeal")) ? "restored" : "occupied";
+}
+
+/**
+ * Plan a recipe for a day from "Cook again", which offered the days that were free when the page was drawn. Like the Undo it
+ * writes only while the day is still empty: a dinner planned in the meantime (another tab, another window) is left alone and
+ * the section is told ("occupied"), so a day is never overwritten, its servings and note with it. The form carries `day`,
+ * `recipeId` and `servings`, and no `dinner`: the recipe is the one that was picked, even if it was renamed meanwhile.
+ */
+export async function planFreeDay(formData: FormData): Promise<"planned" | "occupied"> {
+  await requireAccess();
+  // Without a recipe `setPlannedMeal` would read "clear this day", which is not what this form asks.
+  if (!readText(formData, "recipeId")) throw new Error("planFreeDay: missing `recipeId`");
+  return (await setWhileEmpty(formData, "planFreeDay")) ? "planned" : "occupied";
+}
+
+/** `planFreeDay` as a plain form's action, which returns nothing: without JavaScript the page is drawn again and shows what happened. */
+export async function planFreeDayFromForm(formData: FormData): Promise<void> {
+  await requireAccess();
+  await planFreeDay(formData);
+}
+
+/** Writes what `setPlannedMeal` reads, only while the day is empty. False (and nothing written) when it holds a dinner or leftovers. */
+async function setWhileEmpty(formData: FormData, caller: string): Promise<boolean> {
   const day = parseDayKey(readText(formData, "day"));
-  if (!day) throw new Error("restorePlannedMeal: missing or malformed `day`");
+  if (!day) throw new Error(`${caller}: missing or malformed \`day\``);
 
   // A row naming neither a recipe, a title nor a dinner it is the leftovers of shows as an empty day, so it does not count.
   const planned = await prisma.plannedMeal.findFirst({
@@ -84,10 +108,10 @@ export async function restorePlannedMeal(formData: FormData): Promise<"restored"
   if (planned) {
     // The card shows what the day holds now.
     revalidateMealViews();
-    return "occupied";
+    return false;
   }
   await setPlannedMeal(formData);
-  return "restored";
+  return true;
 }
 
 /**

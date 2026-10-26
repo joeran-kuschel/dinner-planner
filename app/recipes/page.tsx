@@ -10,6 +10,10 @@ import type { RecipeSearch } from "@/lib/recipe-search";
 import type { I18n } from "@lingui/core";
 import { PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared";
 import { recipeFacts } from "@/lib/recipe-facts";
+import { FavoriteButton } from "@/components/favorite-button";
+import { StarIcon } from "@/components/star-icon";
+import { plannedAgoText, sortByLongestAgo } from "@/lib/cook-again";
+import { daysSinceLastPlanned } from "@/lib/recipe-activity";
 import { getServerI18n } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
 import { formatDayMonth, formatWeekday, today } from "@/lib/week";
@@ -45,6 +49,10 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
     searchTerms(),
   ]);
   const recipeCount = recipes.length;
+  // When each was last planned: a line on each card, and what "longest ago" sorts by.
+  const sinceByRecipe = await daysSinceLastPlanned(today());
+  const shown = recipes.map((recipe) => ({ ...recipe, daysSince: sinceByRecipe.get(recipe.id) ?? null }));
+  const listed = search.sort === "planned" ? sortByLongestAgo(shown) : shown;
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,7 +86,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
         </p>
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe) => (
+          {listed.map((recipe) => (
             <RecipeCard key={recipe.id} recipe={recipe} search={search} i18n={i18n} locale={locale} />
           ))}
         </ul>
@@ -87,7 +95,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
   );
 }
 
-const isSearching = ({ text, tags }: RecipeSearch) => Boolean(text) || tags.length > 0;
+const isSearching = ({ text, tags, favorites }: RecipeSearch) => Boolean(text) || tags.length > 0 || favorites;
 
 /**
  * The list's search: a plain GET form, so it works without JavaScript and the result has an
@@ -123,6 +131,27 @@ function RecipeSearchForm({
             {t(i18n)`Clear`}
           </Link>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* A button, not a tag: pressed while it filters. It sends the search with the filter on, or without it when it was on. */}
+        <button
+          type="submit"
+          name={search.favorites ? undefined : "fav"}
+          value={search.favorites ? undefined : "1"}
+          aria-pressed={search.favorites}
+          className={`btn-secondary gap-2 ${search.favorites ? "border-accent bg-accent-soft text-accent-text" : ""}`}
+        >
+          <StarIcon filled={search.favorites} size={18} />
+          {t(i18n)`Favorites only`}
+        </button>
+        <label className="flex items-center gap-2 text-sm">
+          <span className="label">{t(i18n)`Sort`}</span>
+          <select name="sort" defaultValue={search.sort} className="field w-auto">
+            <option value="name">{t(i18n)`By name`}</option>
+            <option value="planned">{t(i18n)`Planned longest ago`}</option>
+          </select>
+        </label>
       </div>
 
       {filterTags.length > 0 && (
@@ -168,6 +197,9 @@ type CardRecipe = {
   tags: { name: string }[];
   _count: { ingredients: number };
   plannedFor: { date: Date }[];
+  favorite: boolean;
+  /** Days since it was last planned; null for a recipe never planned. */
+  daysSince: number | null;
 };
 
 const TONES = [
@@ -211,7 +243,8 @@ function RecipeCard({
 }) {
   const next = recipe.plannedFor[0]?.date;
   return (
-    <li>
+    // The star is beside the link, not inside it: a button in a link is no valid control.
+    <li className="relative">
       <Link
         href={recipeHref(recipe.id, search)}
         className="card flex h-full flex-col overflow-hidden transition-colors hover:border-field"
@@ -244,6 +277,7 @@ function RecipeCard({
               ))}
             </ul>
           )}
+          <p className="text-sm text-muted first-letter:uppercase">{plannedAgoText(recipe.daysSince, i18n)}</p>
           <p className="mt-auto text-sm text-muted">
             {recipeFacts(i18n, {
               servings: recipe.servings,
@@ -254,6 +288,9 @@ function RecipeCard({
           </p>
         </div>
       </Link>
+      <div className="absolute right-2 top-2">
+        <FavoriteButton id={recipe.id} name={recipe.name} favorite={recipe.favorite} variant="star" />
+      </div>
     </li>
   );
 }

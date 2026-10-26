@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   useEffect,
   useLayoutEffect,
+  useId,
   useRef,
   useState,
   useTransition,
@@ -18,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { clearPlannedMeal, restorePlannedMeal, setPlannedMeal } from "@/app/actions/meals";
 import { LeftoversButton, takeLeftoversFocus } from "@/components/leftovers-dialog";
 import type { LeftoverSource } from "@/lib/leftovers";
+import { activityHint, rankForSuggestion, type RecipeActivity } from "@/lib/cook-again";
 import { isSameDinner, matchingTag, MAX_SERVINGS, SERVINGS_HINT_ID, suggestsRecipe } from "@/lib/planner";
 
 export type DayCardMeal = {
@@ -38,7 +40,7 @@ export type DayCardProps = {
   dateLabel: string;
   isToday: boolean;
   /** `tags` are what the dinner field can also find a recipe by. */
-  recipes: { id: string; name: string; tags: string[] }[];
+  recipes: ({ id: string; name: string; tags: string[] } & RecipeActivity)[];
   meal: DayCardMeal | null;
   /** The dinners of the six days before that this day could eat the rest of. */
   leftoverSources?: LeftoverSource[];
@@ -326,7 +328,7 @@ export function DayHeading({
 /** One entry in the dinner suggestions. */
 type Suggestion =
   /** `tag` is the tag that matched what was typed, when the name did not. */
-  | { kind: "recipe"; id: string; name: string; tag: string | null }
+  | ({ kind: "recipe"; id: string; name: string; tag: string | null } & RecipeActivity)
   | { kind: "once"; name: string }
   | { kind: "new"; name: string };
 
@@ -350,10 +352,21 @@ function suggestionsFor(text: string, planned: string, recipes: DayCardProps["re
   const typed = text.trim();
   // Opening the field on the planned dinner lists every recipe, not just that one.
   const filter = text === planned ? "" : typed;
-  const matches: Suggestion[] = recipes
+  // An empty field offers the favorites first and then what was planned longest ago; typed text keeps the order by name.
+  const ordered = filter ? recipes : rankForSuggestion(recipes);
+  const matches: Suggestion[] = ordered
     .map((recipe) => ({ recipe, tag: matchingTag(recipe, filter) }))
     .filter(({ recipe, tag }) => tag !== null || suggestsRecipe(recipe.name, filter))
-    .map(({ recipe, tag }): Suggestion => ({ kind: "recipe", id: recipe.id, name: recipe.name, tag }));
+    .map(
+      ({ recipe, tag }): Suggestion => ({
+        kind: "recipe",
+        id: recipe.id,
+        name: recipe.name,
+        tag,
+        favorite: recipe.favorite,
+        daysSince: recipe.daysSince,
+      }),
+    );
   if (!typed || recipes.some((recipe) => isSameDinner(recipe.name, typed))) return matches;
   return [...matches, { kind: "once", name: typed }, { kind: "new", name: typed }];
 }
@@ -541,6 +554,7 @@ function SuggestionList({
   suggestions: Suggestion[];
 }) {
   const { i18n } = useLingui();
+  const id = useId();
   return (
     <ul
       // A press on the list's padding or scrollbar must not blur the field,
@@ -550,15 +564,24 @@ function SuggestionList({
       className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-border bg-surface py-1 text-sm shadow-lg"
     >
       {isOpen &&
-        suggestions.map((suggestion, index) => (
+        suggestions.map((suggestion, index) => {
+          const hint = suggestion.kind === "recipe" ? activityHint(suggestion, i18n) : "";
+          return (
           <li
             key={`${suggestion.kind}-${suggestion.kind === "recipe" ? suggestion.id : suggestion.name}`}
             {...getItemProps({ item: suggestion, index })}
+            aria-describedby={suggestion.kind === "recipe" && hint ? `${id}-hint-${suggestion.id}` : undefined}
             className={`cursor-pointer px-3 py-2 ${highlightedIndex === index ? "bg-accent-soft" : ""} ${
               suggestion.kind === "once" && index > 0 ? "border-t border-border" : ""
             }`}
           >
             {suggestionLabel(suggestion, i18n)}
+            {suggestion.kind === "recipe" && hint && (
+              // For the eye; a screen reader gets it as the option's description, so the option keeps its name.
+              <span id={`${id}-hint-${suggestion.id}`} aria-hidden="true" className="block text-xs text-muted">
+                {hint}
+              </span>
+            )}
             {suggestion.kind === "recipe" && suggestion.tag && (
               <span className="ml-2 text-xs text-muted">
                 <span className="sr-only">{t(i18n)`tag`} </span>
@@ -566,7 +589,8 @@ function SuggestionList({
               </span>
             )}
           </li>
-        ))}
+          );
+        })}
     </ul>
   );
 }

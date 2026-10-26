@@ -17,6 +17,7 @@ Feature documentation, split into the user interface and the backend.
 - [Recipe tags and search](backend/recipe-tags.md): the `Tag` table, the chip form, pruning, the list query and the dinner field
 - [Grocery categories](backend/grocery-categories.md): the shop-section enum, how it travels from recipe form to list, merging and grouping
 - [Merging grocery lines](backend/grocery-merge.md): the key of a line, the dictionary, plurals, the spellings a line combines, merges and names kept apart, small amounts
+- [Favorites and Cook again](backend/favorites.md): the `favorite` column, last planned, the ranking and the Cook again rules
 - [Leaving a form with unsaved changes](backend/unsaved-changes.md): what counts as changed, the three ways out, "Save and leave" and the safe `next` path
 - [Pantry staples](backend/pantry-staples.md): the `PantryStaple` table, name-only matching, hiding at render time, the actions
 - [Recipe import](backend/recipe-import.md): "Add from a link", what may be fetched, how the recipe is read, the test switch

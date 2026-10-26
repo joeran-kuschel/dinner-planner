@@ -117,10 +117,10 @@ test.describe("recipe search", () => {
 
     // Two letters are too few, three are enough.
     await box.pressSequentially(word.slice(0, 2));
-    await expect(page.getByRole("option")).toHaveCount(0);
+    await expect(page.locator("#q-options").getByRole("option")).toHaveCount(0);
     await box.fill("");
     await box.pressSequentially(word);
-    await expect(page.getByRole("option")).toHaveText([`${name}recipe`, `${word}tagtag`, `${word}spiceingredient`]);
+    await expect(page.locator("#q-options").getByRole("option")).toHaveText([`${name}recipe`, `${word}tagtag`, `${word}spiceingredient`]);
     await expectAccessible(page);
 
     // Picking one runs the search for it.
@@ -131,9 +131,9 @@ test.describe("recipe search", () => {
     // Enter with nothing highlighted searches for what is typed, even with the list open.
     await box.fill("");
     await box.pressSequentially(word);
-    await expect(page.getByRole("option").first()).toBeVisible();
+    await expect(page.locator("#q-options").getByRole("option").first()).toBeVisible();
     await box.press("Enter");
-    await expect(page).toHaveURL(new RegExp(`q=${word}$`));
+    await expect(page).toHaveURL(new RegExp(`q=${word}(&|$)`));
   });
 
   test("says when nothing matches and offers to start over", async ({ page }) => {
@@ -188,7 +188,7 @@ test.describe("recipe search", () => {
     await expect(box).toBeChecked();
     await box.uncheck();
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page).toHaveURL(/\/recipes(\?q=)?$/);
+    await expect(page).toHaveURL(/\/recipes(\?q=&sort=name|\?sort=name|\?q=)?$/);
     await expect(page.getByText("No recipe matches.", { exact: false })).toHaveCount(0);
   });
 
