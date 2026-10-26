@@ -1,4 +1,4 @@
-# The same check as `npm run check` on a developer's machine: typecheck, lint, Vitest and
+# The same check as `npm run check` on a developer's machine: build, lint, Vitest, typecheck and
 # Playwright against a throwaway Postgres. See documentation/backend/github-actions.md.
 name: Check
 
@@ -60,7 +60,8 @@ jobs:
       - run: npm run db:generate
 
       # The typecheck reads the route types (PageProps, LayoutProps) that `next dev` and `next build` write
-      # to .next/types, which a fresh checkout does not have yet.
+      # to .next/types, which a fresh checkout does not have yet. The check's build writes them too, before the typecheck
+      # runs; this keeps the typecheck from depending on the order of the stages.
       - run: npx next typegen
 
       # The browser Playwright drives is a download of about 150 MB: kept between runs, under a key that changes with

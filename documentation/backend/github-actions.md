@@ -1,7 +1,8 @@
 # GitHub Actions: the check on every pull request
 
 `.github/workflows/check.yml` runs [`npm run check`](testing-check.md) on GitHub for every pull request and every push
-to `main`: typecheck, lint, the Vitest suite and the Playwright specs. It is the same command the `test-engineer`
+to `main`: the build, lint, the Vitest suite, the typecheck and the Playwright specs (the build runs next to lint and Vitest; the stages and
+their order are in [testing-check.md](testing-check.md)). It is the same command the `test-engineer`
 agent runs on the developer's machine, so a green run there and a green run here mean the same thing.
 
 ## What the job does
