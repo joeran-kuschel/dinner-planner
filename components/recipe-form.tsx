@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { CategorySelect } from "@/components/category-select";
+import { LeaveGuard } from "@/components/leave-guard";
 import { TagInput } from "@/components/tag-input";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
@@ -105,6 +106,7 @@ export function RecipeForm({
 }: RecipeFormProps) {
   const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
   const { i18n } = useLingui();
+  const formRef = useRef<HTMLFormElement>(null);
 
   // React resets a form once its action resolves, which would empty the photo field: a
   // browser cannot fill a file field in again, so a refused form would lose the photo, and
@@ -123,8 +125,10 @@ export function RecipeForm({
   const ingredients = useIngredientRows(values.ingredients, state.attempt);
 
   return (
-    <form action={formAction} onSubmit={submit} className="flex flex-col gap-6">
+    <form ref={formRef} action={formAction} onSubmit={submit} className="flex flex-col gap-6">
       {recipe && <input type="hidden" name="id" value={recipe.id} />}
+      {/* A recipe read from a link has not been saved either, so leaving it asks from the start. */}
+      <LeaveGuard formRef={formRef} startChanged={Boolean(initialValues)} saving={pending} />
 
       <RequiredNote>{t(i18n)`required`}</RequiredNote>
 

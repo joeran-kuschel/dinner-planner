@@ -445,6 +445,14 @@ msgstr "Language"
 msgid "Leave the amount blank for “to taste”."
 msgstr "Leave the amount blank for “to taste”."
 
+#: components/leave-guard.tsx
+msgid "Leave without saving"
+msgstr "Leave without saving"
+
+#: components/leave-guard.tsx
+msgid "Leave without saving?"
+msgstr "Leave without saving?"
+
 #: components/leftovers-dialog.tsx
 msgid "Leftovers"
 msgstr "Leftovers"
@@ -794,6 +802,10 @@ msgstr "Salt"
 msgid "Save"
 msgstr "Save"
 
+#: components/leave-guard.tsx
+msgid "Save and leave"
+msgstr "Save and leave"
+
 #: components/recipe-form.tsx
 msgid "Save changes"
 msgstr "Save changes"
@@ -843,6 +855,10 @@ msgstr "Source"
 #: components/merge-lines-dialog.tsx
 msgid "Spellings of {label}"
 msgstr "Spellings of {label}"
+
+#: components/leave-guard.tsx
+msgid "Stay"
+msgstr "Stay"
 
 #: components/recipe-search-box.tsx
 msgid "Suggestions appear after {MIN_SUGGESTION_LENGTH} letters."
@@ -1054,3 +1070,7 @@ msgstr "Washing-up liquid"
 #: app/page.tsx
 msgid "Week plan"
 msgstr "Week plan"
+
+#: components/leave-guard.tsx
+msgid "You changed this recipe and have not saved it yet."
+msgstr "You changed this recipe and have not saved it yet."
