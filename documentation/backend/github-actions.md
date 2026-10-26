@@ -92,7 +92,7 @@ Two steps before `npm run check`.
   ```bash
   for attempt in 1 2 3; do
     timeout --kill-after=10 120 npx playwright install --with-deps chromium && exit 0
-    # a warning on the run, and between attempts: timeout 30 sudo dpkg --configure -a
+    # a warning on the run, and between attempts: stop the root apt (below), sleep, timeout 30 sudo dpkg --configure -a
   done
   exit 1
   ```
@@ -101,10 +101,15 @@ Two steps before `npm run check`.
   and a retry shows up as a warning on the run. The step as a whole is limited to 10 minutes (`timeout-minutes`). A stuck mirror then costs a
   few minutes instead of a quarter of an hour, and when all three attempts fail the step fails, so the check never runs without a browser.
 
-What is not known: whether `timeout` reaches an apt that Playwright started through `sudo` (the first signal is relayed by `sudo`;
-the later `--kill-after` may not reach a root process), and so whether a retry can still find the apt lock held. A real stuck run will show;
-the warning on the run says when a retry happened. `tests/infra/github-actions.test.ts` runs the script with a fake `timeout` and
-checks the cases of a first-time success, a retry and three failures.
+**The leftover apt.** `timeout` runs as the runner user and cannot stop the root `apt-get` that Playwright starts through `sudo`. On
+2026-10-26 that was exactly what happened: attempt 1 hung downloading packages from the Ubuntu mirror and was stopped after 120 s, the
+`apt-get` it had started went on and kept the dpkg lock, and attempts 2 and 3 failed at once with "Could not get lock
+/var/lib/dpkg/lock-frontend … held by process …" (the run failed after 2 min 10 s instead of recovering). So between attempts the
+processes are stopped as root, by exact name only (`sudo pkill -KILL -x` for `apt-get`, `apt`, `dpkg`, and apt's download helpers
+`http` and `https`), then a pause of 3 s and `dpkg --configure -a` to finish what they left half-done. A lock file is never removed by
+hand (dpkg says that is always wrong). `tests/infra/github-actions.test.ts` runs the script with a fake `timeout`, `sudo` and `sleep` and
+checks the cases of a first-time success, a retry (with the order: stop, repair, try again), three failures, and that no `rm` of a lock is
+in it. What the fake cannot show is a real apt that ignores the signal: a run that still fails on the lock would show it in the log.
 
 ## Limits
 

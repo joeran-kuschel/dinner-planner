@@ -75,14 +75,21 @@ jobs:
       # The browser's system libraries come from apt on every run, since a runner starts empty. It normally takes
       # about 25 s; on 2026-10-26 one run waited 11 minutes for it. An attempt that takes longer than 120 s (apt, and the
       # download when the cache was empty) is stopped and tried again, three times at most, so a stuck mirror costs minutes,
-      # not a quarter of an hour. Between attempts, dpkg is asked to finish what a stopped apt left half-done.
+      # not a quarter of an hour. `timeout` runs as the runner user and cannot stop the root apt-get that Playwright starts
+      # through sudo (on 2026-10-26 it kept the dpkg lock, and the next two attempts failed at once with "lock held by
+      # process …"), so between attempts those processes are stopped as root and dpkg is asked to finish what they left half-done.
       - name: Install the browser and its libraries
         timeout-minutes: 10
         run: |
           for attempt in 1 2 3; do
             if timeout --kill-after=10 120 npx playwright install --with-deps chromium; then exit 0; fi
             echo "::warning::Installing the browser did not finish within 120 seconds, or failed (attempt $attempt of 3)."
-            if [ "$attempt" -lt 3 ]; then timeout 30 sudo dpkg --configure -a || true; fi
+            if [ "$attempt" -lt 3 ]; then
+              # Exact names only: apt-get and dpkg, and apt's own download helpers (processes called http and https).
+              for name in apt-get apt dpkg http https; do sudo pkill -KILL -x "$name" || true; done
+              sleep 3
+              timeout 30 sudo dpkg --configure -a || true
+            fi
           done
           exit 1
 

@@ -32,6 +32,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- Tooling: when the GitHub check's browser install is stopped after 120 seconds, the retry now also stops the apt that the stalled attempt left running (it kept the package lock, so the next two attempts failed at once).
 - Tooling: `npm run check` builds the app next to lint and Vitest and starts Playwright's server from that build (and typechecks beside Playwright), instead of building at the start of Playwright's stage: about a minute shorter on GitHub.
 - Tooling: the GitHub check no longer waits for a stuck browser install: installing Playwright's browser and its system libraries is stopped after 120 seconds and tried again, three times at most (one run once waited 11 minutes for it), and the downloaded browser is cached between runs.
 - Tooling: `npm run k8s:deploy` removes the old images of its own earlier deploys once the new version runs (keeping the new one and the one before it for a rollback), and checks the free disk space of the cluster's node first: under 2 GB it removes old images, and stops with advice if that is not enough, instead of starting a rollout that cannot finish ([#84](https://github.com/joeran-kuschel/dinner-planner/issues/84)).
