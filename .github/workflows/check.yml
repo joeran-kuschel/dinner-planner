@@ -63,7 +63,27 @@ jobs:
       # to .next/types, which a fresh checkout does not have yet.
       - run: npx next typegen
 
-      - run: npx playwright install --with-deps chromium
+      # The browser Playwright drives is a download of about 150 MB: kept between runs, under a key that changes with
+      # Playwright's version only. This saves the download; the stall below was in apt, which it does not touch. (The cache is
+      # saved when the job succeeds, so a run whose check fails downloads again next time.)
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('node_modules/playwright-core/package.json') }}
+
+      # The browser's system libraries come from apt on every run, since a runner starts empty. It normally takes
+      # about 25 s; on 2026-10-26 one run waited 11 minutes for it. An attempt that takes longer than 120 s (apt, and the
+      # download when the cache was empty) is stopped and tried again, three times at most, so a stuck mirror costs minutes,
+      # not a quarter of an hour. Between attempts, dpkg is asked to finish what a stopped apt left half-done.
+      - name: Install the browser and its libraries
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            if timeout --kill-after=10 120 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::Installing the browser did not finish within 120 seconds, or failed (attempt $attempt of 3)."
+            if [ "$attempt" -lt 3 ]; then timeout 30 sudo dpkg --configure -a || true; fi
+          done
+          exit 1
 
       - run: npm run check
 

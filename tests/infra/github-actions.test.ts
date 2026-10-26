@@ -1,4 +1,6 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -68,6 +70,78 @@ describe("the GitHub Actions check", () => {
     const node = steps.find((step) => step.uses?.startsWith("actions/setup-node"));
     const dockerfile = fs.readFileSync(path.join(process.cwd(), "Dockerfile"), "utf-8");
     expect(dockerfile).toContain(`FROM node:${node?.with?.["node-version"]}-alpine AS app`);
-    expect(steps.map((step) => step.run)).toContain("npx playwright install --with-deps chromium");
+    expect(install?.run).toContain("npx playwright install --with-deps chromium");
+  });
+
+  // The step that installs the browser and its libraries.
+  const install = steps.find((step) => step.run?.includes("playwright install"));
+
+  it("installs the browser before the check, with a time limit per attempt, a few attempts and a limit for the step", () => {
+    expect(steps.indexOf(install!)).toBeGreaterThan(steps.findIndex((step) => step.run === "npx next typegen"));
+    expect(steps.indexOf(install!)).toBeLessThan(steps.findIndex((step) => step.run === "npm run check"));
+    // `timeout` stops an attempt that hangs (a slow mirror once took 11 minutes), and the loop tries again.
+    expect(install?.run).toMatch(/for attempt in 1 2 3/);
+    expect(install?.run).toMatch(/timeout --kill-after=\d+ 120 npx playwright install --with-deps chromium/);
+    expect(install?.run).toContain("exit 1");
+    expect((install as { "timeout-minutes"?: number })["timeout-minutes"]).toBeLessThanOrEqual(10);
+    // The last attempt failing fails the step: it must not carry on without a browser.
+    expect(install?.run?.trim().endsWith("exit 1")).toBe(true);
+  });
+
+  describe("the install step's script", () => {
+    /** Runs the step's script with a fake `timeout` that fails the first `failures` attempts (exit 124, like a timeout). */
+    function runInstall(failures: number) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "install-step-"));
+      try {
+        const fake = (name: string, body: string) => {
+          fs.writeFileSync(path.join(dir, name), `#!/bin/bash\n${body}\n`);
+          fs.chmodSync(path.join(dir, name), 0o755);
+        };
+        // The install attempts are `timeout --kill-after=10 120 npx …` and fail (exit 124, as a timeout) the first
+        // `failures` times; the cleanup `timeout 30 sudo …` only runs the command, which is the fake `sudo`.
+        fake(
+          "timeout",
+          `echo "timeout $*" >> "${dir}/calls"\nif [ "$1" = "30" ]; then shift; exec "$@"; fi\nn=$(grep -c '^timeout --kill-after' "${dir}/calls")\n[ "$n" -le ${failures} ] && exit 124\nexit 0`,
+        );
+        fake("sudo", `echo "sudo $*" >> "${dir}/calls"`);
+        const result = spawnSync("bash", ["-e", "-c", install!.run!], {
+          encoding: "utf8",
+          env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+        });
+        return { ...result, calls: fs.readFileSync(path.join(dir, "calls"), "utf8").split("\n").filter(Boolean) };
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    it("is done after one attempt when the install works", () => {
+      const result = runInstall(0);
+      expect(result.status).toBe(0);
+      expect(result.calls).toEqual(["timeout --kill-after=10 120 npx playwright install --with-deps chromium"]);
+    });
+
+    it("tries again after an attempt that timed out, and cleans up what apt left", () => {
+      const result = runInstall(2);
+      expect(result.status).toBe(0);
+      expect(result.calls.filter((call) => call.startsWith("timeout --kill-after"))).toHaveLength(3);
+      // Each cleanup has its own time limit.
+      expect(result.calls.filter((call) => call === "timeout 30 sudo dpkg --configure -a")).toHaveLength(2);
+      expect(result.stdout).toContain("::warning::Installing the browser did not finish within 120 seconds, or failed (attempt 1 of 3).");
+    });
+
+    it("fails the step after the third failed attempt, so the check does not run without a browser", () => {
+      const result = runInstall(3);
+      expect(result.status).toBe(1);
+      expect(result.calls.filter((call) => call.startsWith("timeout --kill-after"))).toHaveLength(3);
+      // The cleanup comes after an attempt that another follows, not after the last.
+      expect(result.calls.filter((call) => call.startsWith("timeout 30"))).toHaveLength(2);
+    });
+  });
+
+  it("keeps the downloaded browser between runs, under a key that changes with Playwright's version, before the install", () => {
+    const cache = steps.find((step) => step.uses?.startsWith("actions/cache@"));
+    expect(cache?.with?.path).toBe("~/.cache/ms-playwright");
+    expect(String(cache?.with?.key)).toContain("hashFiles('node_modules/playwright-core/package.json')");
+    expect(steps.indexOf(cache!)).toBeLessThan(steps.indexOf(install!));
   });
 });
