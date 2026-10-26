@@ -1629,3 +1629,96 @@ describe("LeftoversCard", () => {
     expect(screen.getByRole("link", { name: "Zu Mushroom risotto am Montag" })).toBeInTheDocument();
   });
 });
+
+describe("DayCard: favorites and when a recipe was planned", () => {
+  const ACTIVE = [
+    { id: "r-a", name: "Aubergine bake", tags: [], favorite: false, daysSince: 5 },
+    { id: "r-b", name: "Beef stew", tags: [], favorite: false, daysSince: 90 },
+    { id: "r-c", name: "Chickpea curry", tags: ["quick"], favorite: true, daysSince: 21 },
+    { id: "r-d", name: "Dal", tags: [], favorite: false, daysSince: null },
+    { id: "r-e", name: "Eggs", tags: [], favorite: true, daysSince: null },
+  ];
+  const option = (name: string) => screen.getByRole("option", { name });
+
+  it("ranks an empty field's suggestions: favorites first, then the longest ago, never planned last", async () => {
+    const { user } = renderCard({ recipes: ACTIVE });
+    await user.click(dinnerField());
+
+    expect(screen.queryAllByRole("option").map((o) => o.getAttribute("id") && o.firstChild?.textContent)).toEqual([
+      "Chickpea curry",
+      "Eggs",
+      "Beef stew",
+      "Aubergine bake",
+      "Dal",
+    ]);
+  });
+
+  it("keeps the order by name while something is typed", async () => {
+    const { user } = renderCard({ recipes: ACTIVE });
+    await user.type(dinnerField(), "e");
+
+    // The recipes that match, in the order they came (by name), then the two ways to plan "e" as typed.
+    expect(screen.queryAllByRole("option").slice(0, 4).map((o) => o.firstChild?.textContent)).toEqual([
+      "Aubergine bake",
+      "Beef stew",
+      "Chickpea curry",
+      "Eggs",
+    ]);
+  });
+
+  it("lists every recipe on the planned dinner's own text too, ranked", async () => {
+    const { user } = renderCard({ recipes: ACTIVE, meal: { recipeId: "r-b", customTitle: null, servings: 2, notes: null } });
+    await user.click(dinnerField());
+    expect(screen.queryAllByRole("option").map((o) => o.firstChild?.textContent)).toHaveLength(5);
+  });
+
+  it("says under each name whether it is a favorite and when it was planned, without changing the option's name", async () => {
+    const { user } = renderCard({ recipes: ACTIVE });
+    await user.click(dinnerField());
+
+    expect(option("Chickpea curry")).toHaveAccessibleDescription("Favorite · last planned 3 weeks ago");
+    expect(option("Beef stew")).toHaveAccessibleDescription("last planned 3 months ago");
+    expect(option("Dal")).toHaveAccessibleDescription("never planned");
+    // The words are for the eye; the screen reader has them as the description.
+    const hint = option("Chickpea curry").querySelector("[aria-hidden='true']");
+    expect(hint).toHaveTextContent("Favorite · last planned 3 weeks ago");
+  });
+
+  it("has no hint for a recipe nothing is known about, and its option has no description", async () => {
+    const { user } = renderCard();
+    await user.click(dinnerField());
+    expect(option("Mushroom risotto")).not.toHaveAttribute("aria-describedby");
+    expect(option("Mushroom risotto").querySelector("[aria-hidden='true']")).toBeNull();
+  });
+
+  it("still picks a recipe by its name: the hint is not part of what is planned", async () => {
+    const { user } = renderCard({ recipes: ACTIVE });
+    await user.click(dinnerField());
+    await user.click(option("Chickpea curry"));
+
+    await waitFor(() => expect(actions.setPlannedMeal).toHaveBeenCalled());
+    expect(dinnerField()).toHaveValue("Chickpea curry");
+    expect(lastFormData(actions.setPlannedMeal as never).get("recipeId")).toBe("r-c");
+  });
+
+  it("gives every option its own description element", async () => {
+    const { user } = renderCard({ recipes: ACTIVE });
+    await user.click(dinnerField());
+    const ids = screen.getAllByRole("option").map((o) => o.getAttribute("aria-describedby"));
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(document.getElementById(id!)).not.toBeNull();
+  });
+
+  it("has no axe violations with the suggestions open, and says it in German", async () => {
+    const { user, container } = renderCard({ recipes: ACTIVE });
+    await user.click(dinnerField());
+    await expectNoAxeViolations(container);
+  });
+
+  it("says the hints in German", async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<DayCard {...props({ recipes: ACTIVE })} />, { locale: "de" });
+    await user.click(screen.getByRole("combobox"));
+    expect(screen.getByRole("option", { name: "Chickpea curry" })).toHaveAccessibleDescription("Favorit · zuletzt geplant vor 3 Wochen");
+  });
+});

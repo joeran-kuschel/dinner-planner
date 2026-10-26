@@ -37,6 +37,8 @@ model Recipe {
   sourceUrl    String?
   /// Free-form steps, one per line.
   instructions String?
+  /// Marked by the user: ranked first among the suggestions for a dinner and in "Cook again".
+  favorite     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

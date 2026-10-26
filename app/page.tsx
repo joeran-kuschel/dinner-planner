@@ -7,6 +7,9 @@ import { DayCard, LeftoversCard } from "@/components/day-card";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { getServerI18n } from "@/lib/i18n/server";
+import { CookAgain } from "@/components/cook-again";
+import { cookAgainSuggestions } from "@/lib/cook-again";
+import { daysSinceLastPlanned } from "@/lib/recipe-activity";
 import { isPlanned, LEFTOVERS_DAYS, leftoverCountFor, leftoverSourcesFor } from "@/lib/leftovers";
 import { absoluteTitle } from "@/lib/page-title";
 import { SERVINGS_HINT_ID } from "@/lib/planner";
@@ -42,16 +45,37 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
       where: { date: { gte: addDays(weekStart, -LEFTOVERS_DAYS), lt: addDays(weekStart, 7 + LEFTOVERS_DAYS) } },
     }),
     prisma.recipe.findMany({
-      select: { id: true, name: true, tags: { select: { name: true }, orderBy: { name: "asc" } } },
+      select: { id: true, name: true, favorite: true, tags: { select: { name: true }, orderBy: { name: "asc" } } },
       orderBy: { name: "asc" },
     }),
   ]);
+  // What the dinner field and "Cook again" know about each recipe: marked as a favorite, and how long ago it was planned.
+  const sinceByRecipe = await daysSinceLastPlanned(currentDay);
+  const activity = recipes.map(({ id, name, tags, favorite }) => ({
+    id,
+    name,
+    tags: tags.map((tag) => tag.name),
+    favorite,
+    daysSince: sinceByRecipe.get(id) ?? null,
+  }));
 
   const mealsByDay = new Map(meals.map((meal) => [dayKey(meal.date), meal]));
   const recipeNames = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
   // A row that names neither a recipe, a title nor a dinner it is the leftovers of shows as an empty day,
   // so it must not be counted as planned either.
   const plannedCount = days.filter((day) => isPlanned(mealsByDay.get(dayKey(day)))).length;
+  // "Cook again" leaves out what the week already has, and offers the days that are still free (today and later).
+  const plannedRecipeIds = new Set(
+    days.flatMap((day) => {
+      const recipeId = mealsByDay.get(dayKey(day))?.recipeId;
+      return recipeId ? [recipeId] : [];
+    }),
+  );
+  const freeDays = days
+    .filter((day) => day.getTime() >= currentDay.getTime() && !isPlanned(mealsByDay.get(dayKey(day))))
+    .map((day) => ({ key: dayKey(day), label: `${formatWeekday(day, locale)} ${formatDayMonth(day, locale)}` }));
+  const cookAgain = cookAgainSuggestions(activity, plannedRecipeIds);
+  const hasCookAgain = cookAgain.length > 0 && freeDays.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,6 +111,8 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
         </p>
       )}
 
+      {/* On a wide screen "Cook again" is a column of its own beside the week; below that it follows the week. */}
+      <div className={hasCookAgain ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start" : ""}>
       <div className="card divide-y divide-border [&>form:first-child]:rounded-t-2xl [&>form:last-child]:rounded-b-2xl">
         {days.map((day) => {
           const key = dayKey(day);
@@ -115,7 +141,7 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
               weekdayLabel={formatWeekday(day, locale)}
               dateLabel={formatDayMonth(day, locale)}
               isToday={isSameDay(day, currentDay)}
-              recipes={recipes.map(({ id, name, tags }) => ({ id, name, tags: tags.map((tag) => tag.name) }))}
+              recipes={activity}
               leftoverSources={leftoverSourcesFor(day, mealsByDay, recipeNames, locale)}
               leftoverCount={leftoverCountFor(day, meals)}
               meal={
@@ -129,6 +155,9 @@ export default async function WeekPlanPage({ searchParams }: PageProps<"/">) {
             />
           );
         })}
+      </div>
+
+      <CookAgain suggestions={cookAgain} freeDays={freeDays} />
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">

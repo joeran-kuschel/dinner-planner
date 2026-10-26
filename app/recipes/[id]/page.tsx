@@ -9,6 +9,8 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { recipeTitle } from "@/lib/page-title";
 import { formatQuantity } from "@/lib/grocery";
 import { recipeFacts } from "@/lib/recipe-facts";
+import { daysSince, plannedAgoText } from "@/lib/cook-again";
+import { FavoriteButton } from "@/components/favorite-button";
 import { isWebUrl } from "@/lib/recipe-form";
 import { readRecipeSearch, recipeListHref } from "@/lib/recipe-search";
 import { dayKey, formatWeekday, formatDayMonth, resolveWeekStart, startOfWeek, today } from "@/lib/week";
@@ -29,20 +31,27 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
   const backToRecipes = recipeListHref(readRecipeSearch(query));
   const { i18n, locale } = await getServerI18n();
 
-  const recipe = await prisma.recipe.findUnique({
-    where: { id },
-    include: {
-      ingredients: { orderBy: { position: "asc" } },
-      tags: { select: { name: true }, orderBy: { name: "asc" } },
-      // Not the image bytes: the page shows the photo through its address.
-      photo: { select: { alt: true, updatedAt: true, fullWidth: true, fullHeight: true } },
-      // Only upcoming appearances are worth showing; past ones are history.
-      plannedFor: { where: { date: { gte: startOfWeek(today()) } }, orderBy: { date: "asc" } },
-    },
-  });
+  const todayDay = today();
+  const [recipe, lastPlanned] = await Promise.all([
+    prisma.recipe.findUnique({
+      where: { id },
+      include: {
+        ingredients: { orderBy: { position: "asc" } },
+        tags: { select: { name: true }, orderBy: { name: "asc" } },
+        // Not the image bytes: the page shows the photo through its address.
+        photo: { select: { alt: true, updatedAt: true, fullWidth: true, fullHeight: true } },
+        // Only upcoming appearances are worth showing; past ones are history.
+        plannedFor: { where: { date: { gte: startOfWeek(todayDay) } }, orderBy: { date: "asc" } },
+      },
+    }),
+    // The latest day it was planned for, up to today: what "last planned" says.
+    prisma.plannedMeal.aggregate({ where: { recipeId: id, date: { lte: todayDay } }, _max: { date: true } }),
+  ]);
 
   if (!recipe) notFound();
   const recipeName = recipe.name;
+
+  const lastPlannedText = plannedAgoText(lastPlanned._max.date ? daysSince(lastPlanned._max.date, todayDay) : null, i18n);
 
   const steps = (recipe.instructions ?? "")
     .split("\n")
@@ -79,8 +88,10 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
                 </>
               )}
             </p>
+            <p className="mt-1 text-sm text-muted first-letter:uppercase">{lastPlannedText}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <FavoriteButton id={recipe.id} name={recipe.name} favorite={recipe.favorite} variant="button" />
             <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
               {t(i18n)`Edit`}
             </Link>

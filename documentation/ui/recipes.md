@@ -56,6 +56,23 @@ leaves the field without picking. The number of suggestions is announced. Withou
 
 A card shows the recipe's tags under its description.
 
+## Favorites and when a recipe was last planned
+
+A recipe can be marked as a **favorite**. The mark is a toggle button (`aria-pressed`) and is never only a colour: the star is outlined
+when it is off and filled, with an accent tint, when it is on.
+
+- **On the recipe's page** the **Favorite** button sits beside **Edit**, with a star and the word, 44 px high; the row wraps on a phone.
+  Under the facts the page says when the recipe was last planned ("Last planned 3 weeks ago", "Never planned").
+- **On a card in the list** a round star (44 px) in the corner of the card is the same toggle, named after its recipe ("Favorite
+  Chickpea curry"): a list has many. It is beside the card's link, not inside it. Each card also says when its recipe was last planned.
+- **Favorites only** (a button with a star, pressed while it filters) and **Sort** (**By name**, **Planned longest ago**) are part of the
+  search form. They go into the address (`?fav=1&sort=planned`), so the way back from a recipe keeps them, and **Clear** removes the
+  filter. **Planned longest ago** puts the recipes planned longest ago first and those never planned last.
+
+"Last planned" is the latest day up to today that a recipe was planned for. The app knows what was planned, not what was cooked, so
+every text says "planned". A day planned ahead, a one-off dinner and a leftovers day do not count. German: **Favorit**, **Nur Favoriten**,
+**Nochmal kochen**, "zuletzt geplant vor 3 Wochen", "noch nie geplant".
+
 ## A recipe
 
 A recipe's page shows its photo (if it has one), its facts (with a link to the source, if it has one), the ingredients with their amounts, the

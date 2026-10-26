@@ -169,6 +169,10 @@ msgstr "Back to the plan"
 msgid "Bakery"
 msgstr "Bakery"
 
+#: app/recipes/page.tsx
+msgid "By name"
+msgstr "By name"
+
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
 #: components/leftovers-dialog.tsx
@@ -223,6 +227,10 @@ msgstr "clove"
 msgid "Combines {combined}"
 msgstr "Combines {combined}"
 
+#: components/cook-again.tsx
+msgid "Cook again"
+msgstr "Cook again"
+
 #: components/grocery-share.tsx
 msgid "Copied"
 msgstr "Copied"
@@ -238,6 +246,10 @@ msgstr "Copy to clipboard"
 #: components/grocery-share.tsx
 msgid "Copying isn't available here. Select the text below instead."
 msgstr "Copying isn't available here. Select the text below instead."
+
+#: components/cook-again.tsx
+msgid "Could not plan this recipe. Reload the page and try again."
+msgstr "Could not plan this recipe. Reload the page and try again."
 
 #: components/grocery-list.tsx
 msgid "Could not save the tick. Try again."
@@ -266,6 +278,11 @@ msgstr "Day cleared"
 #: components/day-card.tsx
 msgid "Day cleared, and {leftovers, plural, one {# leftovers day} other {# leftovers days}} with it"
 msgstr "Day cleared, and {leftovers, plural, one {# leftovers day} other {# leftovers days}} with it"
+
+#. placeholder {0}: recipe.name
+#: components/cook-again.tsx
+msgid "Day for {0}"
+msgstr "Day for {0}"
 
 #: app/recipes/[id]/page.tsx
 msgid "Delete"
@@ -336,6 +353,23 @@ msgstr "Everything this week's dinners need is in your pantry."
 #: components/grocery-list.tsx
 msgid "Everything ticked off."
 msgstr "Everything ticked off."
+
+#: components/favorite-button.tsx
+#: lib/cook-again.ts
+msgid "Favorite"
+msgstr "Favorite"
+
+#: components/favorite-button.tsx
+msgid "Favorite {name}"
+msgstr "Favorite {name}"
+
+#: components/cook-again.tsx
+msgid "Favorites and recipes you have not planned for a while."
+msgstr "Favorites and recipes you have not planned for a while."
+
+#: app/recipes/page.tsx
+msgid "Favorites only"
+msgstr "Favorites only"
 
 #: components/import-recipe-dialog.tsx
 msgid "Fetching the page…"
@@ -440,6 +474,30 @@ msgstr "l"
 #: components/language-switcher.tsx
 msgid "Language"
 msgstr "Language"
+
+#: lib/cook-again.ts
+msgid "last planned {days, plural, one {# day ago} other {# days ago}}"
+msgstr "last planned {days, plural, one {# day ago} other {# days ago}}"
+
+#: lib/cook-again.ts
+msgid "last planned {months, plural, one {# month ago} other {# months ago}}"
+msgstr "last planned {months, plural, one {# month ago} other {# months ago}}"
+
+#: lib/cook-again.ts
+msgid "last planned {weeks, plural, one {# week ago} other {# weeks ago}}"
+msgstr "last planned {weeks, plural, one {# week ago} other {# weeks ago}}"
+
+#: lib/cook-again.ts
+msgid "last planned {years, plural, one {# year ago} other {# years ago}}"
+msgstr "last planned {years, plural, one {# year ago} other {# years ago}}"
+
+#: lib/cook-again.ts
+msgid "last planned today"
+msgstr "last planned today"
+
+#: lib/cook-again.ts
+msgid "last planned yesterday"
+msgstr "last planned yesterday"
 
 #: components/recipe-form.tsx
 msgid "Leave the amount blank for “to taste”."
@@ -551,6 +609,10 @@ msgstr "Name of ingredient {number}"
 #: components/recipe-search-box.tsx
 msgid "Name, tag or ingredient"
 msgstr "Name, tag or ingredient"
+
+#: lib/cook-again.ts
+msgid "never planned"
+msgstr "never planned"
 
 #: app/recipes/new/page.tsx
 #: app/recipes/page.tsx
@@ -689,9 +751,18 @@ msgstr "piece"
 msgid "pinch"
 msgstr "pinch"
 
+#: components/cook-again.tsx
+msgid "Plan"
+msgstr "Plan"
+
 #: components/day-card.tsx
 msgid "Plan “{name}” for this day only"
 msgstr "Plan “{name}” for this day only"
+
+#. placeholder {0}: recipe.name
+#: components/cook-again.tsx
+msgid "Plan {0}"
+msgstr "Plan {0}"
 
 #: app/layout.tsx
 msgid "Plan the week's dinners, keep recipes, and get one grocery list."
@@ -700,6 +771,10 @@ msgstr "Plan the week's dinners, keep recipes, and get one grocery list."
 #: app/recipes/[id]/page.tsx
 msgid "Planned for {plannedDays}."
 msgstr "Planned for {plannedDays}."
+
+#: app/recipes/page.tsx
+msgid "Planned longest ago"
+msgstr "Planned longest ago"
 
 #: components/recipe-form.tsx
 msgid "Prep time (min)"
@@ -844,6 +919,10 @@ msgstr "Serves {servings}"
 msgid "Show what {label} combines"
 msgstr "Show what {label} combines"
 
+#: app/recipes/page.tsx
+msgid "Sort"
+msgstr "Sort"
+
 #: app/recipes/[id]/page.tsx
 msgid "source"
 msgstr "source"
@@ -894,6 +973,10 @@ msgstr "That address is not a picture."
 #: lib/recipe-import/messages.ts
 msgid "That address is not a web page."
 msgstr "That address is not a web page."
+
+#: components/cook-again.tsx
+msgid "That day has been planned in the meantime. Pick another day."
+msgstr "That day has been planned in the meantime. Pick another day."
 
 #: lib/access-pages.ts
 msgid "That link is not valid. Print the current one with {COMMAND}."

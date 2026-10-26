@@ -87,7 +87,9 @@ test.describe("recipe detail", () => {
     const card = page.getByRole("link").filter({ has: page.getByRole("heading", { name, exact: true }) });
     // Only the next day from today on, not a count: the earlier Tuesday of 2027 and not the 2024 one.
     await expect(card).toContainText("Serves 2 · 2 ingredients · next Tue 4 May");
-    await expect(card).not.toContainText("planned");
+    // The card also says when it was last planned (the 2024 day), but never counts the upcoming days.
+    await expect(card).toContainText(/last planned \d+ years ago/);
+    await expect(card).not.toContainText(/planned \d+ times|planned for/i);
   });
 
   test("a recipe planned for today shows today as its next day", async ({ page }) => {

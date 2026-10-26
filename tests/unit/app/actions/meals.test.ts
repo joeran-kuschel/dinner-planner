@@ -6,7 +6,15 @@ import { addDays, dayKey, parseDayKey, startOfWeek, weekDays } from "@/lib/week"
 import { formData } from "@/tests/support/db";
 import { expectRedirect } from "@/tests/support/next";
 import { deleteRecipe } from "@/app/actions/recipes";
-import { clearPlannedMeal, clearWeek, restorePlannedMeal, setLeftovers, setPlannedMeal } from "@/app/actions/meals";
+import {
+  clearPlannedMeal,
+  clearWeek,
+  planFreeDay,
+  planFreeDayFromForm,
+  restorePlannedMeal,
+  setLeftovers,
+  setPlannedMeal,
+} from "@/app/actions/meals";
 
 // A fixed Monday, so the tests never depend on the real clock.
 const MONDAY = parseDayKey("2026-09-28")!;
@@ -660,5 +668,88 @@ describe("leftovers", () => {
 
     expect(result).toBe("occupied");
     expect(await mealOn(TUESDAY)).toMatchObject({ customTitle: null, leftoversOf: MONDAY });
+  });
+});
+
+describe("planFreeDay (Cook again)", () => {
+  const plan = (fields: Record<string, string>) => planFreeDay(formData(fields));
+
+  it("plans the recipe by its id on a free day, for two people by default, and refreshes the plan", async () => {
+    const recipe = await createRecipe("Pasta");
+
+    expect(await plan({ day: dayKey(WEDNESDAY), recipeId: recipe.id })).toBe("planned");
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ recipeId: recipe.id, customTitle: null, servings: 2, notes: null });
+    expectMealViewsRevalidated();
+  });
+
+  it("plans the picked recipe even when it was renamed meanwhile, since no name is posted", async () => {
+    const recipe = await createRecipe("Pasta");
+    await prisma.recipe.update({ where: { id: recipe.id }, data: { name: "Pasta al forno" } });
+    await createRecipe("Pasta");
+
+    await plan({ day: dayKey(WEDNESDAY), recipeId: recipe.id });
+
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(recipe.id);
+  });
+
+  it.each([
+    ["a recipe", { recipeId: "set" }],
+    ["a one-off dinner", { customTitle: "Eating out" }],
+  ])("leaves a day alone that was planned meanwhile with %s: servings and note stay", async (_what, data) => {
+    const recipe = await createRecipe("Pasta");
+    const other = await createRecipe("Other");
+    await prisma.plannedMeal.create({
+      data: { date: WEDNESDAY, servings: 5, notes: "Guests", ...("recipeId" in data ? { recipeId: other.id } : data) },
+    });
+    vi.mocked(revalidatePath).mockClear();
+
+    expect(await plan({ day: dayKey(WEDNESDAY), recipeId: recipe.id })).toBe("occupied");
+
+    expect(await mealOn(WEDNESDAY)).toMatchObject({ servings: 5, notes: "Guests" });
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe("recipeId" in data ? other.id : null);
+    // The page is told what the day holds now.
+    expectMealViewsRevalidated();
+  });
+
+  it("leaves a leftovers day alone", async () => {
+    const recipe = await createRecipe("Pasta");
+    const dinner = await createRecipe("Stew");
+    await prisma.plannedMeal.create({ data: { date: MONDAY, recipeId: dinner.id } });
+    await prisma.plannedMeal.create({ data: { date: WEDNESDAY, leftoversOf: MONDAY } });
+
+    expect(await plan({ day: dayKey(WEDNESDAY), recipeId: recipe.id })).toBe("occupied");
+    expect((await mealOn(WEDNESDAY))?.leftoversOf).toEqual(MONDAY);
+  });
+
+  it("counts an empty row as a free day", async () => {
+    const recipe = await createRecipe("Pasta");
+    await prisma.plannedMeal.create({ data: { date: WEDNESDAY } });
+
+    expect(await plan({ day: dayKey(WEDNESDAY), recipeId: recipe.id })).toBe("planned");
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(recipe.id);
+  });
+
+  it("throws for a recipe that is gone, a missing recipe and a missing or malformed day, and writes nothing", async () => {
+    const recipe = await createRecipe("Pasta");
+    await expect(plan({ day: dayKey(WEDNESDAY), recipeId: "gone" })).rejects.toThrow("unknown `recipeId`");
+    await expect(plan({ day: "not-a-day", recipeId: recipe.id })).rejects.toThrow("planFreeDay: missing or malformed `day`");
+    await expect(plan({ recipeId: recipe.id })).rejects.toThrow("missing or malformed `day`");
+    expect(await mealOn(WEDNESDAY)).toBeNull();
+  });
+
+  it("throws without a recipe instead of reading it as 'clear this day'", async () => {
+    await prisma.plannedMeal.create({ data: { date: WEDNESDAY, customTitle: "Eating out" } });
+    await expect(plan({ day: dayKey(WEDNESDAY) })).rejects.toThrow("planFreeDay: missing `recipeId`");
+    expect(await mealOn(WEDNESDAY)).not.toBeNull();
+  });
+
+  it("is the same through the plain form's action, which returns nothing", async () => {
+    const recipe = await createRecipe("Pasta");
+    expect(await planFreeDayFromForm(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id }))).toBeUndefined();
+    expect((await mealOn(WEDNESDAY))?.recipeId).toBe(recipe.id);
+
+    await planFreeDayFromForm(formData({ day: dayKey(WEDNESDAY), recipeId: recipe.id }));
+    expect(await prisma.plannedMeal.count()).toBe(1);
   });
 });

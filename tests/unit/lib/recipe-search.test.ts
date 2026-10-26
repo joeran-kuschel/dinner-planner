@@ -11,22 +11,58 @@ import {
   type RecipeSearch,
 } from "@/lib/recipe-search";
 
+describe("readRecipeSearch: favorites and sort", () => {
+  it("reads fav=1 as the favorites filter and anything else as off", () => {
+    expect(readRecipeSearch({ fav: "1" }).favorites).toBe(true);
+    for (const fav of ["0", "true", "", "yes", ["1", "2"]]) expect(readRecipeSearch({ fav }).favorites).toBe(false);
+    expect(readRecipeSearch({}).favorites).toBe(false);
+  });
+
+  it("reads sort=planned and falls back to the name order for anything else", () => {
+    expect(readRecipeSearch({ sort: "planned" }).sort).toBe("planned");
+    for (const sort of ["name", "", "newest", "PLANNED", ["planned", "name"]]) expect(readRecipeSearch({ sort }).sort).toBe("name");
+  });
+
+  it("drops NUL characters from them too", () => {
+    expect(readRecipeSearch({ fav: "1\u0000" }).favorites).toBe(true);
+    expect(readRecipeSearch({ sort: "plan\u0000ned" }).sort).toBe("planned");
+  });
+});
+
+describe("recipeSearchWhere: favorites", () => {
+  it("finds only the favorites, and together with the other filters", async () => {
+    const a = await prisma.recipe.create({ data: { name: "Aaa dal", favorite: true, tags: { connectOrCreate: { where: { name: "quick" }, create: { name: "quick" } } } } });
+    await prisma.recipe.create({ data: { name: "Bbb dal", favorite: false, tags: { connect: { name: "quick" } } } });
+    await prisma.recipe.create({ data: { name: "Ccc stew", favorite: true } });
+
+    expect(await find({ favorites: true })).toEqual(["Aaa dal", "Ccc stew"]);
+    expect(await find({ favorites: false })).toEqual(["Aaa dal", "Bbb dal", "Ccc stew"]);
+    expect(await find({ favorites: true, tags: ["quick"] })).toEqual(["Aaa dal"]);
+    expect(await find({ favorites: true, text: "dal" })).toEqual(["Aaa dal"]);
+    expect(a.favorite).toBe(true);
+  });
+});
+
 describe("readRecipeSearch", () => {
   it("reads the word and the tags from the address parameters", () => {
     expect(readRecipeSearch({ q: "  lentil ", tag: ["Quick", "vegan"] })).toEqual({
       text: "lentil",
       tags: ["quick", "vegan"],
+      favorites: false,
+      sort: "name",
     });
   });
 
   it("accepts a single tag, which is a string rather than a list", () => {
-    expect(readRecipeSearch({ tag: "Quick" })).toEqual({ text: "", tags: ["quick"] });
+    expect(readRecipeSearch({ tag: "Quick" })).toEqual({ text: "", tags: ["quick"], favorites: false, sort: "name" });
   });
 
   it("drops NUL characters, which Postgres refuses, instead of failing", () => {
     expect(readRecipeSearch({ q: "le\u0000ntil", tag: ["qu\u0000ick", "\u0000"] })).toEqual({
       text: "lentil",
       tags: ["quick"],
+      favorites: false,
+      sort: "name",
     });
   });
 
@@ -47,8 +83,10 @@ describe("readRecipeSearch", () => {
     expect(readRecipeSearch({ q: ["a", "b"], tag: ["quick", "Quick ", "", "  "] })).toEqual({
       text: "",
       tags: ["quick"],
+      favorites: false,
+      sort: "name",
     });
-    expect(readRecipeSearch({})).toEqual({ text: "", tags: [] });
+    expect(readRecipeSearch({})).toEqual({ text: "", tags: [], favorites: false, sort: "name" });
   });
 });
 
@@ -64,7 +102,7 @@ async function seed(name: string, tags: string[], ingredients: string[] = []) {
 
 async function find(search: Partial<RecipeSearch>): Promise<string[]> {
   const recipes = await prisma.recipe.findMany({
-    where: recipeSearchWhere({ text: "", tags: [], ...search }),
+    where: recipeSearchWhere({ text: "", tags: [], favorites: false, sort: "name", ...search }),
     orderBy: { name: "asc" },
   });
   return recipes.map((recipe) => recipe.name);
@@ -266,19 +304,33 @@ describe("searchTerms", () => {
 
 describe("recipeListHref and recipeHref", () => {
   it("build plain addresses when nothing filters", () => {
-    expect(recipeListHref({ text: "", tags: [] })).toBe("/recipes");
-    expect(recipeHref("abc", { text: "", tags: [] })).toBe("/recipes/abc");
+    expect(recipeListHref({ text: "", tags: [], favorites: false, sort: "name" })).toBe("/recipes");
+    expect(recipeHref("abc", { text: "", tags: [], favorites: false, sort: "name" })).toBe("/recipes/abc");
   });
 
   it("carry the word and every tag, encoded", () => {
-    const search = { text: "mac & cheese", tags: ["quick", "tex mex"] };
+    const search = { text: "mac & cheese", tags: ["quick", "tex mex"], favorites: false, sort: "name" as const };
     expect(recipeListHref(search)).toBe("/recipes?q=mac+%26+cheese&tag=quick&tag=tex+mex");
     expect(recipeHref("abc", search)).toBe("/recipes/abc?q=mac+%26+cheese&tag=quick&tag=tex+mex");
   });
 
   it("round-trip through readRecipeSearch", () => {
-    const search = { text: "ü & %", tags: ["quick", "tex mex"] };
+    const search = { text: "ü & %", tags: ["quick", "tex mex"], favorites: true, sort: "planned" as const };
     const params = new URLSearchParams(recipeListHref(search).split("?")[1]);
-    expect(readRecipeSearch({ q: params.get("q") ?? undefined, tag: params.getAll("tag") })).toEqual(search);
+    expect(
+      readRecipeSearch({
+        q: params.get("q") ?? undefined,
+        tag: params.getAll("tag"),
+        fav: params.get("fav") ?? undefined,
+        sort: params.get("sort") ?? undefined,
+      }),
+    ).toEqual(search);
+  });
+
+  it("carry the favorites filter and the sort only when they are set", () => {
+    const base = { text: "", tags: [] as string[] };
+    expect(recipeListHref({ ...base, favorites: true, sort: "name" })).toBe("/recipes?fav=1");
+    expect(recipeListHref({ ...base, favorites: false, sort: "planned" })).toBe("/recipes?sort=planned");
+    expect(recipeHref("abc", { ...base, favorites: true, sort: "planned" })).toBe("/recipes/abc?fav=1&sort=planned");
   });
 });

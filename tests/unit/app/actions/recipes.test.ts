@@ -8,7 +8,7 @@ import { formData } from "@/tests/support/db";
 import { asFile, testImage } from "@/tests/support/images";
 import { testI18n } from "@/tests/support/i18n";
 import { expectRedirect, RedirectError } from "@/tests/support/next";
-import { createRecipe, deleteRecipe, updateRecipe } from "@/app/actions/recipes";
+import { createRecipe, deleteRecipe, setRecipeFavorite, updateRecipe } from "@/app/actions/recipes";
 
 const MONDAY = parseDayKey("2026-09-28")!;
 
@@ -919,5 +919,46 @@ describe("Save and leave: where a saved recipe goes", () => {
 
     expect(state.error).not.toBeNull();
     expect(await prisma.recipe.count()).toBe(0);
+  });
+});
+
+describe("setRecipeFavorite", () => {
+  const favorite = async (id: string) => (await prisma.recipe.findUniqueOrThrow({ where: { id } })).favorite;
+
+  it("marks a recipe as a favorite and takes the mark off, and refreshes the plan, the list and the recipe", async () => {
+    const recipe = await prisma.recipe.create({ data: { name: "Soup" } });
+    expect(await favorite(recipe.id)).toBe(false);
+
+    vi.mocked(revalidatePath).mockClear();
+    await setRecipeFavorite(formData({ id: recipe.id, favorite: "true" }));
+    expect(await favorite(recipe.id)).toBe(true);
+    expect(vi.mocked(revalidatePath).mock.calls.map(([path]) => path)).toEqual(expect.arrayContaining(["/", "/recipes", `/recipes/${recipe.id}`]));
+
+    await setRecipeFavorite(formData({ id: recipe.id, favorite: "false" }));
+    expect(await favorite(recipe.id)).toBe(false);
+  });
+
+  it.each([["missing", {}], ["empty", { favorite: "" }], ["TRUE", { favorite: "TRUE" }], ["1", { favorite: "1" }], ["on", { favorite: "on" }]])(
+    "takes %s as not a favorite: only the exact word true marks one",
+    async (_what, fields) => {
+      const recipe = await prisma.recipe.create({ data: { name: "Soup", favorite: true } });
+      await setRecipeFavorite(formData({ id: recipe.id, ...fields }));
+      expect(await favorite(recipe.id)).toBe(false);
+    },
+  );
+
+  it("changes only the given recipe and nothing else about it", async () => {
+    const one = await prisma.recipe.create({ data: { name: "One", servings: 5, description: "d" } });
+    const two = await prisma.recipe.create({ data: { name: "Two" } });
+
+    await setRecipeFavorite(formData({ id: one.id, favorite: "true" }));
+
+    expect(await favorite(two.id)).toBe(false);
+    expect(await prisma.recipe.findUniqueOrThrow({ where: { id: one.id } })).toMatchObject({ name: "One", servings: 5, description: "d" });
+  });
+
+  it("is no error for a recipe deleted in another tab, but a missing id throws", async () => {
+    await expect(setRecipeFavorite(formData({ id: "gone", favorite: "true" }))).resolves.toBeUndefined();
+    await expect(setRecipeFavorite(formData({ favorite: "true" }))).rejects.toThrow("missing `id`");
   });
 });

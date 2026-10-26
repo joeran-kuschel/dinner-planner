@@ -275,6 +275,21 @@ export async function deleteRecipe(formData: FormData) {
   redirect("/recipes");
 }
 
+/**
+ * Mark a recipe as a favorite, or take the mark off (`favorite=true` or `false`). A favorite is ranked first in the
+ * dinner suggestions and in "Cook again". A recipe deleted in another tab is not an error.
+ */
+export async function setRecipeFavorite(formData: FormData) {
+  await requireAccess();
+  const id = rawText(formData.get("id")).trim();
+  if (!id) throw new Error("setRecipeFavorite: missing `id`");
+  const favorite = rawText(formData.get("favorite")).trim() === "true";
+
+  await prisma.recipe.updateMany({ where: { id }, data: { favorite } });
+  revalidateRecipeViews();
+  revalidatePath(`/recipes/${id}`);
+}
+
 /** Recipes feed the week view and the grocery list as well as their own pages. */
 function revalidateRecipeViews() {
   revalidatePath("/");
