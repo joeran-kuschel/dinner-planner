@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "docs:screenshots": "playwright test --config playwright.screenshots.config.ts",
     "check": "tsx scripts/check.ts",
     "db:up": "tsx scripts/ensure-env.ts && docker compose up -d --wait db",
     "db:down": "docker compose down",

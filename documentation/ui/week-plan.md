@@ -5,6 +5,8 @@ people it is for, an optional note, and a button to clear the day. Everything sa
 
 The labels below are the English ones; see [Language](language.md) for the German interface.
 
+![The week plan on a wide screen: a card for each day from Monday to Sunday with the dinner field, servings and note, today highlighted, and the Cook again column to the right of the list.](../images/week-plan.webp)
+
 ## Moving between weeks
 
 **←** and **→** above the list open the week before and after, and **This week** returns to the current one; screen
@@ -56,6 +58,10 @@ Exceptions, where nothing is planned from the half-typed text:
   field is left for real.
 
 ## Suggestions, favorites and Cook again
+
+![The Cook again column: favorites and recipes not planned for a while, each with a line saying when it was last planned, a choice of the week's free days and a Plan button.](../images/cook-again.webp)
+
+![The week plan on a phone, narrow and long: the days come first and the Cook again section sits below them.](../images/week-plan-phone.webp)
 
 **In the dinner field.** An empty field (a click or the arrow key on a day with nothing typed) lists the recipes ranked: the
 [favorites](recipes.md#favorites-and-when-a-recipe-was-last-planned) first, then by the longest time since a recipe was planned, a recipe
@@ -116,6 +122,8 @@ message below, and "Saving…" gives way to it at once (never both at the same t
   an older one that finishes late neither confirms nor blames what the user has since changed.
 
 ## Leftovers
+
+![The Leftovers dialog for a Friday: the earlier dinners of the week to choose from, with Chickpea curry selected, and Cancel and Save buttons.](../images/leftovers-dialog.webp)
 
 A day can be the rest of an earlier dinner. On an **empty** day, **Leftovers** sits below the dinner field. (A day that
 already has a dinner does not offer it: leftovers never replace one. Clear the day first.) It opens a dialog "Leftovers
