@@ -101,14 +101,16 @@ Creating and editing use the same form.
 - **Serves** is the number of people the ingredient amounts are for. The grocery list scales them to the servings
   planned for each day.
 - **Prep time (min)** is how many minutes the recipe takes.
-- **Ingredients** are rows of amount, unit, name and category, with the column names above them (on a phone each
-  field has its own small name above it). Leave the amount blank for "to taste"; the note under the heading says so, and
+- **Ingredients** are rows of amount, unit, name and category, with the column names above them from 1024 px (`lg`). On a narrower screen there is no column
+  heading: each field has its own small name above it, and a row wraps as far as it must (one line on a tablet, up to four on the
+  narrowest phone). Leave the amount blank for "to taste"; the note under the heading says so, and
   screen readers read it with every amount field.
   - **Unit** suggests the common ones (g, kg, ml, l, EL, TL, tbsp, tsp, cup, piece, pinch, clove) and every other unit your recipes
     already use (the common ones in the page's language, except "EL" and "TL", which are offered in both languages and
     listed once in German; the grocery list does not merge "EL" with "tbsp" or "TL" with "tsp"), so "g" and "grams" do not end up as two lines on the grocery list. You can still type any unit.
   - The **category** (the section of the shop, "Other" by default) decides where the ingredient sits on the
-    [grocery list](groceries.md); screen readers hear it as "Category for ingredient 2".
+    [grocery list](groceries.md); screen readers hear it as "Category for ingredient 2". Its column is 15 rem wide, enough for
+    the longest name in both languages ("Milchprodukte und Eier"); `tests/e2e/ingredient-category.spec.ts` checks that every name fits.
   - **Enter** in an amount, unit or name field jumps to the first field of the next row, and after the last row it adds
     one. Enter in a row with nothing in it saves the recipe, so the keyboard never gets stuck in the list.
   - **Add ingredient** adds a row, ✕ removes one (the last row stays).
