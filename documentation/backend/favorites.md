@@ -24,7 +24,8 @@ drop the keyboard focus) while the save runs.
 
 - `rankForSuggestion()` (an empty dinner field): favorites first, then by `daysSince` descending, a recipe never planned or not known after those planned, in each
   group; equal ones keep the given order (the pages hand the recipes over sorted by name).
-- `sortByLongestAgo()` (the list's **Planned longest ago**): the same without the favorites rule.
+- `sortByLongestAgo()` (the list's **Planned longest ago**): the recipes never planned (or not known) first, then by `daysSince` descending, without the favorites rule; `sortByMostRecent()`
+  (**Planned most recently**): by `daysSince` ascending, the recipes never planned last. Equal ones keep the given order in both. The two ranks above put a recipe never planned last for the suggestions: a day to plan, not a list to browse.
 - `cookAgainSuggestions()`: the recipes not in the week shown, without a tag in `COOK_AGAIN_EXCLUDED_TAGS` (compared as tags are stored, `normalizeTag`), and due
   (`COOK_AGAIN_AFTER_DAYS`, 14 days, or never), ranked, at most `COOK_AGAIN_LIMIT` (5).
 - `plannedAgoText()` and `activityHint()`: "last planned today / yesterday / N days / weeks / months / years ago", "never planned", and "Favorite · …". Weeks from 14 days,
@@ -41,5 +42,10 @@ plans landing within the same few milliseconds could still collide; that window 
 
 ## The list
 
-`RecipeSearch` has `favorites` (`?fav=1`) and `sort` (`?sort=planned`): read by `readRecipeSearch()` (anything but `1` and `planned` means off and by name), written by
-`recipeListHref()` and `recipeHref()`, and `recipeSearchWhere()` adds `favorite: true`. The sort is done after the query, since it needs the planned days.
+`RecipeSearch` has `favorites` (`?fav=1`) and `sort`, one of `RECIPE_SORTS` in `lib/recipe-sort.ts` (client-safe, with the labels): `name` (the default, left out of the address), `newest`, `planned` and `recent`.
+`readRecipeSearch()` reads them (anything but `1` means no favorites filter, an unknown sort means by name); the address is written by `recipeListHref()` and `recipeHref()` (`lib/recipe-search-url.ts`, client-safe, re-exported from
+`lib/recipe-search.ts`), and `recipeSearchWhere()` adds `favorite: true`. `name` and `newest` (`createdAt` descending, then by name) are the query's `orderBy`; `planned` and `recent` are done after it, since they need the planned days.
+
+`components/recipe-sort-select.tsx` is the select, a client component: a change moves the address with `router.replace` (a sort is no history entry: the back button leaves the list) to the search the page shows, so the filter, the
+tags and the text are kept (what is typed but not searched yet stays in the box), and a polite status announces it. It follows the address when that changes by itself (the **Clear** link). It is named `sort` and sits in the search form, so the
+**Search** button sends it without JavaScript.

@@ -9,6 +9,7 @@ import {
   plannedAgoText,
   rankForSuggestion,
   sortByLongestAgo,
+  sortByMostRecent,
 } from "@/lib/cook-again";
 import { testI18n } from "@/tests/support/i18n";
 
@@ -66,13 +67,38 @@ describe("rankForSuggestion", () => {
 });
 
 describe("sortByLongestAgo", () => {
-  it("is the recipes planned longest ago first, never planned last, favorites not first", () => {
+  it("is the recipes never planned first, then the one planned longest ago, favorites not first", () => {
     expect(sortByLongestAgo([r("fav", true, 3), r("old", false, 50), r("never", false, null), r("mid", false, 9)]).map((x) => x.name)).toEqual([
+      "never",
       "old",
       "mid",
       "fav",
+    ]);
+  });
+
+  it("keeps the given order for recipes planned equally long ago, and for those never planned", () => {
+    expect(sortByLongestAgo([r("b", false, null), r("a", false, 4), r("c", false, null), r("d", false, 4)]).map((x) => x.name)).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("does not change what it is given, and treats a recipe whose activity is not known as never planned", () => {
+    const input: { name: string; daysSince?: number | null }[] = [{ name: "a", daysSince: 2 }, { name: "unknown" }];
+    expect(sortByLongestAgo(input).map((x) => x.name)).toEqual(["unknown", "a"]);
+    expect(input.map((x) => x.name)).toEqual(["a", "unknown"]);
+  });
+});
+
+describe("sortByMostRecent", () => {
+  it("is the recipe planned most recently first, the ones never planned last", () => {
+    expect(sortByMostRecent([r("old", false, 50), r("never", false, null), r("new", false, 2), r("mid", true, 9)]).map((x) => x.name)).toEqual([
+      "new",
+      "mid",
+      "old",
       "never",
     ]);
+  });
+
+  it("keeps the given order for recipes planned on the same day, and for those never planned", () => {
+    expect(sortByMostRecent([r("b", false, null), r("a", false, 4), r("c", false, null), r("d", false, 4)]).map((x) => x.name)).toEqual(["a", "d", "b", "c"]);
   });
 });
 

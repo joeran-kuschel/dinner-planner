@@ -58,6 +58,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- The recipe list's sort now works at once: choosing an order re-sorts the list without pressing Search, and keeps the favorites filter, the tags and the search text. There are four orders: name, newest first, planned longest ago (recipes never planned come first) and planned most recently; it was two before and seemed to do nothing unless Favorites only was used ([#101](https://github.com/joeran-kuschel/dinner-planner/issues/101)).
 - The category of an ingredient in the recipe form shows its full name ("Fruit and vegetables", "Milchprodukte und Eier") instead of cutting it off; on a screen narrower than 1024 px each field names itself and a row wraps when it must ([#99](https://github.com/joeran-kuschel/dinner-planner/issues/99)).
 - Adding a recipe from a link now also finds the recipe on some pages whose recipe data was not read before.
 - The grocery list's text box ("The list as text", shown when copying is not possible) can be closed again with a Close button or Escape, and has a small copy button in its corner that copies, or selects the text for you to copy by hand where the browser has no clipboard ([#60](https://github.com/joeran-kuschel/dinner-planner/issues/60)).

@@ -7,6 +7,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { SearchTerm } from "@/lib/recipe-search-terms";
 import { rawText } from "@/lib/form-data";
+import { parseRecipeSort, type RecipeSort } from "@/lib/recipe-sort";
 import { MAX_TAG_LENGTH, MAX_TAGS, normalizeTag } from "@/lib/tags";
 
 /** The longest search word read from the address. */
@@ -19,11 +20,13 @@ export type RecipeSearch = {
   tags: string[];
   /** Only the recipes marked as favorites. */
   favorites: boolean;
-  /** The order of the list: by name, or the recipes planned longest ago first. */
+  /** The order of the list (`lib/recipe-sort.ts`). */
   sort: RecipeSort;
 };
 
-export type RecipeSort = "name" | "planned";
+export type { RecipeSort };
+// The address half of the search is client-safe and lives next to it; these keep the old import path.
+export { recipeHref, recipeListHref } from "@/lib/recipe-search-url";
 
 /** The search as the list's address carries it (`?q=…&tag=…&tag=…`); anything else is ignored. */
 export function readRecipeSearch(params: {
@@ -42,26 +45,9 @@ export function readRecipeSearch(params: {
     text: one(params.q).trim().slice(0, MAX_SEARCH_LENGTH),
     tags: [...new Set(tags)].slice(0, MAX_TAGS),
     favorites: one(params.fav) === "1",
-    sort: one(params.sort) === "planned" ? "planned" : "name",
+    sort: parseRecipeSort(one(params.sort)),
   };
 }
-
-/** The search as address parameters (`?q=…&tag=…`), empty when nothing filters. Encoded, so safe in an `href`. */
-function searchQuery({ text, tags, favorites, sort }: RecipeSearch): string {
-  const params = new URLSearchParams();
-  if (text) params.set("q", text);
-  for (const tag of tags) params.append("tag", tag);
-  if (favorites) params.set("fav", "1");
-  if (sort === "planned") params.set("sort", "planned");
-  const query = params.toString();
-  return query ? `?${query}` : "";
-}
-
-/** The recipe list filtered by a search: where "Back to recipes" leads. */
-export const recipeListHref = (search: RecipeSearch) => `/recipes${searchQuery(search)}`;
-
-/** A recipe's page, carrying the search it was opened from, so the way back keeps the filter. */
-export const recipeHref = (id: string, search: RecipeSearch) => `/recipes/${id}${searchQuery(search)}`;
 
 /**
  * The words of a search text: split on spaces and commas, a phrase in double quotes kept whole.
