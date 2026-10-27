@@ -18,9 +18,10 @@ describe("readRecipeSearch: favorites and sort", () => {
     expect(readRecipeSearch({}).favorites).toBe(false);
   });
 
-  it("reads sort=planned and falls back to the name order for anything else", () => {
-    expect(readRecipeSearch({ sort: "planned" }).sort).toBe("planned");
-    for (const sort of ["name", "", "newest", "PLANNED", ["planned", "name"]]) expect(readRecipeSearch({ sort }).sort).toBe("name");
+  it("reads the four sorts and falls back to the name order for anything else", () => {
+    for (const sort of ["name", "newest", "planned", "recent"] as const) expect(readRecipeSearch({ sort }).sort).toBe(sort);
+    for (const sort of ["", "quick", "PLANNED", "oldest", ["planned", "name"]]) expect(readRecipeSearch({ sort }).sort).toBe("name");
+    expect(readRecipeSearch({}).sort).toBe("name");
   });
 
   it("drops NUL characters from them too", () => {
@@ -332,5 +333,11 @@ describe("recipeListHref and recipeHref", () => {
     expect(recipeListHref({ ...base, favorites: true, sort: "name" })).toBe("/recipes?fav=1");
     expect(recipeListHref({ ...base, favorites: false, sort: "planned" })).toBe("/recipes?sort=planned");
     expect(recipeHref("abc", { ...base, favorites: true, sort: "planned" })).toBe("/recipes/abc?fav=1&sort=planned");
+    expect(recipeListHref({ ...base, favorites: false, sort: "newest" })).toBe("/recipes?sort=newest");
+    expect(recipeListHref({ ...base, favorites: false, sort: "recent" })).toBe("/recipes?sort=recent");
+  });
+
+  it("leave the default sort, the name order, out of the address", () => {
+    expect(recipeListHref({ text: "gin", tags: ["quick"], favorites: true, sort: "name" })).toBe("/recipes?q=gin&tag=quick&fav=1");
   });
 });

@@ -12,7 +12,8 @@ import { PHOTO_THUMB_HEIGHT, PHOTO_THUMB_WIDTH } from "@/lib/recipe-photo-shared
 import { recipeFacts } from "@/lib/recipe-facts";
 import { FavoriteButton } from "@/components/favorite-button";
 import { StarIcon } from "@/components/star-icon";
-import { plannedAgoText, sortByLongestAgo } from "@/lib/cook-again";
+import { plannedAgoText, sortByLongestAgo, sortByMostRecent } from "@/lib/cook-again";
+import { RecipeSortSelect } from "@/components/recipe-sort-select";
 import { daysSinceLastPlanned } from "@/lib/recipe-activity";
 import { getServerI18n } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
@@ -34,7 +35,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
   const [recipes, totalCount, allTags, terms] = await Promise.all([
     prisma.recipe.findMany({
       where: recipeSearchWhere(search),
-      orderBy: { name: "asc" },
+      orderBy: search.sort === "newest" ? [{ createdAt: "desc" }, { name: "asc" }] : { name: "asc" },
       include: {
         _count: { select: { ingredients: true } },
         // The next day it is planned for, today included.
@@ -52,7 +53,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
   // When each was last planned: a line on each card, and what "longest ago" sorts by.
   const sinceByRecipe = await daysSinceLastPlanned(today());
   const shown = recipes.map((recipe) => ({ ...recipe, daysSince: sinceByRecipe.get(recipe.id) ?? null }));
-  const listed = search.sort === "planned" ? sortByLongestAgo(shown) : shown;
+  const listed = search.sort === "planned" ? sortByLongestAgo(shown) : search.sort === "recent" ? sortByMostRecent(shown) : shown;
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,15 +120,16 @@ function RecipeSearchForm({
   const filterTags = [...new Set([...tags, ...search.tags])].sort();
   return (
     <form role="search" action="/recipes" className="card flex flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-end gap-2">
+      {/* The buttons start 1.25rem down, level with the box: it has a label above it (and a hint below, which would pull them down). */}
+      <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-48 flex-1">
           <RecipeSearchBox initial={search.text} terms={terms} />
         </div>
-        <button type="submit" className="btn-primary">
+        <button type="submit" className="btn-primary mt-5">
           {t(i18n)`Search`}
         </button>
         {searching && (
-          <Link href="/recipes" className="btn-ghost">
+          <Link href="/recipes" className="btn-ghost sm:mt-5">
             {t(i18n)`Clear`}
           </Link>
         )}
@@ -145,13 +147,7 @@ function RecipeSearchForm({
           <StarIcon filled={search.favorites} size={18} />
           {t(i18n)`Favorites only`}
         </button>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="label">{t(i18n)`Sort`}</span>
-          <select name="sort" defaultValue={search.sort} className="field w-auto">
-            <option value="name">{t(i18n)`By name`}</option>
-            <option value="planned">{t(i18n)`Planned longest ago`}</option>
-          </select>
-        </label>
+        <RecipeSortSelect search={search} />
       </div>
 
       {filterTags.length > 0 && (

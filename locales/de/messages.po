@@ -169,10 +169,6 @@ msgstr "Zurück zum Plan"
 msgid "Bakery"
 msgstr "Backwaren"
 
-#: app/recipes/page.tsx
-msgid "By name"
-msgstr "Nach Name"
-
 #: components/confirm-action.tsx
 #: components/import-recipe-dialog.tsx
 #: components/leftovers-dialog.tsx
@@ -602,6 +598,10 @@ msgstr "Pilzrisotto"
 msgid "Name"
 msgstr "Name"
 
+#: lib/recipe-sort.ts
+msgid "Name (A–Z)"
+msgstr "Name (A–Z)"
+
 #: components/recipe-form.tsx
 msgid "Name of ingredient {number}"
 msgstr "Name von Zutat {number}"
@@ -618,6 +618,10 @@ msgstr "noch nie geplant"
 #: app/recipes/page.tsx
 msgid "New recipe"
 msgstr "Neues Rezept"
+
+#: lib/recipe-sort.ts
+msgid "Newest first"
+msgstr "Neueste zuerst"
 
 #: lib/recipe-facts.ts
 msgid "next {nextPlanned}"
@@ -772,9 +776,13 @@ msgstr "Plane die Abendessen der Woche, sammle Rezepte und bekomme eine gemeinsa
 msgid "Planned for {plannedDays}."
 msgstr "Geplant: {plannedDays}"
 
-#: app/recipes/page.tsx
+#: lib/recipe-sort.ts
 msgid "Planned longest ago"
 msgstr "Am längsten nicht geplant"
+
+#: lib/recipe-sort.ts
+msgid "Planned most recently"
+msgstr "Zuletzt geplant"
 
 #: components/recipe-form.tsx
 msgid "Prep time (min)"
@@ -919,9 +927,14 @@ msgstr "{servings, plural, one {Für # Person} other {Für # Personen}}"
 msgid "Show what {label} combines"
 msgstr "Anzeigen, was {label} zusammenfasst"
 
-#: app/recipes/page.tsx
-msgid "Sort"
-msgstr "Sortierung"
+#: components/recipe-sort-select.tsx
+msgid "Sort by"
+msgstr "Sortieren nach"
+
+#. placeholder {0}: recipeSortLabel(sort, i18n)
+#: components/recipe-sort-select.tsx
+msgid "Sorted by: {0}"
+msgstr "Sortiert nach: {0}"
 
 #: app/recipes/[id]/page.tsx
 msgid "source"

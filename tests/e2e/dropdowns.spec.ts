@@ -13,7 +13,7 @@ const DROPDOWNS: { name: string; open: (page: Page) => Promise<Locator> }[] = [
       // The search and its sort only show once there is a recipe to search.
       await createRecipe(page, { name: unique("Sorted") });
       await page.goto("/recipes");
-      return page.getByRole("combobox", { name: "Sort" });
+      return page.getByRole("combobox", { name: "Sort by" });
     },
   },
   {

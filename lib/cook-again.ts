@@ -42,9 +42,19 @@ export function rankForSuggestion<T extends RecipeActivity>(recipes: readonly T[
 /** How long ago a recipe was planned, for sorting: a recipe never planned (or not known) counts as the least. */
 const ago = (recipe: RecipeActivity) => (typeof recipe.daysSince === "number" ? recipe.daysSince : -1);
 
-/** The recipe list sorted by the longest time since a recipe was planned (a recipe never planned last); equal ones keep their order. */
+/** Days since a recipe was planned for the list's sorts, a recipe never planned (or not known) counting as longer than any. */
+const since = (recipe: RecipeActivity) => (typeof recipe.daysSince === "number" ? recipe.daysSince : Infinity);
+
+const compare = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
+
+/** The recipe list with the recipe planned longest ago first, the ones never planned before all of them; equal ones keep their order. */
 export function sortByLongestAgo<T extends RecipeActivity>(recipes: readonly T[]): T[] {
-  return [...recipes].sort((a, b) => ago(b) - ago(a));
+  return [...recipes].sort((a, b) => compare(since(b), since(a)));
+}
+
+/** The recipe list with the recipe planned most recently first, the ones never planned after all of them; equal ones keep their order. */
+export function sortByMostRecent<T extends RecipeActivity>(recipes: readonly T[]): T[] {
+  return [...recipes].sort((a, b) => compare(since(a), since(b)));
 }
 
 /**

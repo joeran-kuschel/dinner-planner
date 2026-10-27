@@ -82,11 +82,10 @@ test.describe("favorites", () => {
     await expect(page).not.toHaveURL(/fav=/);
     await expect(page.getByRole("heading", { level: 2, name: a })).toBeVisible();
 
-    // The longest ago first, never planned after it.
-    await page.getByLabel("Sort").selectOption("planned");
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    // Never planned first, then the longest ago; a choice applies at once (recipe-sort.spec.ts covers the rest of the sort).
+    await page.getByLabel("Sort by").selectOption("planned");
     await expect(page).toHaveURL(/sort=planned/);
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText([b, a, c]);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText([a, c, b]);
   });
 
   test("the way back from a recipe keeps the favorites filter and the sort", async ({ page }) => {

@@ -67,9 +67,13 @@ when it is off and filled, with an accent tint, when it is on.
   Under the facts the page says when the recipe was last planned ("Last planned 3 weeks ago", "Never planned").
 - **On a card in the list** a round star (44 px) in the corner of the card is the same toggle, named after its recipe ("Favorite
   Chickpea curry"): a list has many. It is beside the card's link, not inside it. Each card also says when its recipe was last planned.
-- **Favorites only** (a button with a star, pressed while it filters) and **Sort** (**By name**, **Planned longest ago**) are part of the
-  search form. They go into the address (`?fav=1&sort=planned`), so the way back from a recipe keeps them, and **Clear** removes the
-  filter. **Planned longest ago** puts the recipes planned longest ago first and those never planned last.
+- **Favorites only** (a button with a star, pressed while it filters) is part of the search form. It goes into the address (`?fav=1`), so the way
+  back from a recipe keeps it, and **Clear** removes it.
+- **Sort by** sits at the right end of the same line, level with the **Search** button above it (on a phone it goes below, with its label above the field). It has four
+  orders: **Name (A–Z)** (the default), **Newest first** (the recipe added last), **Planned longest ago** (the recipes never planned first, then the one planned
+  longest ago) and **Planned most recently** (the recipes never planned last). A choice applies at once: the list is re-ordered in place, the focus stays on the select, a status
+  says "Sorted by: …" to a screen reader, and the filter, the tags and the search text stay. It goes into the address (`?sort=newest`, `planned` or `recent`; the name order
+  is left out), so a link or a reload keeps it. Without JavaScript, the **Search** button sends it.
 
 "Last planned" is the latest day up to today that a recipe was planned for. The app knows what was planned, not what was cooked, so
 every text says "planned". A day planned ahead, a one-off dinner and a leftovers day do not count. German: **Favorit**, **Nur Favoriten**,
