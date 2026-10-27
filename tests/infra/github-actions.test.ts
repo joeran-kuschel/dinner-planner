@@ -91,6 +91,13 @@ describe("the GitHub Actions check", () => {
       expect(tag, `check.yml runs Playwright ${installed} in the image of ${tag}: set the tag to v${installed}-noble and the digest to \`docker buildx imagetools inspect mcr.microsoft.com/playwright:v${installed}-noble\``).toBe(installed);
     });
 
+    it("trusts the workspace for git before the check, since the container's root user is not its owner (the infra tests run `git ls-files`)", () => {
+      const trust = steps.findIndex((step) => step.run?.includes("git config --global --add safe.directory"));
+      expect(steps[trust]?.run).toContain('"$GITHUB_WORKSPACE"');
+      expect(trust).toBeGreaterThan(steps.findIndex((step) => step.uses?.startsWith("actions/checkout")));
+      expect(trust).toBeLessThan(steps.findIndex((step) => step.run === "npm run check"));
+    });
+
     it("runs Chromium the way Playwright advises in a container", () => {
       expect(container.options).toContain("--ipc=host");
       expect(container.options).toContain("--init");

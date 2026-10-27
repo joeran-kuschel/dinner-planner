@@ -58,6 +58,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # The workspace belongs to the runner's user and the container runs as root, so git refuses it ("dubious ownership")
+      # and the infra tests that run `git ls-files` fail. Checkout only trusts it for its own git calls.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       # The image has Node 24 too; this is here for `cache: npm`, which keeps the downloaded packages between runs.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

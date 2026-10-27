@@ -106,7 +106,7 @@ retries and run the check with `docker run`; that was left out because it brings
 **Node.** The image's Node is 24, the same major as `setup-node`'s, which stays for `cache: npm` (the downloaded packages are kept between runs); the Dockerfile test still reads its version.
 
 **The options.** `--ipc=host` (Chromium's shared memory: the container's default `/dev/shm` is 64 MB) and `--init` (stray browser processes are reaped) are
-Playwright's advice for Chromium in a container. The image runs as root, so there is no `sudo`.
+Playwright's advice for Chromium in a container. The image runs as root, so there is no `sudo`, and the workspace (owned by the runner's user) has to be trusted for git before the check (`git config --global --add safe.directory "$GITHUB_WORKSPACE"`): without it git refuses it as "dubious ownership" and the infra tests that run `git ls-files` fail (the first run of this setup did).
 
 To try the image on a Mac: `docker run --rm -it --ipc=host mcr.microsoft.com/playwright:v1.63.0-noble bash`, copy the repository in without `node_modules`, `.next` and `generated`, set
 `DATABASE_URL` to the host's Postgres (`host.docker.internal:5433`) and run `npm ci`, `npm run db:generate` and `npx playwright test`.
