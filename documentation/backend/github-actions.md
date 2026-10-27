@@ -7,14 +7,16 @@ agent runs on the developer's machine, so a green run there and a green run here
 
 ## What the job does
 
-1. Starts a throwaway Postgres as a service container: the image, user, database and host port of `compose.yaml`, with
+1. Runs the job inside Playwright's own image (`container:`, "The browser" below), which has the browser and its system libraries.
+2. Starts a throwaway Postgres as a service container: the image, user and database of `compose.yaml`, with
    a password that exists only on the runner (compose reads its own from `.env`, which a fresh checkout does not
-   have), so the `DATABASE_URL` is `.env.example`'s with that password.
-2. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
-3. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
+   have). The job runs in a container, so the database is reached by the service's name on Postgres's own port: the
+   `DATABASE_URL` is `.env.example`'s, with that password and the host `postgres:5432`.
+3. Installs Node 24 (the version of the Docker image) and the dependencies with `npm ci`.
+4. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
    (`npx next typegen`: the typecheck reads `PageProps` and `LayoutProps` from `.next/types`, which only `next dev` and
-   `next build` write, so a fresh checkout has none), installs Chromium for Playwright ("Installing the browser" below) and runs `npm run check`.
-4. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
+   `next build` write, so a fresh checkout has none) and runs `npm run check`.
+5. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
    `test-results`, kept for 7 days. The check runs Playwright with the line reporter, so there is no HTML report; the
    last lines of any failing stage are in the job log.
 
@@ -22,7 +24,7 @@ A newer push to the same pull request cancels the run in progress; runs on `main
 after 20 minutes.
 
 The actions are pinned to a commit (`uses: …@<sha> # v4`), not to a tag that can move, and checkout does not keep the
-token in `.git/config`. `.github/dependabot.yml` opens a pull request weekly when an action has a new version.
+token in `.git/config`. `.github/dependabot.yml` opens a pull request weekly when an action has a new version. It does not cover the Playwright image ("The browser" below): that one is bumped by hand, with Playwright.
 
 ## Safe for pull requests from forks
 
@@ -77,39 +79,37 @@ The run's summary page shows the stage times as a table with the share of each s
 limit gets a warning annotation (`publishToGitHub()` in `scripts/check-lib.ts`, which does nothing outside GitHub
 Actions). See [testing-check.md](testing-check.md#keeping-an-eye-on-the-time) for the thresholds and what to do about them.
 
-## Installing the browser
+## The browser: Playwright's image
 
-Two steps before `npm run check`.
+The job runs in `mcr.microsoft.com/playwright:v<version>-noble`, Playwright's own image: it has the Chromium that Playwright drives (the very
+revision of that Playwright version, the one `npm run check` uses on a Mac) and every system library it needs. Nothing is installed from apt at run time.
 
-- **The cache.** The downloaded browser (`~/.cache/ms-playwright`, about 150 MB) is kept between runs by `actions/cache`, under a key made of
-  the hash of Playwright's `package.json` (so only a new Playwright version downloads it again). That saves the download, nothing more:
-  the cache is saved when the whole job succeeds, so a run whose check fails downloads again next time, and a pull request's cache
-  is its own (a fork cannot write into the scope that `main` reads).
-- **The install with a limit.** `npx playwright install --with-deps chromium` also installs the browser's system libraries, which comes from
-  apt on every run, since a runner starts empty. That is the part that stalled: on 2026-10-26 one run waited 11 minutes for it (a normal run
-  takes about 25 s), with nothing wrong in the code. So in essence (the real script is in `check.yml`):
+**Why.** Until 2026-10-27 the job ran `npx playwright install --with-deps chromium`, which downloads about 40 packages from Ubuntu's mirror
+on every run, since a runner starts empty. It normally takes 25 s, but it stalled more than once with nothing wrong in the code: on 2026-10-26 one run
+waited 11 minutes, and the `apt-get` that Playwright starts through `sudo` kept the dpkg lock when `timeout` stopped the attempt, so the next attempts failed
+at once ("Could not get lock /var/lib/dpkg/lock-frontend"); on 2026-10-27 all three attempts of 120 s stalled and the run failed before any test. A cache for the
+browser, a timeout with three attempts and a cleanup of the leftover apt (never removing a lock file by hand) made it recover more often, but not reliably
+([#100](https://github.com/joeran-kuschel/dinner-planner/issues/100)). With the image there is no apt, no cache and no retry loop to keep.
 
-  ```bash
-  for attempt in 1 2 3; do
-    timeout --kill-after=10 120 npx playwright install --with-deps chromium && exit 0
-    # a warning on the run, and between attempts: stop the root apt (below), sleep, timeout 30 sudo dpkg --configure -a
-  done
-  exit 1
-  ```
+**The pin.** The image is named by its tag *and* its digest (`…:v1.63.0-noble@sha256:…`), as the actions are pinned to a commit: the pull gets exactly the
+same layers every time. The tag has to be the version of `@playwright/test` in `package.json`, since a browser of another revision would not be the one Playwright
+expects; `tests/infra/github-actions.test.ts` compares the tag with the installed `playwright-core` and says what to set when they differ. **A Playwright upgrade
+therefore needs the image changed in the same pull request** (Dependabot does not read the `container:` image of a workflow, so it is also what keeps the image's operating system and browser build current: bump it when Playwright is upgraded, and from time to time otherwise): set the tag to the new version and the digest to the one of `docker buildx imagetools inspect
+mcr.microsoft.com/playwright:v<version>-noble` (the line `Digest:` of the multi-platform index).
 
-  An attempt that takes more than 120 s (apt, plus the download when the cache was empty) is stopped and tried again, three times at most,
-  and a retry shows up as a warning on the run. The step as a whole is limited to 10 minutes (`timeout-minutes`). A stuck mirror then costs a
-  few minutes instead of a quarter of an hour, and when all three attempts fail the step fails, so the check never runs without a browser.
+**The pull.** GitHub's runner pulls the image itself, before the first step, and a job container has no pull policy (`IfNotPresent` and the like are
+Kubernetes' concept): the settings of a container are `image`, `credentials`, `env`, `ports`, `volumes` and `options`, and `options` are arguments to `docker create`, which runs after the runner's own `docker pull`. A runner
+starts empty, so "only if missing" would always mean "always" anyway. If a pull ever fails, the job fails at its start and **re-running the job** is the remedy (a pull that
+hangs ends the job at the latest when `timeout-minutes: 20` runs out, so a retry may cost that wait). If that turns out to happen, the next step would be to pull by hand with `docker pull` in a step with
+retries and run the check with `docker run`; that was left out because it brings host networking for Postgres and `node_modules` made on the host and run by the image's Node.
 
-**The leftover apt.** `timeout` runs as the runner user and cannot stop the root `apt-get` that Playwright starts through `sudo`. On
-2026-10-26 that was exactly what happened: attempt 1 hung downloading packages from the Ubuntu mirror and was stopped after 120 s, the
-`apt-get` it had started went on and kept the dpkg lock, and attempts 2 and 3 failed at once with "Could not get lock
-/var/lib/dpkg/lock-frontend … held by process …" (the run failed after 2 min 10 s instead of recovering). So between attempts the
-processes are stopped as root, by exact name only (`sudo pkill -KILL -x` for `apt-get`, `apt`, `dpkg`, and apt's download helpers
-`http` and `https`), then a pause of 3 s and `dpkg --configure -a` to finish what they left half-done. A lock file is never removed by
-hand (dpkg says that is always wrong). `tests/infra/github-actions.test.ts` runs the script with a fake `timeout`, `sudo` and `sleep` and
-checks the cases of a first-time success, a retry (with the order: stop, repair, try again), three failures, and that no `rm` of a lock is
-in it. What the fake cannot show is a real apt that ignores the signal: a run that still fails on the lock would show it in the log.
+**Node.** The image's Node is 24, the same major as `setup-node`'s, which stays for `cache: npm` (the downloaded packages are kept between runs); the Dockerfile test still reads its version.
+
+**The options.** `--ipc=host` (Chromium's shared memory: the container's default `/dev/shm` is 64 MB) and `--init` (stray browser processes are reaped) are
+Playwright's advice for Chromium in a container. The image runs as root, so there is no `sudo`, and the workspace (owned by the runner's user) has to be trusted for git before the check (`git config --global --add safe.directory "$GITHUB_WORKSPACE"`): without it git refuses it as "dubious ownership" and the infra tests that run `git ls-files` fail (the first run of this setup did).
+
+To try the image on a Mac: `docker run --rm -it --ipc=host mcr.microsoft.com/playwright:v1.63.0-noble bash`, copy the repository in without `node_modules`, `.next` and `generated`, set
+`DATABASE_URL` to the host's Postgres (`host.docker.internal:5433`) and run `npm ci`, `npm run db:generate` and `npx playwright test`.
 
 ## Limits
 

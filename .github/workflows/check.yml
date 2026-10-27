@@ -1,5 +1,6 @@
 # The same check as `npm run check` on a developer's machine: build, lint, Vitest, typecheck and
-# Playwright against a throwaway Postgres. See documentation/backend/github-actions.md.
+# Playwright against a throwaway Postgres, inside Playwright's own image (the browser and its libraries are in it).
+# See documentation/backend/github-actions.md.
 name: Check
 
 on:
@@ -22,17 +23,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Playwright's image has the browser Playwright drives and every library it needs, so nothing is installed from apt at run
+    # time: a stalled Ubuntu mirror cost pull requests several runs (documentation/backend/github-actions.md). The tag is the
+    # installed version of @playwright/test, the lockfile's (tests/infra/github-actions.test.ts compares them), pinned by its digest like
+    # the actions are by their commit; update both together, with `docker buildx imagetools inspect <image>:<tag>`.
+    # `--ipc=host` and `--init` are Playwright's advice for Chromium in a container (shared memory, stray processes).
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host --init
+
     services:
-      # The same image, user and database as compose.yaml, on the same host port as `npm run db:up`. The password
-      # is a throwaway that exists only on this runner: there is no .env here, and a fork's pull request is given no secret values.
+      # The same image, user and database as compose.yaml. The job runs in a container, so the database is reached by
+      # the service's name on its own port (`postgres:5432`), not through a published host port. The password is a throwaway that
+      # exists only on this runner: there is no .env here, and a fork's pull request is given no secret values.
       postgres:
         image: postgres:17-alpine
         env:
           POSTGRES_USER: dinner
           POSTGRES_PASSWORD: ci-throwaway
           POSTGRES_DB: dinner_planner
-        ports:
-          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U dinner -d dinner_planner"
           --health-interval 3s
@@ -40,7 +49,7 @@ jobs:
           --health-retries 20
 
     env:
-      DATABASE_URL: postgresql://dinner:ci-throwaway@localhost:5433/dinner_planner?schema=public
+      DATABASE_URL: postgresql://dinner:ci-throwaway@postgres:5432/dinner_planner?schema=public
 
     steps:
       # Actions are pinned to a commit, not a tag that can move; Dependabot proposes updates
@@ -49,6 +58,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # The workspace belongs to the runner's user and the container runs as root, so git refuses it ("dubious ownership")
+      # and the infra tests that run `git ls-files` fail. Checkout only trusts it for its own git calls.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The image has Node 24 too; this is here for `cache: npm`, which keeps the downloaded packages between runs.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -63,35 +77,6 @@ jobs:
       # to .next/types, which a fresh checkout does not have yet. The check's build writes them too, before the typecheck
       # runs; this keeps the typecheck from depending on the order of the stages.
       - run: npx next typegen
-
-      # The browser Playwright drives is a download of about 150 MB: kept between runs, under a key that changes with
-      # Playwright's version only. This saves the download; the stall below was in apt, which it does not touch. (The cache is
-      # saved when the job succeeds, so a run whose check fails downloads again next time.)
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('node_modules/playwright-core/package.json') }}
-
-      # The browser's system libraries come from apt on every run, since a runner starts empty. It normally takes
-      # about 25 s; on 2026-10-26 one run waited 11 minutes for it. An attempt that takes longer than 120 s (apt, and the
-      # download when the cache was empty) is stopped and tried again, three times at most, so a stuck mirror costs minutes,
-      # not a quarter of an hour. `timeout` runs as the runner user and cannot stop the root apt-get that Playwright starts
-      # through sudo (on 2026-10-26 it kept the dpkg lock, and the next two attempts failed at once with "lock held by
-      # process …"), so between attempts those processes are stopped as root and dpkg is asked to finish what they left half-done.
-      - name: Install the browser and its libraries
-        timeout-minutes: 10
-        run: |
-          for attempt in 1 2 3; do
-            if timeout --kill-after=10 120 npx playwright install --with-deps chromium; then exit 0; fi
-            echo "::warning::Installing the browser did not finish within 120 seconds, or failed (attempt $attempt of 3)."
-            if [ "$attempt" -lt 3 ]; then
-              # Exact names only: apt-get and dpkg, and apt's own download helpers (processes called http and https).
-              for name in apt-get apt dpkg http https; do sudo pkill -KILL -x "$name" || true; done
-              sleep 3
-              timeout 30 sudo dpkg --configure -a || true
-            fi
-          done
-          exit 1
 
       - run: npm run check
 
