@@ -10,6 +10,7 @@ generated
 # check from tripping over test-only imports that are not copied in
 tests
 playwright.config.ts
+playwright.screenshots.config.ts
 vitest.config.mts
 test-results
 playwright-report
@@ -17,3 +18,4 @@ playwright-report
 k8s
 compose.yaml
 *.md
+documentation/images
