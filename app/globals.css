@@ -158,6 +158,32 @@ html {
       placeholder:text-muted focus:border-accent;
   }
 
+  /* A dropdown draws its own chevron: the browser's sits against the border. 14 px from the edge, as far in as the text is from
+   * the left one, and the text keeps clear of it (14 + 16 + 14 px of padding). The colour is --muted, written out because a
+   * background image cannot read a custom property. Forced colours take the browser's own arrow back, which is always visible. */
+  select.field {
+    appearance: none;
+    padding-right: 2.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2366594a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    background-size: 1rem 1rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select.field {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b5a892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    }
+  }
+
+  @media (forced-colors: active) {
+    select.field {
+      appearance: auto;
+      padding-right: 0.875rem;
+      background-image: none;
+    }
+  }
+
   .btn,
   .btn-primary,
   .btn-secondary,

@@ -36,6 +36,15 @@ a section; `font-display` for any other serif number or heading.
 Buttons and tags are pills (fully rounded), cards 16 px, fields 12 px. Every control is at least 44 px high, and the
 primitives (`.btn-*`, `.field`, `.card`, `.pill`) carry this, so a page rarely needs its own classes.
 
+## Dropdowns
+
+A `<select>` is the browser's own control, so it opens, takes the keyboard and is read out as usual; only its arrow is drawn
+by the app (`select.field` in `app/globals.css`). The browser puts its arrow against the border, so the chevron is a 16 px
+background image 14 px from the right edge (as far in as the text is from the left), and the right padding of 44 px (14 + 16 +
+14) keeps a long option from running under it. The image is an inline SVG in the `muted` colour, one for each colour scheme,
+because a background image cannot read a custom property. In forced-colours mode the image is dropped and the browser's own
+arrow comes back, since it is always visible there. A new dropdown needs only the class `field`.
+
 ## Focus
 
 One indicator for every link, button and field: a 3 px ring in the text colour with a 2 px offset, set once in

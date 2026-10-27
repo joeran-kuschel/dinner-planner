@@ -33,6 +33,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- The arrow of every dropdown (the recipe list's sort, the day in "Cook again", the category of a grocery item and of a recipe's ingredient) sits 14 px from the border instead of against it ([#96](https://github.com/joeran-kuschel/dinner-planner/issues/96)).
 - Tooling: when the GitHub check's browser install is stopped after 120 seconds, the retry now also stops the apt that the stalled attempt left running (it kept the package lock, so the next two attempts failed at once).
 - Tooling: `npm run check` builds the app next to lint and Vitest and starts Playwright's server from that build (and typechecks beside Playwright), instead of building at the start of Playwright's stage: about a minute shorter on GitHub.
 - Tooling: the GitHub check no longer waits for a stuck browser install: installing Playwright's browser and its system libraries is stopped after 120 seconds and tried again, three times at most (one run once waited 11 minutes for it), and the downloaded browser is cached between runs.
