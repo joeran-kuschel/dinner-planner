@@ -30,4 +30,5 @@ Feature documentation, split into the user interface and the backend.
 - [GitHub Actions](backend/github-actions.md): the same check on every pull request and push to `main`, and CodeQL code scanning
 - [Database credentials](backend/database-credentials.md): where the database password lives, locally and in the cluster, and how to change it
 - [Network policy for the database](backend/database-network-policy.md): only the app's pods may connect to the cluster database, and what that means for backups and `psql`
+- [Screenshots in the documentation](backend/doc-screenshots.md): `npm run docs:screenshots`, the sample data, where each picture is shown, the test
 - [Changelog](backend/changelog.md): `CHANGELOG.md`, how an entry is written, cutting a release

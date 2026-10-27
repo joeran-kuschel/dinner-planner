@@ -21,6 +21,8 @@ missing or malformed value shows the current week.
 
 ## The list
 
+![The grocery list for a week in two columns of shop sections, with two lines ticked off, a hand-added item under Other and the Add something else form open above.](../images/groceries.webp)
+
 Every line is one ingredient. The first line of a row is its name, in normal-size type, with the amount on the right; the
 second line, in smaller but readable type, says which recipes need it ("Red Lentil Dal, Shakshuka"), and also "in the
 pantry" or "added by hand" where that applies. The lines are grouped by where they are found in the shop, and inside a
@@ -137,6 +139,8 @@ Under the header, **Copy list** and **Print** take the list to the shop.
 Both buttons are shown only when the list has lines. German: **Liste kopieren**, **Drucken**, "Kopiert".
 
 ## Same ingredient, one line
+
+![The Merge dialog for the Passata line: the other lines it can be listed as, with Chopped tomatoes chosen and a note saying Passata will be listed as Chopped tomatoes.](../images/grocery-merge-dialog.webp)
 
 The same ingredient under different names is one line: "Tomaten" in a German recipe and "tomatoes" in an English one, a
 clove of garlic and "Knoblauchzehe", "1 EL" and "1 tbsp". The amounts add up, and the line lists every recipe that needs it. The

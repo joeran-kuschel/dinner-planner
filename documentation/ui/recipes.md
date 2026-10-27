@@ -33,6 +33,8 @@ the form says so and you choose another.
 
 ## The list
 
+![The recipe list: the search box, the Favorites only button and the sort choice, then a card for each recipe with a star, its tags, when it was last planned and how many it serves.](../images/recipes.webp)
+
 `/recipes` shows a card per recipe in alphabetical order: its photo (if it has one), name, a short description (two lines at most), and small facts such as the
 servings, the number of ingredients, the prep time and the next day it is planned for ("next Tue 6 Oct": the earliest planned day from today on, today included). A recipe with no planned day from today on shows no such fact, and the number of days it has been planned is not shown. (The recipe's own page lists the days it is planned for from the start of the current week, so it can name an earlier day of this week that the card leaves out.) **New recipe** opens the form. With no
 recipes yet, the page says what a recipe needs: a name and its ingredients; the method is optional.
@@ -89,6 +91,8 @@ recipe page reads it with `readRecipeSearch()`, so a malformed value is cleaned 
 with that filter (`recipeListHref()`). The filter, like the week, is not carried through **Edit** and **Save**.
 
 ## The form
+
+![The edit recipe form: name, description, servings, prep time and source, the photo section, tags, the ingredient rows with amount, unit, name and category, and the method.](../images/recipe-form.webp)
 
 Creating and editing use the same form.
 
