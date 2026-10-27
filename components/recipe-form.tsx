@@ -402,16 +402,16 @@ function IngredientRows({
         </p>
       </div>
 
-      {/* The column names, from sm; on a phone each field names itself. The inputs carry their own labels. */}
-      <div aria-hidden className="hidden gap-2 text-xs font-semibold text-muted sm:flex">
+      {/* The column names, from lg, where a row is one line; below that a row wraps and each field names itself. The inputs carry their own labels. */}
+      <div aria-hidden className="hidden gap-2 text-xs font-semibold text-muted lg:flex">
         <span className="w-20">{t(i18n)`Amount`}</span>
         <span className="w-20">{t(i18n)`Unit`}</span>
         <span className="flex-1">{t(i18n)`Ingredient`}</span>
-        <span className="w-44">{t(i18n)`Category`}</span>
+        <span className="w-60">{t(i18n)`Category`}</span>
         <span className="min-w-9 pointer-coarse:min-w-11" />
       </div>
 
-      <ul ref={list} onKeyDown={onKeyDown} className="flex flex-col gap-3 sm:gap-2">
+      <ul ref={list} onKeyDown={onKeyDown} className="flex flex-col gap-3 lg:gap-2">
         {rows.map((row, index) => (
           <IngredientRow key={row.id} row={row} number={index + 1} onRemove={() => removeRow(row.id)} />
         ))}
@@ -429,10 +429,10 @@ function IngredientRows({
   );
 }
 
-/** A phone's visible name for a field; from sm the column heading above the rows does it. */
+/** A wrapped row's visible name for a field; from lg the column heading above the rows does it. */
 function FieldName({ children }: { children: string }) {
   return (
-    <span aria-hidden className="text-xs font-semibold text-muted sm:hidden">
+    <span aria-hidden className="text-xs font-semibold text-muted lg:hidden">
       {children}
     </span>
   );
@@ -441,7 +441,7 @@ function FieldName({ children }: { children: string }) {
 function IngredientRow({ row, number, onRemove }: { row: Row; number: number; onRemove: () => void }) {
   const { i18n } = useLingui();
   return (
-    <li className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+    <li className="flex flex-wrap items-end gap-2 lg:flex-nowrap">
       <div className="flex w-20 flex-col gap-1">
         <FieldName>{t(i18n)`Amount`}</FieldName>
         <input
@@ -464,7 +464,7 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
           defaultValue={row.value.unit}
         />
       </div>
-      <div className="flex min-w-40 flex-1 flex-col gap-1 sm:min-w-0">
+      <div className="flex min-w-40 flex-1 flex-col gap-1 lg:min-w-0">
         <FieldName>{t(i18n)`Ingredient`}</FieldName>
         <input
           name="ingredientName"
@@ -473,7 +473,8 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
           defaultValue={row.value.name}
         />
       </div>
-      <div className="flex w-44 flex-col gap-1">
+      {/* From lg a fixed 15 rem, enough for the longest name in both languages; below it the field takes the rest of its line. */}
+      <div className="flex min-w-60 flex-1 flex-col gap-1 lg:w-60 lg:flex-none">
         <FieldName>{t(i18n)`Category`}</FieldName>
         <CategorySelect
           name="ingredientCategory"
