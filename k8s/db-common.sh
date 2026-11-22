@@ -9,3 +9,7 @@ BACKUP_DIR="${BACKUP_DIR:-$HOME/DinnerPlannerBackups}"
 pg_exec() {
   kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" exec -i statefulset/dinner-planner-db -- sh -c "$1"
 }
+
+# The Postgres pod (the one replica of statefulset/dinner-planner-db; a StatefulSet's first pod has a fixed name) and where restore-db.sh puts the dump inside it.
+DB_POD="dinner-planner-db-0"
+POD_DUMP="/tmp/restore.sql.gz"
