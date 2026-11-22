@@ -12,9 +12,11 @@ const COMPLETE_DUMP = '-- PostgreSQL database dump\nCREATE TABLE "Recipe" ();\n-
 // Logs its arguments, prints $FAKE_DUMP for pg_dump and stores stdin for psql.
 const FAKE_KUBECTL = `#!/bin/bash
 echo "$@" >> "$FAKE_DIR/kubectl.log"
+# kubectl cp <file> <pod>:<path>: the file lands in the "pod"
+if [[ " $* " == *" cp "* ]]; then cp "\${@: -2:1}" "$FAKE_DIR/pod-dump"; exit "\${FAKE_CP_EXIT:-0}"; fi
 case "\${@: -1}" in
   pg_dump*) cat "$FAKE_DUMP" ;;
-  psql*) cat > "$FAKE_DIR/psql-stdin" ;;
+  *psql*) gzip -t "$FAKE_DIR/pod-dump" || exit 1; gzip -dc "$FAKE_DIR/pod-dump" > "$FAKE_DIR/psql-stdin" ;;
 esac
 exit "\${FAKE_EXIT:-0}"
 `;
@@ -286,6 +288,38 @@ describe("restore-db.sh", () => {
     expect(result.status).toBe(0);
     expect(fs.readFileSync(path.join(dir, "psql-stdin"), "utf8")).toBe(COMPLETE_DUMP);
     expect(kubectlCalls()).toContain("psql -v ON_ERROR_STOP=1 --single-transaction");
+  });
+
+  it("copies the dump into the pod instead of streaming it, and removes it afterwards", () => {
+    run("restore-db.sh", [backupFile, "--yes"]);
+
+    const calls = kubectlCalls();
+    expect(calls).toContain(`cp ${backupFile} dinner-planner-db-0:/tmp/restore.sql.gz`);
+    expect(calls).toContain("gzip -t /tmp/restore.sql.gz");
+  });
+
+  it("removes the copy from the pod when psql fails", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"], { env: { FAKE_EXIT: "1" } });
+
+    expect(result.status).not.toBe(0);
+    expect(kubectlCalls().trim().split("\n").pop()).toContain("rm -f /tmp/restore.sql.gz");
+  });
+
+  it("does not run psql on a corrupt dump, and still removes the copy", () => {
+    fs.writeFileSync(backupFile, "not gzip");
+    const result = run("restore-db.sh", [backupFile, "--yes"]);
+
+    expect(result.status).not.toBe(0);
+    expect(fs.existsSync(path.join(dir, "psql-stdin"))).toBe(false);
+    expect(kubectlCalls().trim().split("\n").pop()).toContain("rm -f /tmp/restore.sql.gz");
+  });
+
+  it("does not restore when the copy into the pod fails", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"], { env: { FAKE_CP_EXIT: "1" } });
+
+    expect(result.status).not.toBe(0);
+    expect(fs.existsSync(path.join(dir, "psql-stdin"))).toBe(false);
+    expect(kubectlCalls()).not.toContain("psql");
   });
 
   it("restores after typing the confirmation word", () => {

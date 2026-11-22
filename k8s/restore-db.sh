@@ -18,5 +18,10 @@ if [ "${2:-}" != "--yes" ]; then
   fi
 fi
 
-gzip -dc "$file" | pg_exec 'psql -v ON_ERROR_STOP=1 --single-transaction -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null'
+# The dump goes into the pod as a file first: streaming it through `kubectl exec` stdin cut the stream off partway
+# (a different row each time) on a 40 MB dump, and the single transaction then rolled everything back.
+# Removed again whatever happens, a copy that stopped partway included.
+trap 'pg_exec "rm -f $POD_DUMP" > /dev/null 2>&1 || true' EXIT
+kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" cp "$file" "$DB_POD:$POD_DUMP"
+pg_exec "gzip -t $POD_DUMP && gzip -dc $POD_DUMP | psql -v ON_ERROR_STOP=1 --single-transaction -q -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" > /dev/null"
 echo "Restored $file"

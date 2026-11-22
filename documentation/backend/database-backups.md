@@ -41,6 +41,11 @@ A restore replaces **all** current data with the backup, so it asks you to type 
 file to skip the question in scripts. The restore runs in a single transaction: if any statement fails, nothing is
 changed.
 
+The dump is copied into the Postgres pod first (`kubectl cp` to `/tmp/restore.sql.gz`, checked with `gzip -t`, removed again
+afterwards) and `psql` reads it there. Piping it through `kubectl exec` stdin cut the stream off partway on a 40 MB dump,
+so the restore failed and rolled back. If a restore stops with "No space left on device", the Docker Desktop disk is full:
+`docker builder prune` frees the build cache.
+
 ### After a cluster reset
 
 1. Deploy the app again with `npm run k8s:deploy`. The migrations create an empty schema.
