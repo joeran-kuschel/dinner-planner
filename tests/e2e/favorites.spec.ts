@@ -17,6 +17,15 @@ async function makeFavorite(page: Page, id: string) {
   await expect(favoriteButton(page)).toHaveAttribute("aria-pressed", "true");
 }
 
+/**
+ * These two scenarios need a second free day in the week: planning the only one (on a Sunday) takes the whole
+ * "Cook again" section away, with the answer inside it. The one-day case has its own test below.
+ */
+async function needsTwoFreeDays(page: Page, recipe: string) {
+  const days = await page.getByRole("combobox", { name: `Day for ${recipe}`, exact: true }).locator("option").count();
+  test.skip(days < 2, "Cook again has one free day left in this week (Sunday)");
+}
+
 async function planLongAgo(page: Page, recipe: string) {
   await page.goto(`/?week=${OLD_WEEK}`);
   await planRecipe(page, "Monday", recipe);
@@ -184,6 +193,7 @@ test.describe("Cook again", () => {
     await page.goto("/");
     const row = cookAgain(page).getByRole("listitem").filter({ hasText: name });
     await expect(page.getByRole("combobox", { name: `Day for ${name}` })).not.toHaveValue("");
+    await needsTwoFreeDays(page, name);
     // The last free day of the week, whatever day the test runs.
     const select = page.getByRole("combobox", { name: `Day for ${name}`, exact: true });
     const lastDay = await select.locator("option").last().textContent();
@@ -220,6 +230,8 @@ test.describe("Cook again", () => {
 
     await page.goto("/");
     const select = page.getByRole("combobox", { name: `Day for ${name}`, exact: true });
+    await expect(select).toBeVisible();
+    await needsTwoFreeDays(page, name);
     const firstDay = (await select.locator("option").first().textContent())!.split(" ")[0];
 
     // Another window plans that very day.
