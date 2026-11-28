@@ -1,3 +1,4 @@
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
   afterServerAction,
@@ -232,4 +233,113 @@ test.describe("finding a dinner by tag", () => {
     // The field shows the recipe's name, not the tag.
     await expect(dinnerField(page, "Monday")).toHaveValue(name);
   });
+});
+
+// The tags of the search are toggle chips: a label around an invisible checkbox that covers it (tag-toggle in globals.css).
+async function openTagChips(page: Page, tags: string[]): Promise<{ chip: (tag: string) => Locator }> {
+  await createRecipe(page, { name: unique("Chipped"), tags });
+  await page.goto("/recipes");
+  await page.locator("summary", { hasText: /^Tags/ }).click();
+  return { chip: (tag) => page.locator("label.tag-toggle", { hasText: tag }) };
+}
+
+test.describe("tag chips of the search", () => {
+  test("a click on the chip ticks it and shows the check mark, a second click takes both away", async ({ page }) => {
+    const tag = uniqueWord("c");
+    const { chip } = await openTagChips(page, [tag]);
+    const box = page.getByRole("checkbox", { name: tag });
+    const check = chip(tag).locator(".tag-toggle-check");
+
+    await expect(box).not.toBeChecked();
+    await expect(check).toBeHidden();
+    // The invisible checkbox covers the whole chip, so a click anywhere on it, here the middle, hits it.
+    await chip(tag).click();
+    await expect(box).toBeChecked();
+    await expect(check).toBeVisible();
+    await chip(tag).click();
+    await expect(box).not.toBeChecked();
+    await expect(check).toBeHidden();
+  });
+
+  test("the keyboard ticks a chip with Space and the chip shows a solid 3 px ring", async ({ page }) => {
+    const tag = uniqueWord("k");
+    const { chip } = await openTagChips(page, [tag]);
+
+    await page.locator("summary", { hasText: /^Tags/ }).focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("checkbox", { name: tag })).toBeFocused();
+    await expect(chip(tag)).toHaveCSS("outline-style", "solid");
+    await expect(chip(tag)).toHaveCSS("outline-width", "3px");
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("checkbox", { name: tag })).toBeChecked();
+    await expect(chip(tag).locator(".tag-toggle-check")).toBeVisible();
+    await expect(chip(tag)).toHaveCSS("outline-width", "3px");
+  });
+
+  test("a ticked tag from the address shows the check mark right away", async ({ page }) => {
+    const tag = uniqueWord("r");
+    await createRecipe(page, { name: unique("Chipped"), tags: [tag] });
+    await page.goto(`/recipes?tag=${tag}`);
+    await expect(page.locator("label.tag-toggle", { hasText: tag }).locator(".tag-toggle-check")).toBeVisible();
+  });
+
+  test("a check mark stays in forced colours mode, where the fill and border colours are replaced", async ({ page }) => {
+    const [ticked, plain] = [uniqueWord("f"), uniqueWord("p")];
+    await createRecipe(page, { name: unique("Chipped"), tags: [ticked, plain] });
+    await page.emulateMedia({ forcedColors: "active" });
+    await page.goto(`/recipes?tag=${ticked}`);
+    await expect(page.locator("label.tag-toggle", { hasText: ticked }).locator(".tag-toggle-check")).toBeVisible();
+    await expect(page.locator("label.tag-toggle", { hasText: plain }).locator(".tag-toggle-check")).toBeHidden();
+  });
+
+  test("is at least 36 px high with a mouse", async ({ page }) => {
+    const tag = uniqueWord("h");
+    const { chip } = await openTagChips(page, [tag]);
+    expect((await chip(tag).boundingBox())?.height).toBeGreaterThanOrEqual(36);
+  });
+
+  test.describe("on a touch screen", () => {
+    test.use({ hasTouch: true, isMobile: true });
+
+    test("is at least 44 px high", async ({ page }) => {
+      const tag = uniqueWord("t");
+      const { chip } = await openTagChips(page, [tag]);
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      expect((await chip(tag).boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    });
+  });
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    test.describe(`in ${colorScheme} mode`, () => {
+      test.use({ colorScheme });
+
+      test(`passes axe, contrast included, while a ticked and an unticked chip are hovered`, async ({ page }) => {
+        const [ticked, plain] = [uniqueWord("a"), uniqueWord("b")];
+        const { chip } = await openTagChips(page, [ticked, plain]);
+        await chip(ticked).click();
+        await expect(chip(ticked).locator(".tag-toggle-check")).toBeVisible();
+
+        await chip(ticked).hover();
+        await expectAccessible(page);
+        await chip(plain).hover();
+        await expectAccessible(page);
+        // Hover does not hide the mark of the ticked chip, and the other chip shows none.
+        await expect(chip(ticked).locator(".tag-toggle-check")).toBeVisible();
+        await expect(chip(plain).locator(".tag-toggle-check")).toBeHidden();
+      });
+
+      test("passes axe, contrast included, with tags filtered by the address", async ({ page }) => {
+        const [first, second] = [uniqueWord("x"), uniqueWord("y")];
+        await createRecipe(page, { name: unique("Chipped"), tags: [first, second] });
+        await page.goto(`/recipes?tag=${first}`);
+        await expect(page.getByRole("checkbox", { name: first })).toBeChecked();
+        await expectAccessible(page);
+        // With the keyboard ring on the chip.
+        await page.getByRole("checkbox", { name: second }).focus();
+        await page.keyboard.press("Shift+Tab");
+        await page.keyboard.press("Tab");
+        await expectAccessible(page);
+      });
+    });
+  }
 });

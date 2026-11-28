@@ -165,14 +165,23 @@ function RecipeSearchForm({
           <fieldset className="mt-3 flex flex-wrap gap-2">
             <legend className="label mb-1">{t(i18n)`Only recipes with all of these tags`}</legend>
             {filterTags.map((tag) => (
-              <label key={tag} className="pill cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="tag"
-                  value={tag}
-                  defaultChecked={search.tags.includes(tag)}
-                  className="size-4 accent-[var(--accent)]"
-                />
+              // The chip is the checkbox: the input covers it, invisible, so a click, the keyboard and a form without
+              // JavaScript all work as for any checkbox. The check mark (shown while ticked) keeps a selected tag from
+              // being told by colour alone.
+              <label key={tag} className="tag-toggle">
+                <input type="checkbox" name="tag" value={tag} defaultChecked={search.tags.includes(tag)} />
+                <svg
+                  className="tag-toggle-check"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 8.5l3.2 3L13 4.5" />
+                </svg>
                 {tag}
               </label>
             ))}
