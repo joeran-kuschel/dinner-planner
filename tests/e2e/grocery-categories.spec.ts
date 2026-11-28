@@ -453,9 +453,7 @@ test.describe("the grocery categories page", () => {
         await expectAccessible(page);
       });
 
-      // BUG: the open delete question hangs off its button from `sm` up and covers part of the next row's "Save" button, which axe
-      // reports as target-size ("partially obscured, smallest space 20.1px by 44px"). When it is fixed, this starts failing.
-      test.fail("passes the accessibility check with a delete question open", async ({ page }) => {
+      test("passes the accessibility check with a delete question open", async ({ page }) => {
         await open(page);
         await deleteSummary(page, "Bakery").click();
         await expect(deleteSummary(page, "Bakery").locator("xpath=..").getByRole("group")).toBeVisible();

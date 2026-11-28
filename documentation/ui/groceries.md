@@ -65,7 +65,7 @@ shop sections, so the list follows the layout of your own supermarket. Each sect
 - **Move up** and **Move down** ("Move Bakery up"): one place at a time, so no drag and drop is needed (WCAG 2.5.7). The first
   section cannot move up and the last one before **Other** cannot move down (the buttons are off). The keyboard focus stays on the button
   you used, and a status line says "Bakery moved to position 2 of 10".
-- **Delete**, with a question that says what moves: "Delete Bakery? Its 12 ingredients and 3 list entries move to Other."
+- **Delete**, with a question that opens under the row (so it covers no other button) and says what moves: "Delete Bakery? Its 12 ingredients and 3 list entries move to Other."
   Ingredients and list entries keep their tick state and amounts; only their section changes.
 - **Other** is always the last section. It can be renamed ("Misc"), but not moved or deleted: it is where things go when their
   section is deleted.

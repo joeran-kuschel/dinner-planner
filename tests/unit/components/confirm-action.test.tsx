@@ -135,6 +135,14 @@ describe("ConfirmAction", () => {
     expect(question()).toHaveClass("sm:bottom-full");
   });
 
+  it("can open in the page's flow under its button, covering nothing, when it is inline", async () => {
+    const { user } = renderConfirm({ inline: true });
+    await user.click(summary());
+    expect(question()).toHaveClass("self-stretch");
+    expect(question()).not.toHaveClass("fixed");
+    expect(question()).not.toHaveClass("sm:absolute");
+  });
+
   it("opens below by default", async () => {
     const { user } = renderConfirm();
     await user.click(summary());

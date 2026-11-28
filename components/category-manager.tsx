@@ -176,7 +176,7 @@ export function CategoryManager({
                 </button>
               </div>
 
-              <div className="basis-full sm:basis-auto [&_summary]:w-full [&_summary]:justify-center sm:[&_summary]:w-auto">
+              <div className="basis-full has-[details[open]]:basis-full sm:basis-auto [&_summary]:w-full [&_summary]:justify-center sm:[&_summary]:w-auto">
                 {isOther ? (
                   <button type="button" disabled className="btn-danger-quiet w-full sm:w-auto" aria-label={t(i18n)`Delete ${name}`}>
                     {t(i18n)`Delete`}
@@ -194,6 +194,7 @@ export function CategoryManager({
                     action={deleteGroceryCategory}
                     fields={{ id: category.id, ...(error ? { clear: "1" } : {}) }}
                     focusAfter="new-category"
+                    inline
                   />
                 )}
               </div>
