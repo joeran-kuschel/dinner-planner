@@ -8,6 +8,8 @@ import { useFormStatus } from "react-dom";
 export type ConfirmActionProps = {
   /** The button that asks; a second click on it, Cancel or Escape closes the question again. */
   label: string;
+  /** The name a screen reader says when the visible `label` alone ("Delete") would not say what it deletes. */
+  accessibleLabel?: string;
   question: string;
   confirmLabel: string;
   action: (formData: FormData) => Promise<void>;
@@ -15,6 +17,12 @@ export type ConfirmActionProps = {
   fields: Record<string, string>;
   /** From `sm` up, open the question above the button, for a button at the bottom of the page. */
   openUpward?: boolean;
+  /**
+   * Open the question in the page's flow, under its button, instead of as a card that hangs off it: for a button in a row of
+   * controls, where a card would cover the next row's buttons (which axe reports as a target-size failure). The parent makes
+   * room for it, e.g. `has-[details[open]]:basis-full`.
+   */
+  inline?: boolean;
   /**
    * The id of an element that takes the focus once the action has gone through and
    * removed this button with it, so the focus does not fall back to the top of the page.
@@ -29,11 +37,13 @@ export type ConfirmActionProps = {
  */
 export function ConfirmAction({
   label,
+  accessibleLabel,
   question,
   confirmLabel,
   action,
   fields,
   openUpward,
+  inline,
   focusAfter,
 }: ConfirmActionProps) {
   const { i18n } = useLingui();
@@ -60,7 +70,7 @@ export function ConfirmAction({
   return (
     <details
       ref={details}
-      className="relative"
+      className={inline ? "flex flex-col items-end" : "relative"}
       onKeyDown={(event) => {
         if (event.key === "Escape" && details.current?.open) {
           event.stopPropagation();
@@ -68,7 +78,11 @@ export function ConfirmAction({
         }
       }}
     >
-      <summary ref={summary} className="btn-danger-quiet cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+      <summary
+        ref={summary}
+        aria-label={accessibleLabel}
+        className="btn-danger-quiet cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+      >
         {label}
       </summary>
       <div
@@ -77,9 +91,13 @@ export function ConfirmAction({
         // Where the button sits varies with how the page wraps, so on a small screen no anchor edge
         // keeps the question on screen: there it is a sheet at the bottom of the viewport. From `sm`
         // it hangs off the button.
-        className={`card fixed inset-x-4 bottom-4 z-20 flex flex-col gap-3 p-3 shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-64 sm:z-10 ${
-          openUpward ? "sm:bottom-full sm:mb-1" : "sm:bottom-auto sm:top-full sm:mt-1"
-        }`}
+        className={
+          inline
+            ? "card mt-2 flex flex-col gap-3 self-stretch p-3"
+            : `card fixed inset-x-4 bottom-4 z-20 flex flex-col gap-3 p-3 shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-64 sm:z-10 ${
+                openUpward ? "sm:bottom-full sm:mb-1" : "sm:bottom-auto sm:top-full sm:mt-1"
+              }`
+        }
       >
         <p id={questionId} className="text-sm">
           {question}

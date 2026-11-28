@@ -236,6 +236,18 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
       </div>
 
       <div className="print:hidden">
+        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <div>
+            <h2 className="text-sm font-semibold">{t(i18n)`Grocery categories`}</h2>
+            <p className="text-sm text-muted">{t(i18n)`Rename the sections, put them in the order of your shop, and add your own.`}</p>
+          </div>
+          <Link href="/groceries/categories" className="btn-secondary">
+            {t(i18n)`Edit categories`}
+          </Link>
+        </div>
+      </div>
+
+      <div className="print:hidden">
         <MergedLinesSection
           rules={rules.map((rule) => ({
             id: rule.id,

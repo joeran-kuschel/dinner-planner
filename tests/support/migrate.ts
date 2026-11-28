@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
+import { SEEDED_ROWS } from "./seeded-categories";
 
 // Resolved from the working directory: vitest and playwright both run from the
 // project root, and `__dirname` is not available once this module is pulled
@@ -62,9 +63,11 @@ export async function createMigratedSchema(baseUrl: string, schema: string): Pro
 }
 
 /**
- * Delete every row of every table in `schema`, keeping the tables. Prisma's own bookkeeping table is
- * left alone, and so is `GroceryCategory`: its ten rows are made by a migration (the app relies on them, "Other"
- * above all) and every ingredient and grocery entry needs one, so emptying it would break the next insert. Every table is named with its schema, never through the search path, so this can only
+ * Delete every row of every table in `schema`, keeping the tables, then put the shop sections back as the migration made
+ * them (`restoreSeededCategories`). Prisma's own bookkeeping table is left alone, and `GroceryCategory` is not emptied:
+ * its ten rows are made by a migration (the app relies on them, "Other" above all) and every ingredient and grocery entry
+ * needs one, so emptying it would break the next insert; a test may have added, renamed, moved or deleted sections, which
+ * is why they are restored instead. Every table is named with its schema, never through the search path, so this can only
  * ever reach `schema`.
  *
  * The end-to-end tests call this before each test, so that none of them sees what another left
@@ -76,14 +79,40 @@ export async function emptySchema(client: Client, schema: string): Promise<void>
     throw new Error("Refusing to empty the `public` schema — that is the development data.");
   }
 
-  const { rows } = await client.query<{ tablename: string }>(
-    "SELECT tablename FROM pg_tables WHERE schemaname = $1 AND tablename NOT IN ('_prisma_migrations', 'GroceryCategory')",
-    [schema],
+  const all = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = $1", [schema]);
+  const rows = all.rows.filter((row) => row.tablename !== "_prisma_migrations" && row.tablename !== "GroceryCategory");
+  if (rows.length > 0) {
+    // TRUNCATE ... CASCADE on the other tables does not reach GroceryCategory: the foreign keys point at it.
+    const tables = rows.map((row) => `${quoteIdent(schema)}.${quoteIdent(row.tablename)}`);
+    await client.query(`TRUNCATE ${tables.join(", ")} CASCADE`);
+  }
+  // A schema that is no copy of the app's (a test's own scratch schema) has no sections to restore.
+  if (all.rows.some((row) => row.tablename === "GroceryCategory")) await restoreSeededCategories(client, schema);
+}
+
+/**
+ * Make the `GroceryCategory` table of `schema` the ten rows the migration creates: sections a test added are deleted, the
+ * seeded ones get their key, name (none) and position back. Nothing may be filed under a section that is deleted (the
+ * foreign keys restrict it), so run this after the ingredients and grocery entries are gone.
+ */
+export async function restoreSeededCategories(client: Client, schema: string): Promise<void> {
+  if (schema === "public") {
+    throw new Error("Refusing to restore the sections of the `public` schema — that is the development data.");
+  }
+  const table = `${quoteIdent(schema)}."GroceryCategory"`;
+  const columns = [
+    SEEDED_ROWS.map((category) => category.id),
+    SEEDED_ROWS.map((category) => category.key),
+    SEEDED_ROWS.map((category) => category.name),
+    SEEDED_ROWS.map((category) => category.position),
+  ];
+  await client.query(`DELETE FROM ${table} WHERE id <> ALL($1::text[])`, [columns[0]]);
+  await client.query(
+    `INSERT INTO ${table} (id, key, name, position)
+     SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::int[])
+     ON CONFLICT (id) DO UPDATE SET key = EXCLUDED.key, name = EXCLUDED.name, position = EXCLUDED.position`,
+    columns,
   );
-  if (rows.length === 0) return;
-  // TRUNCATE ... CASCADE on the other tables does not reach GroceryCategory: the foreign keys point at it.
-  const tables = rows.map((row) => `${quoteIdent(schema)}.${quoteIdent(row.tablename)}`);
-  await client.query(`TRUNCATE ${tables.join(", ")} CASCADE`);
 }
 
 /** Remove a schema created by `createMigratedSchema`. */

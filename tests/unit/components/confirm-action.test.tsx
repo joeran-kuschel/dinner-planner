@@ -135,6 +135,14 @@ describe("ConfirmAction", () => {
     expect(question()).toHaveClass("sm:bottom-full");
   });
 
+  it("can open in the page's flow under its button, covering nothing, when it is inline", async () => {
+    const { user } = renderConfirm({ inline: true });
+    await user.click(summary());
+    expect(question()).toHaveClass("self-stretch");
+    expect(question()).not.toHaveClass("fixed");
+    expect(question()).not.toHaveClass("sm:absolute");
+  });
+
   it("opens below by default", async () => {
     const { user } = renderConfirm();
     await user.click(summary());
@@ -217,6 +225,33 @@ describe("ConfirmAction", () => {
         </h1>,
       );
       expect(screen.getByRole("heading", { name: "Title" })).not.toHaveFocus();
+    });
+  });
+
+  describe("accessibleLabel", () => {
+    it("names the asking button by it, so a list of Delete buttons can be told apart, while the button still reads its label", () => {
+      renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      expect(summary()).toHaveAttribute("aria-label", "Delete Mushroom risotto");
+      expect(summary()).toHaveTextContent("Delete");
+      expect(summary()).toHaveAccessibleName("Delete Mushroom risotto");
+    });
+
+    it("leaves the button named by its visible label without one", () => {
+      renderConfirm();
+      expect(summary()).not.toHaveAttribute("aria-label");
+      expect(summary()).toHaveAccessibleName("Delete");
+    });
+
+    it("still opens and confirms as before", async () => {
+      const { user, action } = renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      await user.click(summary());
+      await user.click(screen.getByRole("button", { name: "Delete recipe" }));
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    });
+
+    it("has no accessibility violations", async () => {
+      const { container } = renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      await expectNoAxeViolations(container);
     });
   });
 

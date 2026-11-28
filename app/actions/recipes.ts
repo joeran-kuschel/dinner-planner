@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { parsePositiveInt, parseQuantity, rawText } from "@/lib/form-data";
 import { MAX_TAG_LENGTH, MAX_TAGS, parseTags, tagsWithinLimits } from "@/lib/tags";
 import { parseCategoryId, type CategoryRow } from "@/lib/grocery-category";
-import { loadCategories } from "@/lib/grocery-category-server";
+import { withCategories } from "@/lib/grocery-category-server";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
 import { MAX_PHOTO_ALT_LENGTH } from "@/lib/recipe-photo-shared";
@@ -189,16 +189,17 @@ export async function createRecipe(
   const change = await readPhotoChange(formData, values, null);
   if ("error" in change) return reject(prev, values, change.error);
 
-  const categories = await loadCategories();
-  const recipe = await retryOnTagRace(() =>
-    prisma.recipe.create({
-      data: {
-        ...toRecipeData(values),
-        ingredients: { create: toIngredientData(values, categories) },
-        tags: { connectOrCreate: toTagData(values) },
-        ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
-      },
-    }),
+  const recipe = await withCategories((categories) =>
+    retryOnTagRace(() =>
+      prisma.recipe.create({
+        data: {
+          ...toRecipeData(values),
+          ingredients: { create: toIngredientData(values, categories) },
+          tags: { connectOrCreate: toTagData(values) },
+          ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
+        },
+      }),
+    ),
   );
 
   revalidateRecipeViews();
@@ -224,20 +225,21 @@ export async function updateRecipe(
 
   // Ingredient rows have no stable identity in the form, so the whole set is
   // replaced. Cheaper than diffing, and it keeps row order authoritative.
-  const categories = await loadCategories();
-  await retryOnTagRace(() =>
-    prisma.$transaction([
-      prisma.recipe.update({
-        where: { id },
-        data: {
-          ...toRecipeData(values),
-          ingredients: { deleteMany: {}, create: toIngredientData(values, categories) },
-          tags: { set: [], connectOrCreate: toTagData(values) },
-          ...photoUpdate(change),
-        },
-      }),
-      pruneTags(),
-    ]),
+  await withCategories((categories) =>
+    retryOnTagRace(() =>
+      prisma.$transaction([
+        prisma.recipe.update({
+          where: { id },
+          data: {
+            ...toRecipeData(values),
+            ingredients: { deleteMany: {}, create: toIngredientData(values, categories) },
+            tags: { set: [], connectOrCreate: toTagData(values) },
+            ...photoUpdate(change),
+          },
+        }),
+        pruneTags(),
+      ]),
+    ),
   );
 
   revalidateRecipeViews();

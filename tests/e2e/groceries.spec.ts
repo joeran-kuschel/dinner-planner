@@ -129,7 +129,8 @@ test.describe("groceries", () => {
     await planRecipe(page, "Monday", name);
 
     await page.goto("/groceries?week=2027-09-06");
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+    // The section headings; the "Grocery categories" card below the list has a heading of its own.
+    await expect(page.getByRole("heading", { level: 2 }).filter({ hasText: /\(\d+\)$/ })).toHaveText([
       "Fruit and vegetables (1)",
       "Bakery (1)",
       "Dairy and eggs (1)",
