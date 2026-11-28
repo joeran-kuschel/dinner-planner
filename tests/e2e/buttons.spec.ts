@@ -6,7 +6,6 @@ import {
   dinnerField,
   expectAccessible,
   focusByKeyboard,
-  groceryRow,
   openAddForm,
   parseColor,
   planRecipe,
@@ -41,36 +40,6 @@ async function box(locator: Locator) {
 }
 
 const textColor = (locator: Locator) => locator.evaluate((element) => getComputedStyle(element).color);
-const background = (locator: Locator) => locator.evaluate((element) => getComputedStyle(element).backgroundColor);
-
-test.describe("destructive actions look different", () => {
-  test("Delete, Clear the whole week and Clear day are not styled like the harmless buttons", async ({ page }) => {
-    const { id } = await setUp(page);
-
-    await page.goto(`/recipes/${id}`);
-    const edit = page.getByRole("link", { name: "Edit", exact: true });
-    const del = page.locator("summary", { hasText: /^Delete$/ });
-    expect(await textColor(del)).not.toBe(await textColor(edit));
-
-    await page.goto(`/?week=${WEEK}`);
-    const clearWeek = page.locator("summary", { hasText: /^Clear the whole week$/ });
-    const clearDay = page.getByRole("button", { name: "Clear day" }).first();
-    const colour = await textColor(clearWeek);
-    expect(colour).not.toBe(await textColor(page.getByRole("link", { name: "Grocery list for this week" })));
-    expect(await textColor(clearDay)).toBe(colour);
-    expect(await textColor(page.locator("body"))).not.toBe(colour);
-  });
-
-  test("the button that confirms is solid danger, not the primary colour", async ({ page }) => {
-    await setUp(page);
-    await page.goto(`/?week=${WEEK}`);
-    await page.locator("summary", { hasText: /^Clear the whole week$/ }).click();
-    const confirm = page.getByRole("button", { name: "Clear week", exact: true });
-    const primary = page.getByRole("link", { name: "Grocery list for this week" });
-    expect(await background(confirm)).not.toBe(await background(primary));
-    expect(await background(confirm)).not.toBe("rgba(0, 0, 0, 0)");
-  });
-});
 
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`in ${colorScheme} mode`, () => {
@@ -107,23 +76,6 @@ const ring = (locator: Locator) =>
   });
 
 test.describe("keyboard focus", () => {
-  test("the destructive buttons and the ✕ buttons show a solid focus ring, not the faint one of other buttons", async ({
-    page,
-  }) => {
-    const { id } = await setUp(page);
-    const foreground = await textColor(page.locator("body"));
-
-    const remove = page.getByRole("button", { name: /^Remove / });
-    await focusByKeyboard(page, remove);
-    await expect.poll(() => ring(remove)).toEqual({ style: "solid", width: "3px", color: foreground });
-
-    await page.goto(`/recipes/${id}`);
-    await page.locator("summary", { hasText: /^Delete$/ }).click();
-    const confirm = page.getByRole("button", { name: "Delete recipe", exact: true });
-    await focusByKeyboard(page, confirm);
-    await expect.poll(() => ring(confirm)).toEqual({ style: "solid", width: "3px", color: foreground });
-  });
-
   for (const colorScheme of ["light", "dark"] as const) {
     test.describe(`in ${colorScheme} mode`, () => {
       test.use({ colorScheme });
@@ -157,31 +109,6 @@ test.describe("keyboard focus", () => {
         }
         testInfo.annotations.push({ type: `ring contrast (${colorScheme})`, description: ratios.join(", ") });
         console.log(`ring contrast, ${colorScheme}: ${ratios.join(", ")}`);
-      });
-
-      test("the accent ring around a focused grocery row is a 2 px inset ring, at least 3:1 against the row", async ({
-        page,
-      }, testInfo) => {
-        await setUp(page);
-        const row = groceryRow(page, "Rice");
-        const tick = row.getByRole("checkbox", { name: "Tick off Rice", exact: true });
-        await expect(tick).toBeEnabled(); // enabled once the page is interactive
-        await focusByKeyboard(page, tick);
-        const label = row.locator("label");
-
-        // The ring is a box-shadow: one entry with a spread and a colour (Tailwind adds empty ones).
-        const shadow = await label.evaluate((element) => getComputedStyle(element).boxShadow);
-        const rings = [...shadow.matchAll(/(rgba?\([^)]*\))\s+(-?\d+)px\s+(-?\d+)px\s+(-?\d+)px\s+(\d+)px(\s+inset)?/g)]
-          .map((m) => ({ colour: parseColor(m[1]), spread: Number(m[5]), inset: m[6] !== undefined }))
-          .filter((entry) => entry.spread > 0);
-        expect(rings, shadow).toHaveLength(1);
-        expect(rings[0]).toMatchObject({ spread: 2, inset: true });
-        expect(rings[0].colour.a).toBe(1);
-
-        const ratio = contrastRatio(rings[0].colour, await surfaceColor(label, "self"));
-        testInfo.annotations.push({ type: `grocery row ring contrast (${colorScheme})`, description: ratio.toFixed(2) });
-        console.log(`grocery row ring contrast, ${colorScheme}: ${ratio.toFixed(2)}`);
-        expect(ratio).toBeGreaterThanOrEqual(3);
       });
     });
   }

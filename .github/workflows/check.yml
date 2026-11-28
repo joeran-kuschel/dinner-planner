@@ -54,9 +54,12 @@ jobs:
     steps:
       # Actions are pinned to a commit, not a tag that can move; Dependabot proposes updates
       # (.github/dependabot.yml).
+      # The whole history: the check compares the branch with main to decide whether the slow infra tests have to run
+      # (scripts/check-lib.ts, `changedFiles`); a shallow checkout has no merge base, and then everything runs.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # The workspace belongs to the runner's user and the container runs as root, so git refuses it ("dubious ownership")
       # and the infra tests that run `git ls-files` fail. Checkout only trusts it for its own git calls.

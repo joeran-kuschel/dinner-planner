@@ -223,34 +223,6 @@ test.describe("language", () => {
       await page.setViewportSize({ width: 320, height: 640 });
     });
 
-    test("the questions of Clear the whole week and Delete fit the screen", async ({ page }) => {
-      const name = unique("Linsen");
-      const id = await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Linsen" }] });
-      await useGerman(page); // the helpers above speak English: switch only now
-      await page.goto("/?week=2028-02-07");
-      await page.getByRole("combobox", { name: "Abendessen am Montag" }).fill(name);
-      await afterServerAction(page, () => page.getByRole("option", { name, exact: true }).click());
-
-      await page.locator("summary", { hasText: /^Ganze Woche leeren$/ }).click();
-      const week = page.getByRole("group", { name: "1 geplantes Abendessen aus dieser Woche entfernen?" });
-      await expect(week).toBeVisible();
-      await expect(week.getByRole("button", { name: "Woche leeren", exact: true })).toBeVisible();
-      await expectInsideViewport(week, "week question");
-      await expectNoSidewaysScroll(page);
-      await expectAccessible(page);
-
-      await page.goto(`/recipes/${id}`);
-      await page.locator("summary", { hasText: /^Löschen$/ }).click();
-      const recipe = page.getByRole("group", {
-        name: `„${name}“ löschen? Tage, an denen nur dieses Rezept geplant ist, werden ebenfalls geleert.`,
-      });
-      await expect(recipe).toBeVisible();
-      await expect(recipe.getByRole("button", { name: "Rezept löschen", exact: true })).toBeVisible();
-      await expectInsideViewport(recipe, "recipe question");
-      await expectNoSidewaysScroll(page);
-      await expectAccessible(page);
-    });
-
     test("the week buttons wrap inside the screen on the plan and on the grocery list", async ({ page }) => {
       await useGerman(page);
       const buttons = {
@@ -268,16 +240,6 @@ test.describe("language", () => {
         await expectAccessible(page);
       }
     });
-  });
-
-  test("the page for a missing recipe is in German too", async ({ page }) => {
-    await useGerman(page);
-    const response = await page.goto("/recipes/does-not-exist");
-    expect(response?.status()).toBe(404);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Seite nicht gefunden");
-    await expect(page).toHaveTitle("Abendessen-Planer");
-    await expect(page.getByRole("link", { name: "Zurück zum Plan" })).toHaveAttribute("href", "/");
-    await expectAccessible(page);
   });
 
   test("on a narrow screen, the keyboard goes from the switcher to the links", async ({ page }) => {

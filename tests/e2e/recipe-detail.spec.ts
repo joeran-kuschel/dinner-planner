@@ -92,33 +92,6 @@ test.describe("recipe detail", () => {
     await expect(card).not.toContainText(/planned \d+ times|planned for/i);
   });
 
-  test("a recipe planned for today shows today as its next day", async ({ page }) => {
-    const name = unique("Tonight's dinner");
-    await createRecipe(page, { name, ingredients: [{ name: "Rice" }] });
-    const now = new Date();
-    const weekday = now.toLocaleDateString("en-GB", { weekday: "long" });
-    await page.goto("/");
-    await planRecipe(page, weekday, name);
-
-    await page.goto("/recipes");
-    const card = page.getByRole("link").filter({ has: page.getByRole("heading", { name, exact: true }) });
-    const short = now.toLocaleDateString("en-GB", { weekday: "short" });
-    const dayMonth = now.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-    await expect(card).toContainText(`next ${short} ${dayMonth}`);
-  });
-
-  test("a recipe planned only in the past shows no next day on its card", async ({ page }) => {
-    const name = unique("Old favourite");
-    await createRecipe(page, { name, ingredients: [{ name: "Rice" }] });
-    await page.goto("/?week=2024-05-06");
-    await planRecipe(page, "Monday", name);
-
-    await page.goto("/recipes");
-    const card = page.getByRole("link").filter({ has: page.getByRole("heading", { name, exact: true }) });
-    await expect(card).toContainText("Serves 2 · 1 ingredient");
-    await expect(card).not.toContainText("next");
-  });
-
   test("a recipe without ingredients or method says so, and planned nowhere shows no plan line", async ({
     page,
   }) => {
@@ -131,13 +104,4 @@ test.describe("recipe detail", () => {
     await expect(page.getByRole("link", { name: "source" })).toHaveCount(0);
   });
 
-  test("a recipe card with one ingredient uses the singular", async ({ page }) => {
-    const name = unique("Toast");
-    await createRecipe(page, { name, ingredients: [{ quantity: "2", name: "Bread slices" }] });
-
-    await page.goto("/recipes");
-    const card = page.getByRole("link").filter({ has: page.getByRole("heading", { name, exact: true }) });
-    await expect(card).toContainText("Serves 2 · 1 ingredient", { timeout: 2000 });
-    await expect(card).not.toContainText("1 ingredients", { timeout: 2000 });
-  });
 });

@@ -415,6 +415,11 @@ change.
   several, each would need a schema of its own. Check pages with `expectAccessible()`
   (axe incl. contrast) from `tests/e2e/support/helpers.ts`; `unique()` is still handy
   for names within one test.
+- **Keep the suite fast: every e2e test names what no cheaper layer covers.** Playwright is the slowest stage and its time is the
+  number of tests (about 0.5 s each). A rule of an action or helper is a unit test, what a component shows a component test; a
+  page's e2e spec keeps the main flows and what only a browser shows (contrast, focus, print, layout). One axe sweep
+  (`redesign.spec.ts`) covers every page; a feature spec adds axe only for a state the sweep does not reach. Four slow infra
+  Vitest files run only when what they guard changed. Details: `documentation/backend/testing-check.md`.
 - A test that documents a known bug is marked `it.fails` / `test.fail` with a
   `// BUG:` comment until the bug is fixed.
 

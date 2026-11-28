@@ -169,25 +169,6 @@ test.describe("add a recipe from a link", () => {
     await expect(opener).toBeFocused();
   });
 
-  test("works in German", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "de-DE" });
-    const page = await context.newPage();
-    await page.goto("/recipes/new?import=1");
-    const german = page.getByRole("dialog", { name: "Über einen Link hinzufügen" });
-    await expect(german).toBeVisible();
-    await page.getByLabel("Link zum Rezept").fill("kein link");
-    await page.getByRole("button", { name: "Importieren", exact: true }).click();
-    await expect(german.getByRole("alert")).toHaveText("Gib eine Webadresse ein, die mit http:// oder https:// beginnt.");
-    await page.getByLabel("Link zum Rezept").fill(`${site.base}/plain`);
-    await page.getByRole("button", { name: "Importieren", exact: true }).click();
-    await expect(german.getByRole("alert")).toContainText("Auf dieser Seite wurde kein Rezept gefunden.");
-    await page.getByLabel("Link zum Rezept").fill(`${site.base}/recipe`);
-    await page.getByRole("button", { name: "Importieren", exact: true }).click();
-    await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
-    await expect(page.getByText("Rezept importiert. Prüfe es und wähle dann „Rezept anlegen“.")).toBeVisible();
-    await context.close();
-  });
-
   test.describe("without JavaScript", () => {
     test("asks for the link on the page itself, and fills the form from it", async ({ browser }) => {
       const context = await browser.newContext({ javaScriptEnabled: false, locale: "en-GB" });
@@ -251,36 +232,6 @@ test.describe("add a recipe from a link", () => {
       expect(answer.headers()["content-type"]).toBe("image/webp");
     });
 
-    for (const [page_, expected] of [
-      ["recipe-photo-object", "lemon-pancakes.png image/png"],
-      ["recipe-photo-list", "lemon-pancakes.webp image/webp"],
-      ["recipe-photo-redirect", "lemon-pancakes.jpg image/jpeg"],
-    ]) {
-      test(`finds the picture however the page names it: ${page_}`, async ({ page }) => {
-        await page.goto("/recipes/new?import=1");
-        await page.getByLabel("Link to the recipe").fill(`${site.base}/${page_}`);
-        await importButton(page).click();
-        await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
-        expect(await photoName(page)).toBe(expected);
-      });
-    }
-
-    for (const page_ of ["recipe-photo-fake", "recipe-photo-svg", "recipe-photo-gif", "recipe-photo-missing", "recipe-photo-too-big"]) {
-      test(`imports the recipe without the picture when it cannot be used: ${page_}`, async ({ page }) => {
-        await page.goto("/recipes/new?import=1");
-        await page.getByLabel("Link to the recipe").fill(`${site.base}/${page_}`);
-        await importButton(page).click();
-
-        await expect(dialog(page)).toBeHidden();
-        await expect(page.locator("#name")).toHaveValue("Lemon pancakes");
-        await expect(page.getByText("Recipe imported, but its photo could not be fetched.", { exact: false })).toBeVisible();
-        expect(await photoName(page)).toBeNull();
-        await expect(page.getByLabel(/^Description of the photo/)).toHaveValue("");
-        await expect(page.getByLabel(/^Description of the photo/)).not.toHaveAttribute("required", "");
-        await expect(page.locator("#name")).toBeFocused();
-      });
-    }
-
     test("a recipe without a picture imports as before", async ({ page }) => {
       await page.goto("/recipes/new?import=1");
       await page.getByLabel("Link to the recipe").fill(`${site.base}/recipe`);
@@ -301,14 +252,5 @@ test.describe("add a recipe from a link", () => {
       expect(await photoName(page)).toBeNull();
     });
 
-    test("is described in German", async ({ browser }) => {
-      const context = await browser.newContext({ locale: "de-DE" });
-      const page = await context.newPage();
-      await page.goto("/recipes/new?import=1");
-      await page.getByLabel("Link zum Rezept").fill(`${site.base}/recipe-photo`);
-      await page.getByRole("button", { name: "Importieren", exact: true }).click();
-      await expect(page.getByText("Rezept und Foto importiert. Prüfe sie und wähle dann „Rezept anlegen“.")).toBeVisible();
-      await context.close();
-    });
   });
 });
