@@ -56,7 +56,39 @@ amount, so the line keeps the category of the recipes and the extra's category i
 The migration runs in the app pod's init container and has no way back: the old image reads the dropped `category` column, so a
 rollback to the previous image needs the backup restored. Run `npm run k8s:backup` before the deploy that brings it.
 
-## Adding a category
+## Changing the sections (the management page)
 
-Part of #29: the table is there, the page that adds, renames, moves and deletes categories comes next. Until then a seeded
-section is changed with a migration.
+`/groceries/categories` (`app/groceries/categories/page.tsx`, `components/category-manager.tsx`, linked from the grocery
+page) lists the sections and offers add, rename, move and delete; the user's side of it is in [Grocery list](../ui/groceries.md#grocery-categories).
+The actions are in `app/actions/grocery-categories.ts`, each starts with `requireAccess()`:
+
+- `addGroceryCategory`: a name, trimmed with runs of white space as one, 1 to `MAX_CATEGORY_NAME` (40) characters, free
+  (no other section is shown under it, in the page's language: a seeded section is shown under its translated name, so
+  "Bakery" cannot be added next to it, compared ignoring case) and at most `MAX_CATEGORIES` (30) sections. The new section
+  goes just before "Other", and every position is renumbered.
+- `renameGroceryCategory`: the same name rules. A seeded section saved with an empty name goes back to its translated
+  name (`name` null); one the user added must have a name. Saving a seeded section under the name it is shown by changes
+  nothing, so it stays translated.
+- `moveGroceryCategory`: one place up or down by swapping neighbours and writing every position from the new order in one
+  transaction (a tie in the old order cannot survive a move). "Other" does not move and nothing moves past it, whatever is posted.
+- `deleteGroceryCategory`: in one transaction, the section's ingredients and grocery entries move to "Other" and the row is
+  deleted; "Other" cannot be deleted. The `Restrict` foreign key stays as the safety net.
+- A refusal (`empty`, `long`, `duplicate`, `limit`) redirects back with `?error=<code>` and the typed name (`name`, and `id`
+  of the section it was for), which the page shows in a `role="alert"` and puts back in the field; `n` is new every time, so the
+  alert is announced again when the same refusal comes twice. A change that went through redirects to the bare page, so
+  the alert does not outlive it. That also works for a form without JavaScript. The name must be free in every language (a
+  starting section is taken under its English and its German name), and a delete that a concurrent save makes the foreign key
+  refuse is run once more. The forms name their fields with the `form` attribute
+  (`rename-<id>`, `move-<id>`), so a row can wrap on a phone; the script only keeps the keyboard focus on the button that
+  moved a section and says where it went. A success revalidates `/groceries`, `/groceries/categories` and the recipe pages
+  (their selects).
+
+**A delete that races a save.** A recipe or a grocery extra saved with a category that was deleted a moment before would be
+refused by the foreign key. `withCategories()` (`lib/grocery-category-server.ts`) runs the four writers that file a category
+(`createRecipe`, `updateRecipe`, `addGroceryExtra`, the carried tick of `toggleGroceryLine`) and, on Prisma's `P2003`, tries
+once more with the sections read again, where the deleted id is unknown and so becomes "Other".
+
+## Adding a category in the code
+
+A new seeded section (not a user's) needs a row in a migration, an entry in `SEEDED_KEYS` and a label in `defaultLabel`
+(`lib/grocery-category.ts`), and a translation (`npm run i18n:extract`).

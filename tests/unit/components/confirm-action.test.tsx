@@ -220,6 +220,33 @@ describe("ConfirmAction", () => {
     });
   });
 
+  describe("accessibleLabel", () => {
+    it("names the asking button by it, so a list of Delete buttons can be told apart, while the button still reads its label", () => {
+      renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      expect(summary()).toHaveAttribute("aria-label", "Delete Mushroom risotto");
+      expect(summary()).toHaveTextContent("Delete");
+      expect(summary()).toHaveAccessibleName("Delete Mushroom risotto");
+    });
+
+    it("leaves the button named by its visible label without one", () => {
+      renderConfirm();
+      expect(summary()).not.toHaveAttribute("aria-label");
+      expect(summary()).toHaveAccessibleName("Delete");
+    });
+
+    it("still opens and confirms as before", async () => {
+      const { user, action } = renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      await user.click(summary());
+      await user.click(screen.getByRole("button", { name: "Delete recipe" }));
+      await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    });
+
+    it("has no accessibility violations", async () => {
+      const { container } = renderConfirm({ accessibleLabel: "Delete Mushroom risotto" });
+      await expectNoAxeViolations(container);
+    });
+  });
+
   it("names Cancel in German", async () => {
     const { user } = renderConfirm({}, "de");
     await user.click(summary());

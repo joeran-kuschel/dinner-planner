@@ -4,7 +4,9 @@ import { Client } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { SEEDED_CATEGORIES } from "@/lib/grocery-category";
-import { createMigratedSchema, dropSchema, emptySchema } from "@/tests/support/migrate";
+import { resetDatabase } from "@/tests/support/db";
+import { SEEDED_ROWS } from "@/tests/support/seeded-categories";
+import { createMigratedSchema, dropSchema, emptySchema, restoreSeededCategories } from "@/tests/support/migrate";
 
 /** The connection of this test file's own schema, which is also where `prisma` writes. */
 const url = new URL(process.env.DATABASE_URL!);
@@ -60,6 +62,60 @@ describe("emptySchema", () => {
     const { rows } = await client.query(`SELECT id, key, name, position FROM "${SCHEMA}"."GroceryCategory" ORDER BY position`);
     expect(rows).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
     await expect(fillEveryTable()).resolves.toBeUndefined();
+  });
+
+  /** What a test of the management page leaves behind: a section added, one renamed, moved and re-keyed, one deleted. */
+  async function messUpTheSections() {
+    await client.query(`INSERT INTO "${SCHEMA}"."GroceryCategory" (id, key, name, position) VALUES ('cat_mine', NULL, 'Pet food', 9)`);
+    await client.query(`UPDATE "${SCHEMA}"."GroceryCategory" SET name = 'Greens', position = 42 WHERE id = 'cat_produce'`);
+    await client.query(`UPDATE "${SCHEMA}"."GroceryCategory" SET position = 0 WHERE id = 'cat_other'`);
+    await client.query(`DELETE FROM "${SCHEMA}"."GroceryCategory" WHERE id = 'cat_frozen'`);
+  }
+  const sections = async () =>
+    (await client.query(`SELECT id, key, name, position FROM "${SCHEMA}"."GroceryCategory" ORDER BY position, id`)).rows;
+
+  it("puts the shop sections back as the migration made them: added ones gone, renamed, moved and deleted ones restored", async () => {
+    await messUpTheSections();
+
+    await emptySchema(client, SCHEMA);
+
+    expect(await sections()).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+  });
+
+  it("deletes a section a test added even when an ingredient was filed under it, because the ingredients go first", async () => {
+    await messUpTheSections();
+    await prisma.recipe.create({ data: { name: "Dog stew", ingredients: { create: [{ name: "Kibble", categoryId: "cat_mine" }] } } });
+    await prisma.groceryEntry.create({ data: { weekStart: new Date("2027-01-04T00:00:00Z"), key: "kibble|", label: "Kibble", categoryId: "cat_mine" } });
+
+    await emptySchema(client, SCHEMA);
+
+    expect(await sections()).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+    expect(await count(SCHEMA, "Ingredient")).toBe(0);
+  });
+
+  it("restores the sections of the schema it is given and leaves another schema's alone", async () => {
+    const other = `${SCHEMA}_other`;
+    await createMigratedSchema(BASE_URL, other);
+    try {
+      await client.query(`UPDATE "${other}"."GroceryCategory" SET name = 'Mine' WHERE id = 'cat_bakery'`);
+      await messUpTheSections();
+
+      await restoreSeededCategories(client, SCHEMA);
+
+      expect((await client.query(`SELECT name FROM "${other}"."GroceryCategory" WHERE id = 'cat_bakery'`)).rows).toEqual([{ name: "Mine" }]);
+      expect(await sections()).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+    } finally {
+      await dropSchema(BASE_URL, other);
+    }
+  });
+
+  it("changes nothing when the sections are as the migration made them", async () => {
+    await restoreSeededCategories(client, SCHEMA);
+    expect(await sections()).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+  });
+
+  it("refuses to restore the sections of `public`", async () => {
+    await expect(restoreSeededCategories(client, "public")).rejects.toThrow(/public/);
   });
 
   it("also empties a table it has never heard of, so a new model needs no change here", async () => {
@@ -118,6 +174,29 @@ describe("emptySchema", () => {
     } finally {
       await client.query(`DROP SCHEMA "${odd.replace(/"/g, '""')}" CASCADE`);
     }
+  });
+});
+
+describe("the restore step's copy of the starting sections", () => {
+  it("is the same ten sections as the app's SEEDED_CATEGORIES (a copy, since Playwright cannot load Lingui's macros)", () => {
+    expect(SEEDED_ROWS).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+  });
+});
+
+describe("resetDatabase, which empties the tables before each Vitest test", () => {
+  it("puts the shop sections back as the migration made them, with ingredients and grocery entries filed under an added one gone", async () => {
+    await prisma.groceryCategory.create({ data: { id: "cat_mine", name: "Pet food", position: 9 } });
+    await prisma.groceryCategory.update({ where: { id: "cat_produce" }, data: { name: "Greens", position: 42 } });
+    await prisma.groceryCategory.delete({ where: { id: "cat_frozen" } });
+    await prisma.recipe.create({ data: { name: "Dog stew", ingredients: { create: [{ name: "Kibble", categoryId: "cat_mine" }] } } });
+    await prisma.groceryEntry.create({ data: { weekStart: new Date("2027-01-04T00:00:00Z"), key: "kibble|", label: "Kibble", categoryId: "cat_mine" } });
+
+    await resetDatabase();
+
+    const rows = await prisma.groceryCategory.findMany({ orderBy: [{ position: "asc" }, { id: "asc" }] });
+    expect(rows).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+    expect(await prisma.ingredient.count()).toBe(0);
+    expect(await prisma.groceryEntry.count()).toBe(0);
   });
 });
 

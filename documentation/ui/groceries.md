@@ -33,7 +33,7 @@ group they are in alphabetical order.
 Each section has a heading with the number of lines in it, for example "Dairy and eggs (2)". The sections come in the
 order of a walk through the shop: **Fruit and vegetables**, **Bakery**, **Meat and fish**, **Dairy and eggs**,
 **Pasta, rice, etc.**, **Pantry**, **Herbs & spices**, **Frozen**, **Drinks** and **Other**. A section with no line is
-not shown. The set is fixed; the German names are "Obst und Gemüse", "Backwaren", "Fleisch und Fisch",
+not shown. These are the sections the app starts with; you can rename, reorder, delete and add them ([Grocery categories](#grocery-categories)). The German names of the starting set are "Obst und Gemüse", "Backwaren", "Fleisch und Fisch",
 "Milchprodukte und Eier", "Nudeln, Reis usw.", "Vorräte", "Kräuter & Gewürze", "Tiefkühlware", "Getränke" and
 "Sonstiges".
 
@@ -52,6 +52,28 @@ field of the form below.
   section never unticks it.
 - Under the title, a line says how far you are: "7 of 12 ticked off" ("7 von 12 abgehakt"). It is a status region, so a
   screen reader announces it when it changes. When everything is ticked off it says so.
+
+## Grocery categories
+
+**Edit categories** (a card at the bottom of the grocery page, above the merged lines) opens `/groceries/categories`, the page for the
+shop sections, so the list follows the layout of your own supermarket. Each section is a row with:
+
+- **Name**, with **Save**. The sections the app starts with show their translated name until you name them ("Shown in the page's
+  language until you rename it"); saving one with an empty name takes it back. A section you added must have a name of 1 to 40
+  characters that no other section has (ignoring case; "Bakery" cannot be added next to the starting "Bakery"), and there can
+  be 30 sections.
+- **Move up** and **Move down** ("Move Bakery up"): one place at a time, so no drag and drop is needed (WCAG 2.5.7). The first
+  section cannot move up and the last one before **Other** cannot move down (the buttons are off). The keyboard focus stays on the button
+  you used, and a status line says "Bakery moved to position 2 of 10".
+- **Delete**, with a question that says what moves: "Delete Bakery? Its 12 ingredients and 3 list entries move to Other."
+  Ingredients and list entries keep their tick state and amounts; only their section changes.
+- **Other** is always the last section. It can be renamed ("Misc"), but not moved or deleted: it is where things go when their
+  section is deleted.
+
+**Add a category** at the bottom puts a new section just before Other. A refusal (a name that is empty, too long or taken, or
+the limit) shows a message at the top of the page in an alert. The new and renamed sections are offered in the recipe form's
+Category choice and in the add-something-else form, and the list is grouped by them at once. Everything is a plain form, so
+the page works without JavaScript.
 
 ## Pantry staples
 

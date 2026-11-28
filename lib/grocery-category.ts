@@ -19,6 +19,17 @@ export const OTHER_KEY = "OTHER";
 /** The id the migration gives the category with this key (`cat_produce`): the same in every database. */
 export const seedCategoryId = (key: string) => `cat_${key.toLowerCase()}`;
 
+/** Limits of the management page: a name is at most this long, and there are at most this many sections. */
+export const MAX_CATEGORY_NAME = 40;
+export const MAX_CATEGORIES = 30;
+
+/** Why a change to the sections was refused; the page says it in words (`?error=`). */
+export const CATEGORY_ERRORS = ["empty", "long", "duplicate", "limit"] as const;
+export type CategoryError = (typeof CATEGORY_ERRORS)[number];
+
+/** A typed name as it is stored: trimmed, runs of white space as one space. */
+export const normalizeCategoryName = (raw: string): string => raw.trim().replace(/\s+/g, " ");
+
 /** The id of "Other", the section that always exists: a row stored without a section of its own is filed there. */
 export const OTHER_CATEGORY_ID = seedCategoryId(OTHER_KEY);
 

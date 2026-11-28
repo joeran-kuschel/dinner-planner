@@ -116,7 +116,10 @@ show their translated label until they are named (`categoryName()`). The categor
 never touches tick state; merged lines take the category with the lowest `position`. Lines and ingredient queries
 carry the whole row (`include: { category: true }`), forms post an id through `parseCategoryId(raw, categories)`
 (`loadCategories()` on the server), never straight to Prisma; an unknown id is "Other". Tests keep the seeded rows
-(`emptySchema` and `resetDatabase` leave the table alone). Details: `documentation/backend/grocery-categories.md`.
+(`emptySchema` and `resetDatabase` leave the table alone). The user changes the sections on `/groceries/categories` (`app/actions/grocery-categories.ts`: add before "Other", rename,
+move, delete moves the items to "Other" in the same transaction; "Other" is always last and never deleted; a writer that
+files a category goes through `withCategories()`, which retries once on a foreign-key refusal). Details:
+`documentation/backend/grocery-categories.md`.
 
 **Tags are a `Tag` table, stored normalised and pruned when unused.** Every tag
 goes through `normalizeTag()` / `parseTags()` (`lib/tags.ts`): lowercase, so the

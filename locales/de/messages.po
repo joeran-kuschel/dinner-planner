@@ -15,6 +15,11 @@ msgstr "„Personen“ sagt, für wie viele gekocht wird; die Einkaufsliste rech
 msgid "({selected} selected)"
 msgstr "({selected} ausgewählt)"
 
+#. placeholder {0}: removed[1]
+#: components/category-manager.tsx
+msgid "{0} deleted"
+msgstr "{0} gelöscht"
+
 #: components/merged-lines-section.tsx
 msgid "{count, plural, one {# rule} other {# rules}}"
 msgstr "{count, plural, one {# Regel} other {# Regeln}}"
@@ -57,6 +62,12 @@ msgstr "{name} steht jetzt auf einer eigenen Zeile"
 msgid "{name} may be merged again"
 msgstr "{name} darf wieder zusammengeführt werden"
 
+#. placeholder {0}: index + 1
+#. placeholder {1}: categories.length
+#: components/category-manager.tsx
+msgid "{name} moved to position {0} of {1}"
+msgstr "{name} steht jetzt an Position {0} von {1}"
+
 #: app/page.tsx
 msgid "{plannedCount} of 7 planned"
 msgstr "{plannedCount} von 7 geplant"
@@ -89,6 +100,10 @@ msgstr "{weekdayLabel}: Reste von {weekday}"
 msgid "A bowl of red lentil dal with coriander"
 msgstr "Eine Schüssel rotes Linsen-Dal mit Koriander"
 
+#: components/category-manager.tsx
+msgid "A name can have at most {MAX_CATEGORY_NAME} characters."
+msgstr "Ein Name darf höchstens {MAX_CATEGORY_NAME} Zeichen lang sein."
+
 #: app/actions/recipes.ts
 #: components/tag-input.tsx
 msgid "A recipe can have at most {MAX_TAGS} tags."
@@ -111,9 +126,17 @@ msgstr "Hinzufügen"
 msgid "Add “{name}” as a new recipe"
 msgstr "„{name}“ als neues Rezept anlegen"
 
+#: components/category-manager.tsx
+msgid "Add a category"
+msgstr "Kategorie hinzufügen"
+
 #: components/pantry-section.tsx
 msgid "Add a staple"
 msgstr "Vorratsartikel hinzufügen"
+
+#: components/category-manager.tsx
+msgid "Add category"
+msgstr "Kategorie hinzufügen"
 
 #: app/recipes/new/page.tsx
 #: app/recipes/page.tsx
@@ -281,12 +304,31 @@ msgid "Day for {0}"
 msgstr "Tag für {0}"
 
 #: app/recipes/[id]/page.tsx
+#: components/category-manager.tsx
 msgid "Delete"
 msgstr "Löschen"
 
 #: app/recipes/[id]/page.tsx
 msgid "Delete “{recipeName}”? Days that only plan it are cleared too."
 msgstr "„{recipeName}“ löschen? Tage, an denen nur dieses Rezept geplant ist, werden ebenfalls geleert."
+
+#: components/category-manager.tsx
+msgid "Delete {name}"
+msgstr "{name} löschen"
+
+#. placeholder {0}: category.ingredients
+#. placeholder {1}: category.entries
+#: components/category-manager.tsx
+msgid "Delete {name}? Its {0, plural, one {# ingredient} other {# ingredients}} and {1, plural, one {# list entry} other {# list entries}} move to {otherName}."
+msgstr "{name} löschen? {0, plural, one {# Zutat} other {# Zutaten}} und {1, plural, one {# Listeneintrag} other {# Listeneinträge}} wandern nach {otherName}."
+
+#: components/category-manager.tsx
+msgid "Delete {name}? Nothing is filed under it."
+msgstr "{name} löschen? Darunter ist nichts einsortiert."
+
+#: components/category-manager.tsx
+msgid "Delete category"
+msgstr "Kategorie löschen"
 
 #: app/recipes/[id]/page.tsx
 msgid "Delete recipe"
@@ -329,6 +371,10 @@ msgstr "Bearbeiten"
 #: app/recipes/[id]/edit/page.tsx
 msgid "Edit {name}"
 msgstr "{name} bearbeiten"
+
+#: app/groceries/page.tsx
+msgid "Edit categories"
+msgstr "Kategorien bearbeiten"
 
 #: app/recipes/[id]/edit/page.tsx
 msgid "Edit recipe"
@@ -392,6 +438,10 @@ msgstr "Obst und Gemüse"
 msgid "g"
 msgstr "g"
 
+#: components/category-manager.tsx
+msgid "Give the category a name."
+msgstr "Gib der Kategorie einen Namen."
+
 #: app/actions/recipes.ts
 msgid "Give the recipe a name."
 msgstr "Gib dem Rezept einen Namen."
@@ -404,6 +454,12 @@ msgstr "Zu {title} am {weekday}"
 msgid "Groceries"
 msgstr "Einkauf"
 
+#: app/groceries/categories/page.tsx
+#: app/groceries/page.tsx
+msgid "Grocery categories"
+msgstr "Einkaufskategorien"
+
+#: app/groceries/categories/page.tsx
 #: app/groceries/page.tsx
 #: lib/grocery.ts
 msgid "Grocery list"
@@ -590,10 +646,19 @@ msgstr "ml"
 msgid "More ways to add a recipe"
 msgstr "Weitere Möglichkeiten, ein Rezept hinzuzufügen"
 
+#: components/category-manager.tsx
+msgid "Move {name} down"
+msgstr "{name} nach unten"
+
+#: components/category-manager.tsx
+msgid "Move {name} up"
+msgstr "{name} nach oben"
+
 #: components/recipe-form.tsx
 msgid "Mushroom risotto"
 msgstr "Pilzrisotto"
 
+#: components/category-manager.tsx
 #: components/recipe-form.tsx
 msgid "Name"
 msgstr "Name"
@@ -726,6 +791,10 @@ msgstr "Nudeln, Reis usw."
 #: components/import-recipe-dialog.tsx
 msgid "Paste the address of a recipe page. The recipe is filled in for you to check; nothing is saved until you save it."
 msgstr "Füge die Adresse einer Rezeptseite ein. Das Rezept wird zum Prüfen ausgefüllt; gespeichert wird erst, wenn du es speicherst."
+
+#: components/category-manager.tsx
+msgid "Pet food"
+msgstr "Tierfutter"
 
 #: components/recipe-form.tsx
 msgid "Photo"
@@ -863,6 +932,10 @@ msgstr "{name} aus den Vorratsartikeln entfernt"
 msgid "Removed tag {tag}"
 msgstr "Tag {tag} entfernt"
 
+#: app/groceries/page.tsx
+msgid "Rename the sections, put them in the order of your shop, and add your own."
+msgstr "Benenne die Bereiche um, bring sie in die Reihenfolge deines Supermarkts und füge eigene hinzu."
+
 #: components/recipe-form.tsx
 msgid "Replace photo"
 msgstr "Foto ersetzen"
@@ -881,6 +954,7 @@ msgstr "Pflichtfeld"
 msgid "Salt"
 msgstr "Salz"
 
+#: components/category-manager.tsx
 #: components/leftovers-dialog.tsx
 msgid "Save"
 msgstr "Speichern"
@@ -926,6 +1000,10 @@ msgstr "{servings, plural, one {Für # Person} other {Für # Personen}}"
 #: components/merge-lines-dialog.tsx
 msgid "Show what {label} combines"
 msgstr "Anzeigen, was {label} zusammenfasst"
+
+#: components/category-manager.tsx
+msgid "Shown in the page's language until you rename it."
+msgstr "Wird in der Sprache der Seite angezeigt, bis du sie umbenennst."
 
 #: components/recipe-sort-select.tsx
 msgid "Sort by"
@@ -1052,6 +1130,10 @@ msgstr "Das Foto ist zu groß: höchstens {MAX_PHOTO_MEGABYTES} MB."
 msgid "The plan changed in the meantime, so nothing was saved. The list shows what is planned now."
 msgstr "Der Plan hat sich inzwischen geändert, deshalb wurde nichts gespeichert. Die Liste zeigt, was jetzt geplant ist."
 
+#: app/groceries/categories/page.tsx
+msgid "The sections of your grocery list, in the order of your shop."
+msgstr "Die Bereiche deiner Einkaufsliste in der Reihenfolge deines Supermarkts."
+
 #: app/actions/recipes.ts
 msgid "The source has to be a web address starting with http:// or https://."
 msgstr "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// beginnt."
@@ -1059,6 +1141,10 @@ msgstr "Die Quelle muss eine Webadresse sein, die mit http:// oder https:// begi
 #: components/merge-lines-dialog.tsx
 msgid "There are too many merges already. Undo one under “Merged lines” first."
 msgstr "Es gibt schon zu viele Zusammenführungen. Mache zuerst eine unter „Zusammengeführte Zeilen“ rückgängig."
+
+#: components/category-manager.tsx
+msgid "There is already a category with that name."
+msgstr "Es gibt schon eine Kategorie mit diesem Namen."
 
 #: components/merge-lines-dialog.tsx
 msgid "These lines cannot be merged. Please try again."
@@ -1166,6 +1252,14 @@ msgstr "Spülmittel"
 #: app/page.tsx
 msgid "Week plan"
 msgstr "Wochenplan"
+
+#: components/category-manager.tsx
+msgid "Where items go when their category is deleted. Always last."
+msgstr "Hierhin kommen Einträge, wenn ihre Kategorie gelöscht wird. Immer ganz unten."
+
+#: components/category-manager.tsx
+msgid "You can have at most {MAX_CATEGORIES} categories."
+msgstr "Du kannst höchstens {MAX_CATEGORIES} Kategorien haben."
 
 #: components/leave-guard.tsx
 msgid "You changed this recipe and have not saved it yet."
