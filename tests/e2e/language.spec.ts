@@ -20,7 +20,7 @@ async function switchTo(page: Page, language: "English" | "Deutsch") {
 
 /** Open pages in German, as after picking it once. */
 async function useGerman(page: Page) {
-  await page.context().addCookies([{ name: "locale", value: "de", url: "http://localhost:3100" }]);
+  await page.context().addCookies([{ name: "locale", value: "de", domain: "localhost", path: "/" }]);
 }
 
 test.describe("language", () => {
@@ -271,7 +271,7 @@ test.describe("language", () => {
     { locale: "de", width: 1280 },
   ]) {
     test(`a field scrolled to the top stays below the sticky header (${locale}, ${width} px)`, async ({ page }) => {
-      await page.context().addCookies([{ name: "locale", value: locale, url: "http://localhost:3100" }]);
+      await page.context().addCookies([{ name: "locale", value: locale, domain: "localhost", path: "/" }]);
       await expectFieldBelowHeader(page, width);
     });
   }

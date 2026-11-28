@@ -16,7 +16,7 @@ npm run docs:screenshots
 
 Run it after a change to a screen with a picture, and commit the changed files. It is not part of `npm run check` or the GitHub check, so a picture is never what fails a pull request.
 
-- **It starts the same server as the end-to-end tests**: the standalone build and the separate `e2e` schema (`playwright.screenshots.config.ts`, which builds on `playwright.config.ts`), so the real data is never in a picture. The script is `tests/screenshots/documentation.shots.ts`.
+- **It starts the same server as the end-to-end tests**: the standalone build and a schema of its own (`e2e_0`) (`playwright.screenshots.config.ts`, which builds on `playwright.config.ts`), so the real data is never in a picture. It uses the first worker's port (3100) and schema, so it cannot run beside the end-to-end tests: the second one stops with "port in use". The script is `tests/screenshots/documentation.shots.ts`.
 - **The data is made by the script**: eight sample recipes, this week's plan with a leftovers day, two favorites, one recipe planned five weeks ago and one twelve weeks ago, and a grocery list with a hand-added item and two ticked lines. Nothing in it is a real recipe.
 - **The days are the real current week.** The server's "today" cannot be pinned without production code, so the week plan shows the day the script ran, and "last planned" reads relative to it.
 - **The build takes minutes, the pictures seconds.** The first run builds the app. To run the script again without building, after a build: `E2E_PREBUILT=1 npm run docs:screenshots`.

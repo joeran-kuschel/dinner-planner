@@ -1,5 +1,4 @@
 import { type Page } from "@playwright/test";
-import { E2E_SCHEMA } from "../../playwright.config";
 import { expect, test } from "@/tests/e2e/support/test";
 import {
   createRecipe,
@@ -67,15 +66,15 @@ async function openDelete(page: Page, name: string) {
 }
 
 /** Sections inserted directly, with positions after Other's, so the page lists them last (the limit and the long-list tests). */
-async function insertSections(database: import("pg").Client, count: number) {
+async function insertSections(database: import("pg").Client, schema: string, count: number) {
   for (let index = 0; index < count; index++) {
-    await database.query(`INSERT INTO "${E2E_SCHEMA}"."GroceryCategory" (id, key, name, position) VALUES ($1, NULL, $2, $3)`, [
+    await database.query(`INSERT INTO "${schema}"."GroceryCategory" (id, key, name, position) VALUES ($1, NULL, $2, $3)`, [
       `direct_${index}`,
       `Direct ${index}`,
       10 + index,
     ]);
   }
-  await database.query(`UPDATE "${E2E_SCHEMA}"."GroceryCategory" SET position = $1 WHERE key = 'OTHER'`, [10 + count]);
+  await database.query(`UPDATE "${schema}"."GroceryCategory" SET position = $1 WHERE key = 'OTHER'`, [10 + count]);
 }
 
 test.describe("the grocery categories page", () => {
@@ -208,7 +207,7 @@ test.describe("the grocery categories page", () => {
     test.describe(`in ${colorScheme} mode`, () => {
       test.use({ colorScheme });
 
-      test("passes the accessibility check: plain, with a refusal, and with a long list", async ({ page, database }) => {
+      test("passes the accessibility check: plain, with a refusal, and with a long list", async ({ page, database, server }) => {
         await open(page);
         await expectAccessible(page);
 
@@ -216,7 +215,7 @@ test.describe("the grocery categories page", () => {
         await expect(alert(page)).toBeVisible();
         await expectAccessible(page);
 
-        await insertSections(database, 5);
+        await insertSections(database, server.schema, 5);
         await open(page);
         await expect(names(page)).toHaveCount(15);
         await expectAccessible(page);

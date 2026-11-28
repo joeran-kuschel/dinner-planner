@@ -37,18 +37,26 @@ can be merged: [github-actions.md](github-actions.md).
    `npm run build`, which would compile the catalogs again while Vitest reads them. The build also type-checks the whole
    project, so a type error stops the check here.
 3. **typecheck and playwright**, together. `tsc --noEmit` only reads the route types the build wrote, so it can run beside
-   Playwright (and stays as the explicit gate). Playwright starts its server from the finished build: the stage sets
-   `E2E_PREBUILT=1` (`playwright.config.ts` then leaves `npm run build` out of the server's command; `npm run test:e2e` alone still
-   builds, so it keeps working by itself). It gets 10 seconds per test (the default is 30) and stops at the first failure, so a
-   locator that no longer matches costs 10 seconds and not minutes.
+   Playwright (and stays as the explicit gate). Playwright's servers start from the finished build: the stage sets
+   `E2E_PREBUILT=1` (the global setup, `tests/e2e/support/global-setup.ts`, then leaves `npm run build` out; `npm run test:e2e`
+   alone still builds, so it keeps working by itself). It runs several workers side by side (below), gets 10 seconds per test (the
+   default is 30) and stops at the first failure, so a locator that no longer matches costs 10 seconds and not minutes.
 
 Before anything starts, the script checks that something answers on the host and port of `DATABASE_URL`. If not, it
 stops at once with "the database does not answer" instead of letting tests hang. Start the database with `npm run db:up`.
 
 ## Independent end-to-end tests
 
-The Playwright specs run on one schema (`e2e`), recreated from the migrations at the start of the run. Within the run,
-`tests/e2e/support/test.ts` empties it before every test: an automatic fixture calls `emptySchema()`
+Every Playwright worker has a server and a schema of its own, so the specs run side by side (about 49 s for the 233 tests with
+4 workers; they took 147 s on one). The worker fixture `server` in `tests/e2e/support/test.ts` creates the schema `e2e_<n>` from
+the migrations when the worker starts (`n` is the worker slot, `parallelIndex`), starts the standalone server on port
+`3100 + n` against that schema (`tests/e2e/support/server.ts`) and stops it when the worker is done. `baseURL` is that server's
+address. A spec that needs the schema asks for `server` (`server.schema`); the address comes from `baseURL`, never a typed port.
+A port that is already in use (on `127.0.0.1` or `::1`) stops the run with a message: a server someone else started could be using the real database. A worker that is killed without its teardown takes its server with it (an exit hook).
+When a test fails, Playwright starts a new worker in the same slot, after the old server has stopped, so the port and the
+schema are free again. That relies on Playwright freeing a worker slot only when the old worker has exited; check it after a Playwright upgrade (a failing test followed by passing ones, with `--workers=1`).
+
+Within a worker, `tests/e2e/support/test.ts` empties the schema before every test: an automatic fixture calls `emptySchema()`
 (`tests/support/migrate.ts`), which truncates every table of that schema in one statement. The tables come from
 `pg_tables`, so a new model is covered without a change here. It qualifies each table with the schema name, refuses
 `public`, and leaves other schemas alone.
@@ -56,12 +64,15 @@ The Playwright specs run on one schema (`e2e`), recreated from the migrations at
 So a test never sees what another one left, and it does not matter which weeks or names tests use or in which order they
 run. That is what makes `npx playwright test --repeat-each=3` pass, and it is the reason to import `test` from
 `tests/e2e/support/test.ts` rather than from `@playwright/test` (`tests/infra/e2e-isolation.test.ts` fails a spec that does
-not). `tests/e2e/isolation.spec.ts` shows the effect: run as a whole file, its second test fails when the reset is switched off. The
-fixture also throws when `workers` is above 1, because the reset would then empty another worker's data.
+not). `tests/e2e/isolation.spec.ts` shows the effect: run as a whole file, its second test fails when the reset is switched off.
 
-The reset assumes one worker (`playwright.config.ts` sets `workers: 1`, and the fixture throws otherwise). With several
-workers sharing the schema a reset would pull the data from under a test that is running; running in parallel would need one
-schema per worker.
+### How many workers
+
+`E2E_WORKERS` sets it (a whole number of 1 or more; anything else is an error). Without it, a third of the cores, at least 1 and at
+most 4 (`tests/e2e/support/workers.ts`), since every worker is a browser plus a server and the tests are timing-sensitive.
+Measured on a 14-core Mac, 233 tests: 1 worker 147 s, 2 workers 72 s, 3 workers 56 s, 4 workers 49 s, 6 workers 44 s, and five runs
+in a row at 4 workers passed. GitHub's workflow sets `E2E_WORKERS` itself (`.github/workflows/check.yml`), because a runner has
+4 cores and a third of that would be one worker. In the runner's own image, limited to 4 cores, 3 workers made tests exceed the 10 s limit and closed browser sessions, while 2 workers passed, so the workflow uses 2. Raise it only after measuring a run on GitHub.
 
 ## Leftover Vitest schemas
 
@@ -71,7 +82,7 @@ schemas stayed in the development database. So `createMigratedSchema()` stamps e
 (`COMMENT ON SCHEMA … IS 'created <ISO time>'`), and the global setup `tests/support/drop-stale-schemas.ts` calls
 `dropStaleTestSchemas()` once at the start of every run: it drops the schemas named exactly like that whose stamp is
 more than an hour old. A run takes minutes, so a younger schema may belong to another run that is still going (another
-terminal, another worktree) and stays, as does one without a stamp or with one that cannot be read. `public`, `e2e` and every other name are never
+terminal, another worktree) and stays, as does one without a stamp or with one that cannot be read. `public`, the `e2e_<n>` schemas and every other name are never
 touched, whatever their age. The cleanup is best effort: the setup also runs for the component tests, which need no database, so a database that cannot be reached or a drop that fails only prints a warning. `tests/infra/stale-test-schemas.test.ts` covers this.
 
 ## Time limits

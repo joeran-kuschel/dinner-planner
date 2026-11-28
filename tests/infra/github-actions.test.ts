@@ -8,7 +8,7 @@ const WORKFLOW = path.join(process.cwd(), ".github/workflows/check.yml");
 // Parsed YAML; each test reads only the fields it checks.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const workflow: any = parse(fs.readFileSync(WORKFLOW, "utf-8"));
-const steps: { uses?: string; run?: string; with?: Record<string, unknown> }[] = workflow.jobs.check.steps;
+const steps: { uses?: string; run?: string; with?: Record<string, unknown>; env?: Record<string, unknown> }[] = workflow.jobs.check.steps;
 
 describe("the GitHub Actions check", () => {
   it("runs on pull requests and on pushes to main", () => {
@@ -43,6 +43,11 @@ describe("the GitHub Actions check", () => {
     expect(checkout?.with?.["persist-credentials"]).toBe(false);
     // The merge base with main is how the check decides whether the slow infra tests run.
     expect(checkout?.with?.["fetch-depth"]).toBe(0);
+  });
+
+  it("gives Playwright 2 workers: the default (a third of the runner's 4 cores) would be one, and 3 timed out in the runner's image", () => {
+    const check = steps.find((step) => step.run === "npm run check");
+    expect(String(check?.env?.E2E_WORKERS)).toBe("2");
   });
 
   it("does not cancel runs on main", () => {

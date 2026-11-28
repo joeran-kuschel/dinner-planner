@@ -20,9 +20,11 @@ How tests are written here. How the whole suite is run before a push or merge is
   component imports and call `expectNoAxeViolations` from `tests/support/axe.ts`.
 - Render components through `renderWithI18n(ui, { locale })` (English by default) and add German cases; server tests get an instance
   from `testI18n(locale)`. Tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
-- **Playwright** (`playwright.config.ts`) runs the standalone server against the schema `e2e` with one worker; specs run in English
-  (German lives in `tests/e2e/language.spec.ts`). Specs import `test` and `expect` from `tests/e2e/support/test.ts`, never from
-  `@playwright/test` (`tests/infra/e2e-isolation.test.ts` checks): its fixture empties the schema before each test. Check pages with
+- **Playwright** (`playwright.config.ts`) runs several workers side by side (`E2E_WORKERS`, else a third of the cores, 4 at most), each
+  with its own standalone server (port 3100 + n) and its own schema `e2e_<n>`; specs run in English (German lives in
+  `tests/e2e/language.spec.ts`). Specs import `test` and `expect` from `tests/e2e/support/test.ts`, never from
+  `@playwright/test` (`tests/infra/e2e-isolation.test.ts` checks): its fixture empties the worker's schema before each test. Never type
+  the port or the schema in a spec: use `baseURL` and `server.schema`. Check pages with
   `expectAccessible()` (axe incl. contrast); `unique()` is handy for names within one test.
 - `emptySchema()` and `resetDatabase` leave the seeded `GroceryCategory` rows alone. Playwright runs with a test access key: every browser
   context starts with its cookie (`use.storageState` in `playwright.config.ts`); `access.spec.ts` starts with none.
