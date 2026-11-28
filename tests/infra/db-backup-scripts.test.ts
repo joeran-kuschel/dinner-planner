@@ -9,14 +9,24 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const K8S = path.join(process.cwd(), "k8s");
 const COMPLETE_DUMP = '-- PostgreSQL database dump\nCREATE TABLE "Recipe" ();\n-- PostgreSQL database dump complete\n';
 
-// Logs its arguments, prints $FAKE_DUMP for pg_dump and stores stdin for psql.
+// Logs its arguments, prints $FAKE_DUMP for pg_dump and stores stdin for psql. The restore's psql prints the completion marker
+// unless FAKE_NO_MARKER is set (a stream that ended at a statement boundary); FAKE_CUT keeps only half of the copied dump.
 const FAKE_KUBECTL = `#!/bin/bash
 echo "$@" >> "$FAKE_DIR/kubectl.log"
 # kubectl cp <file> <pod>:<path>: the file lands in the "pod"
-if [[ " $* " == *" cp "* ]]; then cp "\${@: -2:1}" "$FAKE_DIR/pod-dump"; exit "\${FAKE_CP_EXIT:-0}"; fi
+if [[ " $* " == *" cp "* ]]; then
+  cp "\${@: -2:1}" "$FAKE_DIR/pod-dump"
+  if [ -n "\${FAKE_CUT:-}" ]; then head -c "$(( $(wc -c < "$FAKE_DIR/pod-dump") / 2 ))" "$FAKE_DIR/pod-dump" > "$FAKE_DIR/cut" && mv "$FAKE_DIR/cut" "$FAKE_DIR/pod-dump"; fi
+  exit "\${FAKE_CP_EXIT:-0}"
+fi
 case "\${@: -1}" in
   pg_dump*) cat "$FAKE_DUMP" ;;
-  *psql*) gzip -t "$FAKE_DIR/pod-dump" || exit 1; gzip -dc "$FAKE_DIR/pod-dump" > "$FAKE_DIR/psql-stdin" ;;
+  *restore-complete*)
+    gzip -t "$FAKE_DIR/pod-dump" || exit 1
+    gzip -dc "$FAKE_DIR/pod-dump" > "$FAKE_DIR/psql-stdin"
+    [ -n "\${FAKE_EXIT:-}" ] && exit "$FAKE_EXIT"
+    [ -n "\${FAKE_NO_MARKER:-}" ] || echo restore-complete ;;
+  *"-F"*) cat > "$FAKE_DIR/counts-stdin"; [ -z "\${FAKE_COUNTS_EXIT:-}" ] || exit "$FAKE_COUNTS_EXIT"; printf 'Recipe 365\nRecipePhoto 361\n' ;;
 esac
 exit "\${FAKE_EXIT:-0}"
 `;
@@ -282,12 +292,52 @@ describe("restore-db.sh", () => {
     fs.writeFileSync(backupFile, zlib.gzipSync(COMPLETE_DUMP));
   });
 
-  it("feeds the decompressed dump to psql in the Postgres pod, in one transaction", () => {
+  it("feeds the decompressed dump to psql in the Postgres pod, in one transaction that commits before the completion marker", () => {
     const result = run("restore-db.sh", [backupFile, "--yes"]);
 
     expect(result.status).toBe(0);
     expect(fs.readFileSync(path.join(dir, "psql-stdin"), "utf8")).toBe(COMPLETE_DUMP);
-    expect(kubectlCalls()).toContain("psql -v ON_ERROR_STOP=1 --single-transaction");
+    const calls = kubectlCalls();
+    expect(calls).toContain("psql -v ON_ERROR_STOP=1");
+    expect(calls).not.toContain("--single-transaction");
+    expect(calls).toMatch(/echo 'BEGIN;'; gzip -dc \/tmp\/restore\.sql\.gz && echo 'COMMIT;' && echo "SELECT 'restore-complete';"/);
+  });
+
+  it("prints the row counts of the main tables after the restore", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"]);
+
+    expect(result.stdout).toContain("Restored");
+    expect(result.stdout).toMatch(/Recipe\s+365/);
+    expect(result.stdout).toMatch(/RecipePhoto\s+361/);
+    const sql = fs.readFileSync(path.join(dir, "counts-stdin"), "utf8");
+    for (const table of ["Recipe", "RecipePhoto", "Ingredient", "PlannedMeal", "GroceryEntry", "Tag"]) expect(sql).toContain(`FROM "${table}"`);
+  });
+
+  it("still succeeds, with a warning, when only the row counts cannot be read", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"], { env: { FAKE_COUNTS_EXIT: "1" } });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Restored");
+    expect(result.stderr).toContain("row counts could not be read");
+  });
+
+  it("fails and never says Restored when the dump reaches the pod cut off", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"], { env: { FAKE_CUT: "1" } });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain("Restored");
+    expect(result.stderr).toContain("rolled back or did not complete");
+    expect(fs.existsSync(path.join(dir, "psql-stdin"))).toBe(false);
+    expect(kubectlCalls().trim().split("\n").pop()).toContain("rm -f /tmp/restore.sql.gz");
+  });
+
+  it("fails and never says Restored when psql exits cleanly without the completion marker", () => {
+    const result = run("restore-db.sh", [backupFile, "--yes"], { env: { FAKE_NO_MARKER: "1" } });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain("Restored");
+    expect(result.stderr).toContain("did not finish");
+    expect(kubectlCalls()).not.toContain("count(*)");
   });
 
   it("copies the dump into the pod instead of streaming it, and removes it afterwards", () => {

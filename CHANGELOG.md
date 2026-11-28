@@ -59,6 +59,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Fixed
 
+- A restore (`npm run k8s:restore`) can no longer report success after only part of the backup came back: it says "Restored" only when the whole backup was read, otherwise it says nothing was changed and stops. After a restore it lists how many recipes, photos, ingredients, planned days, grocery entries and tags the database now holds ([#107](https://github.com/joeran-kuschel/dinner-planner/issues/107)).
 - Restoring a backup (`npm run k8s:restore`) no longer fails on a large database: the file is copied into the database's pod and read there, where the stream used to be cut off partway and the restore was undone.
 - The recipe list's sort now works at once: choosing an order re-sorts the list without pressing Search, and keeps the favorites filter, the tags and the search text. There are four orders: name, newest first, planned longest ago (recipes never planned come first) and planned most recently; it was two before and seemed to do nothing unless Favorites only was used ([#101](https://github.com/joeran-kuschel/dinner-planner/issues/101)).
 - The category of an ingredient in the recipe form shows its full name ("Fruit and vegetables", "Milchprodukte und Eier") instead of cutting it off; on a screen narrower than 1024 px each field names itself and a row wraps when it must ([#99](https://github.com/joeran-kuschel/dinner-planner/issues/99)).
