@@ -16,7 +16,8 @@ agent runs on the developer's machine, so a green run there and a green run here
 4. Generates the Prisma client (`npm run db:generate`; `generated/prisma` is not committed) and the route types
    (`npx next typegen`: the typecheck reads `PageProps` and `LayoutProps` from `.next/types`, which only `next dev` and
    `next build` write, so a fresh checkout has none) and runs `npm run check`.
-5. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
+5. Runs the check with `E2E_WORKERS: 3`: the Playwright workers run side by side, each with its own server and schema (`testing-check.md`, "How many workers").
+6. When the check fails, uploads `test-results/` (traces and screenshots of a failed Playwright test) as the artifact
    `test-results`, kept for 7 days. The check runs Playwright with the line reporter, so there is no HTML report; the
    last lines of any failing stage are in the job log.
 

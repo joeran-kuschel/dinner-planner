@@ -36,8 +36,8 @@ export const PHASES: Stage[][] = [
     // After the build, which writes the route types it reads (and type-checks the whole project too, so a type error has
     // already stopped the check before this phase).
     { name: "typecheck", command: "npx tsc --noEmit", limitMs: 2 * MINUTE },
-    // A slow test is a failing test: 10 s per test, and stop at the first failure. E2E_PREBUILT: the server starts from the
-    // build above instead of building its own (playwright.config.ts).
+    // A slow test is a failing test: 10 s per test, and stop at the first failure. E2E_PREBUILT: the servers start from the
+    // build above instead of building their own (tests/e2e/support/global-setup.ts); the workers run side by side (E2E_WORKERS).
     {
       name: "playwright",
       command: "E2E_PREBUILT=1 npx playwright test --timeout=10000 --max-failures=1 --reporter=line",

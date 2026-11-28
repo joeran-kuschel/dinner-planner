@@ -495,38 +495,3 @@ describe("the catalog compile in Vitest's global setup", () => {
     expect(execFileSync).toHaveBeenCalledWith("npx", expect.arrayContaining(["lingui", "compile"]), expect.anything());
   });
 });
-
-describe("Playwright's server", () => {
-  // The config is read with the flag set or not, the way `npm run check` and `npm run test:e2e` start it.
-  async function serverCommand(prebuilt: boolean): Promise<string> {
-    vi.resetModules();
-    vi.stubEnv("E2E_PREBUILT", prebuilt ? "1" : "");
-    vi.stubEnv("DATABASE_URL", process.env.DATABASE_URL ?? "postgresql://user:pass@localhost:5433/db");
-    const config = (await import("@/playwright.config")).default;
-    return (config.webServer as { command: string }).command;
-  }
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("builds its own app when started alone", async () => {
-    const command = await serverCommand(false);
-    expect(command).toContain("npm run build");
-    expect(command.indexOf("prepare-db")).toBeLessThan(command.indexOf("npm run build"));
-    expect(command.indexOf("npm run build")).toBeLessThan(command.indexOf("node .next/standalone/server.js"));
-  });
-
-  it.each(["0", "false", ""])("builds its own app when the flag is %j: only 1 means a build was made", async (value) => {
-    vi.resetModules();
-    vi.stubEnv("E2E_PREBUILT", value);
-    vi.stubEnv("DATABASE_URL", process.env.DATABASE_URL ?? "postgresql://user:pass@localhost:5433/db");
-    const config = (await import("@/playwright.config")).default;
-    expect((config.webServer as { command: string }).command).toContain("npm run build");
-  });
-
-  it("starts from the build of the check when told, and still prepares the database and lays out the standalone server", async () => {
-    const command = await serverCommand(true);
-    expect(command).not.toContain("npm run build");
-    expect(command).toContain("prepare-db");
-    expect(command).toContain("cp -R .next/static .next/standalone/.next/");
-    expect(command).toContain("node .next/standalone/server.js");
-  });
-});

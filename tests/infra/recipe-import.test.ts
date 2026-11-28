@@ -17,7 +17,7 @@ describe("recipe import: where a pasted link may lead", () => {
   const setting = "RECIPE_IMPORT_ALLOW_PRIVATE";
 
   it("is switched on for the end-to-end tests only, whose sample site runs on this machine", () => {
-    expect(read("playwright.config.ts")).toContain(`${setting}: "1"`);
+    expect(read("tests/e2e/support/server.ts")).toContain(`${setting}: "1"`);
   });
 
   it.each([
