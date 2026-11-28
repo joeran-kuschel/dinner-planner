@@ -39,7 +39,17 @@ npm run k8s:restore -- ~/DinnerPlannerBackups/dinner_planner-20260928-124534.sql
 
 A restore replaces **all** current data with the backup, so it asks you to type `restore` first. Pass `--yes` after the
 file to skip the question in scripts. The restore runs in a single transaction: if any statement fails, nothing is
-changed.
+changed. When it is done the script prints the row counts of the main tables (recipes, photos, ingredients, planned
+days, grocery entries, tags), so a restore into an empty database cannot be taken for a good one.
+
+**A restore that did not finish says so and changes nothing.** The script does not use `psql --single-transaction`: a
+stream that ended exactly between two statements would be committed as a clean end of input and reported as "Restored",
+with only part of the data (this happened once, [#107](https://github.com/joeran-kuschel/dinner-planner/issues/107)).
+Instead `psql` is sent `BEGIN;`, the dump, `COMMIT;` and `SELECT 'restore-complete';`, the last two only after the
+dump was read to its end (`&&`, so a dump that stops decompressing sends neither); the marker after `COMMIT` also shows
+that the commit went through. The script prints "Restored" only when
+`restore-complete` comes back. Anything else, a cut dump, an error, a missing marker, ends with "rolled back or did not complete"
+and a non-zero exit: Postgres rolls back a transaction that never reaches `COMMIT`.
 
 The dump is copied into the Postgres pod first (`kubectl cp` to `/tmp/restore.sql.gz`, checked with `gzip -t`, removed again
 afterwards) and `psql` reads it there. Piping it through `kubectl exec` stdin cut the stream off partway on a 40 MB dump,

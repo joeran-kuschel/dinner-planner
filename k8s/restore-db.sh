@@ -23,5 +23,25 @@ fi
 # Removed again whatever happens, a copy that stopped partway included.
 trap 'pg_exec "rm -f $POD_DUMP" > /dev/null 2>&1 || true' EXIT
 kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" cp "$file" "$DB_POD:$POD_DUMP"
-pg_exec "gzip -t $POD_DUMP && gzip -dc $POD_DUMP | psql -v ON_ERROR_STOP=1 --single-transaction -q -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" > /dev/null"
+
+# One transaction that only commits when psql has read the whole dump: BEGIN first, COMMIT and then the marker query last,
+# chained with && so a dump that stops decompressing partway sends neither. The marker comes after COMMIT, so it also proves the commit went through. A stream that ends anywhere else leaves the
+# transaction open, and Postgres rolls it back. (--single-transaction would COMMIT a stream that ends exactly between two
+# statements and report success: the partial restore of issue #107.) Only the marker coming back counts as success.
+if ! output=$(pg_exec "gzip -t $POD_DUMP && { echo 'BEGIN;'; gzip -dc $POD_DUMP && echo 'COMMIT;' && echo \"SELECT 'restore-complete';\"; } | psql -v ON_ERROR_STOP=1 -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\""); then
+  echo "Restore failed: the restore was rolled back or did not complete (see above)" >&2
+  exit 1
+fi
+if ! grep -qx 'restore-complete' <<< "$output"; then
+  echo "Restore did not finish (the dump ended early): it was rolled back or not committed" >&2
+  exit 1
+fi
+
 echo "Restored $file"
+# What came back, so a restore into an empty database is not taken for a good one. The restore is done, so a failure here only warns.
+if ! counts=$(printf '%s\n' "$COUNTS_SQL" | pg_exec 'psql -v ON_ERROR_STOP=1 -t -A -F " " -U "$POSTGRES_USER" -d "$POSTGRES_DB"'); then
+  echo "Restored, but the row counts could not be read" >&2
+  exit 0
+fi
+echo "Rows now in the database:"
+awk '{ printf "  %-14s %s\n", $1, $2 }' <<< "$counts"
