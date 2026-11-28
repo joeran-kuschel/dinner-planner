@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CHILD_ENV,
   PHASES,
+  SLOW_INFRA_TESTS,
+  canSkipSlowInfra,
+  changedFiles,
+  withoutSlowInfra,
   TOTAL_LIMIT_MS,
   databaseReachable,
   exitCode,
@@ -97,6 +101,62 @@ describe("the real plan", () => {
 
   it("tells Vitest not to compile the catalogs a second time", () => {
     expect(CHILD_ENV).toEqual({ CHECK_CATALOGS_COMPILED: "1" });
+  });
+});
+
+describe("leaving out the slow infra tests", () => {
+  it("lists only files that exist, so a rename cannot make the exclusion silently do nothing", () => {
+    for (const file of SLOW_INFRA_TESTS) expect(fs.existsSync(path.join(process.cwd(), file)), file).toBe(true);
+  });
+
+  it("skips them when nothing they guard changed: a page, a component, a spec or the docs", () => {
+    expect(canSkipSlowInfra(["app/groceries/page.tsx", "components/category-manager.tsx", "tests/e2e/groceries.spec.ts", "documentation/ui/groceries.md", "CHANGELOG.md"])).toBe(true);
+    expect(canSkipSlowInfra([])).toBe(true);
+  });
+
+  it("runs them when a script, a manifest, the image, the workflow, the check or a test helper changed, and when it cannot tell", () => {
+    for (const file of ["k8s/deploy.sh", "scripts/check-lib.ts", ".github/workflows/check.yml", "Dockerfile", ".dockerignore", "compose.yaml", "package.json", "tests/infra/check.test.ts", "tests/support/migrate.ts", "vitest.config.mts"]) {
+      expect(canSkipSlowInfra(["app/page.tsx", file]), file).toBe(false);
+    }
+    expect(canSkipSlowInfra(null)).toBe(false);
+  });
+
+  it("excludes exactly those files from the Vitest stage and touches no other stage", () => {
+    const plan = withoutSlowInfra(PHASES).flat();
+    const vitest = plan.find((s) => s.name === "vitest")!;
+    for (const file of SLOW_INFRA_TESTS) expect(vitest.command).toContain(`--exclude ${file}`);
+    expect(plan.filter((s) => s.name !== "vitest")).toEqual(PHASES.flat().filter((s) => s.name !== "vitest"));
+  });
+
+  it("does not know the changed files on a push to main (everything runs there), or without a main to compare with", () => {
+    expect(changedFiles({ GITHUB_EVENT_NAME: "push" }, () => "")).toBeNull();
+    expect(changedFiles({}, () => { throw new Error("no git"); })).toBeNull();
+  });
+
+  it("falls back to a local main when there is no origin/main to compare with", () => {
+    const result = changedFiles({}, (args) => {
+      const call = args.join(" ");
+      if (call === "merge-base HEAD origin/main") throw new Error("unknown revision");
+      if (call === "merge-base HEAD main") return "def456\n";
+      if (call === "diff --name-only def456") return "k8s/deploy.sh\n";
+      return "";
+    });
+    expect(result).toEqual(["k8s/deploy.sh"]);
+  });
+
+  it("reads the branch's changes against the merge base: committed, uncommitted and new files, each once", () => {
+    const calls: string[] = [];
+    const answers: Record<string, string> = {
+      "merge-base HEAD origin/main": "abc123\n",
+      "diff --name-only abc123": "app/a.ts\nk8s/b.sh\n",
+      "ls-files --others --exclude-standard": "app/a.ts\nnew.ts\n",
+    };
+    const result = changedFiles({}, (args) => {
+      calls.push(args.join(" "));
+      return answers[args.join(" ")] ?? "";
+    });
+    expect(result?.sort()).toEqual(["app/a.ts", "k8s/b.sh", "new.ts"]);
+    expect(calls[0]).toBe("merge-base HEAD origin/main");
   });
 });
 

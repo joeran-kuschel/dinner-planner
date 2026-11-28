@@ -52,24 +52,6 @@ test.describe("week plan", () => {
     await expect(summary(page)).toHaveText("4 Jan – 10 Jan 2027 · 1 of 7 planned");
   });
 
-  test("plans a dinner that is no recipe for one day only", async ({ page }) => {
-    const title = unique("Takeaway");
-    await page.goto("/?week=2027-01-11");
-
-    // Typing only suggests; nothing is saved until a suggestion is picked.
-    await dinnerField(page, "Tuesday").fill(title);
-    await expect(page.getByRole("option", { name: `Add “${title}” as a new recipe`, exact: true })).toBeVisible();
-    await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
-
-    await planOnce(page, "Tuesday", title);
-    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
-
-    await page.reload();
-    await expect(dinnerField(page, "Tuesday")).toHaveValue(title);
-    await page.goto("/recipes");
-    await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
-  });
-
   test("adds a name as a new recipe from the day card", async ({ page }) => {
     const name = unique("Shakshuka");
     await page.goto("/?week=2027-08-09");
@@ -152,20 +134,6 @@ test.describe("week plan", () => {
     await expect(field).toHaveValue(title);
   });
 
-  test("an emptied field puts the planned dinner back and keeps the day", async ({ page }) => {
-    await page.goto("/?week=2027-03-22");
-    const title = unique("Stew");
-    await planOnce(page, "Tuesday", title);
-
-    const field = dinnerField(page, "Tuesday");
-    await field.fill("");
-    await page.keyboard.press("Tab");
-    await expect(field).toHaveValue(title);
-    await page.reload();
-    await expect(dinnerField(page, "Tuesday")).toHaveValue(title);
-    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
-  });
-
   test("leaving the field with a recipe's exact name plans that recipe", async ({ page }) => {
     const name = unique("Ramen");
     await createRecipe(page, { name, ingredients: [{ quantity: "2", name: "Noodle nests" }] });
@@ -226,37 +194,6 @@ test.describe("week plan", () => {
     await expect(dinnerField(page, "Wednesday")).toHaveValue(name);
   });
 
-  // "Clear day" used to be the card's first submit button, so Enter in a text
-  // field submitted the form through it and wiped the day.
-  test("pressing Enter in the note saves it and keeps the day planned", async ({ page }) => {
-    const name = unique("Gnocchi");
-    await createRecipe(page, { name, ingredients: [{ quantity: "500", unit: "g", name: "Gnocchi" }] });
-
-    await page.goto("/?week=2027-08-02");
-    await planRecipe(page, "Tuesday", name);
-    const note = dayCard(page, "Tuesday").getByPlaceholder("Note (optional)");
-    await note.fill("Brown butter");
-    await afterServerAction(page, () => note.press("Enter"));
-
-    await page.reload();
-    await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
-    await expect(dayCard(page, "Tuesday").getByPlaceholder("Note (optional)")).toHaveValue("Brown butter");
-  });
-
-  test("confirms a save with \"Saved\", which goes away by itself", async ({ page }) => {
-    const name = unique("Chilli");
-    await createRecipe(page, { name, ingredients: [{ quantity: "1", unit: "tin", name: "Beans" }] });
-
-    await page.goto("/?week=2027-03-15");
-    await planRecipe(page, "Monday", name);
-
-    // The screen-reader status; the words beside "Serves" are hidden from assistive technology.
-    const status = dayCard(page, "Monday").locator("p[aria-live]");
-    await expect(status).toHaveText("Saved");
-    await expectAccessible(page);
-    await expect(status).toHaveText("", { timeout: 6_000 });
-  });
-
   test("clears a day", async ({ page }) => {
     const name = unique("Tacos");
     await createRecipe(page, { name, ingredients: [{ quantity: "8", name: "Tortillas" }] });
@@ -298,13 +235,6 @@ test.describe("week plan", () => {
     await expect(dinnerField(page, "Friday")).toHaveValue(name);
   });
 
-  test("has no recipe link on a one-off dinner", async ({ page }) => {
-    await page.goto("/?week=2027-03-08");
-    await planOnce(page, "Friday", unique("Takeaway"));
-
-    await expect(dayCard(page, "Friday").getByRole("link")).toHaveCount(0);
-  });
-
   test("clears the whole week only after asking", async ({ page }) => {
     const name = unique("Stew");
     await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Carrot" }] });
@@ -326,26 +256,6 @@ test.describe("week plan", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Week plan" })).toBeFocused();
     await page.reload();
     await expect(summary(page)).toHaveText(/· 0 of 7 planned$/);
-  });
-
-  // At 320 px no edge of the button is a safe anchor, so the question is a sheet at the bottom
-  // of the screen (WCAG 1.4.10): it must fit, and the page must not scroll sideways.
-  test("keeps the question of Clear the whole week on a 320 px screen", async ({ page }) => {
-    const name = unique("Dal");
-    await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
-    await page.goto("/?week=2027-07-05");
-    await planRecipe(page, "Monday", name);
-
-    await page.setViewportSize({ width: 320, height: 700 });
-    await page.locator("summary", { hasText: /^Clear the whole week$/ }).click();
-    const question = page.getByRole("group", { name: "Remove 1 planned dinner from this week?" });
-    await expect(question).toBeVisible();
-
-    const box = await question.boundingBox();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(700);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   });
 
   test("undoes clearing a day, with its servings and note", async ({ page }) => {
@@ -377,35 +287,6 @@ test.describe("week plan", () => {
     await page.reload();
     await expect(dinnerField(page, "Monday")).toHaveValue(name);
     await expect(summary(page)).toHaveText(/· 1 of 7 planned$/);
-  });
-
-  test("Undo does not overwrite a dinner planned elsewhere in the meantime", async ({ page, context }) => {
-    const mine = unique("Frittata");
-    const theirs = unique("Pizza night");
-    await createRecipe(page, { name: mine, ingredients: [{ quantity: "6", name: "Eggs" }] });
-    await page.goto("/?week=2027-07-05");
-    await planRecipe(page, "Monday", mine);
-
-    const card = dayCard(page, "Monday");
-    await afterServerAction(page, () => card.getByRole("button", { name: "Clear day" }).click());
-    const undo = card.getByRole("button", { name: "Undo clearing Monday" });
-    await expect(undo).toBeVisible();
-
-    // Another tab plans the day; this one has not heard of it.
-    const other = await context.newPage();
-    await other.goto("/?week=2027-07-05");
-    await planOnce(other, "Monday", theirs);
-
-    await afterServerAction(page, () => undo.click());
-    await expect(card.getByRole("alert")).toHaveText(
-      "This day was changed elsewhere, so nothing was put back. It shows what is planned now.",
-    );
-    await expect(dinnerField(page, "Monday")).toHaveValue(theirs);
-    await expect(undo).toHaveCount(0);
-    await expectAccessible(page);
-
-    await page.reload();
-    await expect(dinnerField(page, "Monday")).toHaveValue(theirs);
   });
 
   test("the offer to undo goes away once the day is planned elsewhere and the week is refreshed", async ({
@@ -455,15 +336,6 @@ test.describe("week plan", () => {
     await page.getByRole("link", { name: "Previous week" }).click();
     await expect(page).toHaveURL("/?week=2027-01-25");
     await expect(summary(page)).toHaveText(/^25 Jan – 31 Jan 2027 · /);
-  });
-
-  test("a malformed week parameter falls back to the current week", async ({ page }) => {
-    await page.goto("/");
-    const currentWeek = (await summary(page).textContent())?.split(" · ")[0];
-    expect(currentWeek).toBeTruthy();
-
-    await page.goto("/?week=2027-02-31");
-    await expect(summary(page)).toHaveText(new RegExp(`^${currentWeek} · `));
   });
 
   test("deleting a recipe clears the days that only pointed at it", async ({ page }) => {

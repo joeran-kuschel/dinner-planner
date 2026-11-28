@@ -64,16 +64,6 @@ test.describe("pantry staples", () => {
     await expect(page.getByText("No staples yet.")).toBeVisible();
   });
 
-  test("matches the whole name only", async ({ page }) => {
-    await planSoup(page);
-    await page.goto(`/groceries?week=${WEEK}`);
-    await openPantry(page);
-    await addStaple(page, "oil");
-    await expect(tick(page, "Olive oil")).toBeVisible();
-    await addStaple(page, "olive oil");
-    await expect(tick(page, "Olive oil")).toHaveCount(0);
-  });
-
   test("shows the hidden lines on request, marked, and they can be ticked", async ({ page }) => {
     await planSoup(page);
     await page.goto(`/groceries?week=${WEEK}`);
@@ -168,17 +158,8 @@ test.describe("pantry staples", () => {
     await expect(page.getByText("Nothing to buy yet.", { exact: false })).toHaveCount(0);
   });
 
-  test("offers the ingredients of the recipes while typing a staple", async ({ page }) => {
-    await planSoup(page);
-    await page.goto(`/groceries?week=${WEEK}`);
-    await openPantry(page);
-    const options = await page.locator("#staple-suggestions option").evaluateAll((all) =>
-      all.map((option) => (option as HTMLOptionElement).value),
-    );
-    expect(options).toEqual(["olive oil", "rice", "salt"]);
-  });
-
-  for (const colorScheme of ["light", "dark"] as const) {
+  // Dark mode only: the contrast is the harder of the two, and the light pages are checked in redesign.spec.ts.
+  for (const colorScheme of ["dark"] as const) {
     test(`passes the accessibility check in ${colorScheme} mode, closed, open and with hidden lines shown`, async ({
       browser,
     }) => {

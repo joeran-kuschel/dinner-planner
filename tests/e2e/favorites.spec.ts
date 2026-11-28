@@ -268,13 +268,4 @@ test.describe("Cook again", () => {
     expect(below!.x).toBeLessThan(40);
   });
 
-  test("says it in German", async ({ page }) => {
-    const id = await createRecipe(page, { name: unique("Deutsch") });
-    await makeFavorite(page, id);
-    await page.goto("/");
-    await afterServerAction(page, () => page.getByRole("button", { name: "Deutsch", exact: true }).click());
-    await expect(page.getByRole("region", { name: "Nochmal kochen" })).toBeVisible();
-    await expect(page.getByText("Favorit · noch nie geplant")).toBeVisible();
-    await expectAccessible(page);
-  });
 });

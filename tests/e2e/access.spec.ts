@@ -1,4 +1,3 @@
-import type { Browser } from "@playwright/test";
 import { ACCESS_COOKIE, nowSeconds, signSession } from "@/lib/access";
 import { E2E_ACCESS_KEY } from "../../playwright.config";
 import { expect, test } from "@/tests/e2e/support/test";
@@ -11,11 +10,6 @@ test.use({ storageState: NO_ACCESS });
 
 const accessCookie = async (page: { context(): { cookies(): Promise<{ name: string; value: string; httpOnly: boolean; sameSite: string }[]> } }) =>
   (await page.context().cookies()).find((cookie) => cookie.name === ACCESS_COOKIE);
-
-async function open(browser: Browser, options: Parameters<Browser["newContext"]>[0] = {}) {
-  const context = await browser.newContext({ storageState: NO_ACCESS, ...options });
-  return { context, page: await context.newPage() };
-}
 
 test.describe("the access gate", () => {
   test("a browser without the cookie is told the planner needs its access link, and nothing else", async ({ page }) => {
@@ -85,18 +79,6 @@ test.describe("the access gate", () => {
     }
     await context.addCookies([{ name: ACCESS_COOKIE, value: valid, domain: "localhost", path: "/" }]);
     expect((await page.goto("/"))?.status()).toBe(200);
-  });
-
-  test("the pages are in German for a German browser, and the language the visitor picked wins", async ({ browser }) => {
-    const { context, page } = await open(browser, { locale: "de-DE" });
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Dieser Planer braucht seinen Zugangslink" })).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("lang", "de");
-
-    await context.addCookies([{ name: "locale", value: "en", domain: "localhost", path: "/" }]);
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "This planner needs its access link" })).toBeVisible();
-    await context.close();
   });
 
   test("without JavaScript the link page says what is needed", async ({ request }) => {

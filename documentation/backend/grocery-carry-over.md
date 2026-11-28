@@ -47,4 +47,4 @@ the weeks an entry is carried through.
 - `tests/unit/lib/grocery-carry.test.ts`: the rule (chains, skipped weeks, ticked, dismissed, added again, ordering).
 - `tests/unit/app/actions/groceries.test.ts`: ticking, deleting and adding again.
 - `tests/unit/components/grocery-list.test.tsx`: the mark, what a tick and a delete post, German.
-- `tests/e2e/groceries.spec.ts` ("hand-added entries carried over"): add, carry, tick, delete, skipped weeks.
+- `tests/e2e/groceries.spec.ts` ("hand-added entries carried over"): the entry follows to the next weeks, marked, until it is ticked (the skipped-week, ticked-in-its-own-week and delete cases are unit tests above).

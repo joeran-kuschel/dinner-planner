@@ -41,6 +41,8 @@ describe("the GitHub Actions check", () => {
 
     const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout"));
     expect(checkout?.with?.["persist-credentials"]).toBe(false);
+    // The merge base with main is how the check decides whether the slow infra tests run.
+    expect(checkout?.with?.["fetch-depth"]).toBe(0);
   });
 
   it("does not cancel runs on main", () => {

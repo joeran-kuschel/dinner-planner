@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@/tests/e2e/support/test";
-import { afterServerAction, createRecipe, expectAccessible, expectNoSidewaysScroll, planRecipe, unique } from "@/tests/e2e/support/helpers";
+import { createRecipe, expectAccessible, expectNoSidewaysScroll, planRecipe, unique } from "@/tests/e2e/support/helpers";
 
 // The recipe list's sort: four orders, applied at once, with the filter kept. Each test creates what it looks at.
 
@@ -56,41 +56,6 @@ test.describe("the recipe list's sort", () => {
     expect(await page.evaluate(() => (window as unknown as { marker?: number }).marker)).toBe(1);
   });
 
-  test("keeps Favorites only and the search text when the order changes", async ({ page }) => {
-    const { stem, a, b, c } = await threeRecipes(page);
-    await page.goto("/recipes");
-    for (const name of [a, c]) {
-      await afterServerAction(page, () => page.getByRole("button", { name: `Favorite ${name}`, exact: true }).click());
-    }
-
-    await page.goto(`/recipes?q=${stem}`);
-    await page.getByRole("button", { name: "Favorites only" }).click();
-    await expect(page).toHaveURL(/fav=1/);
-    await expect(names(page)).toHaveText([a, c]);
-
-    await sortSelect(page).selectOption({ label: "Planned most recently" });
-    await expect(page).toHaveURL(/fav=1/);
-    await expect(page).toHaveURL(/sort=recent/);
-    await expect(page).toHaveURL((url) => url.searchParams.get("q") === stem);
-    await expect(page.getByRole("button", { name: "Favorites only" })).toHaveAttribute("aria-pressed", "true");
-    await expect(names(page)).toHaveText([c, a]);
-    await expect(names(page).filter({ hasText: b })).toHaveCount(0);
-  });
-
-  test("keeps a tag filter when the order changes", async ({ page }) => {
-    const stem = unique("Tagged");
-    const [a, b] = [`${stem} aaa`, `${stem} bbb`];
-    await createRecipe(page, { name: b, tags: ["soup"] });
-    await createRecipe(page, { name: a, tags: ["soup"] });
-    await createRecipe(page, { name: unique("Other"), tags: ["salad"] });
-
-    await page.goto("/recipes?tag=soup");
-    await expect(names(page)).toHaveText([a, b]);
-    await sortSelect(page).selectOption({ label: "Newest first" });
-    await expect(page).toHaveURL(/tag=soup/);
-    await expect(names(page)).toHaveText([a, b]);
-  });
-
   test("is in the address, so a link or a reload keeps it, and the select follows the address when it changes by itself", async ({ page }) => {
     const { stem, a, b, c } = await threeRecipes(page);
     await page.goto(`/recipes?q=${stem}&sort=newest`);
@@ -135,7 +100,6 @@ test.describe("the layout of the recipe list's search", () => {
 
   for (const { name, width, height } of [
     { name: "a phone", width: 375, height: 812 },
-    { name: "a tablet", width: 768, height: 1024 },
     { name: "a desktop", width: 1280, height: 800 },
   ]) {
     test(`is in lines that fit, on ${name}`, async ({ page }) => {

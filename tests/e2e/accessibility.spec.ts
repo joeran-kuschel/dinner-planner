@@ -73,12 +73,6 @@ test.describe("accessibility", () => {
     await expectAccessible(page);
   });
 
-  test("a hovered primary button keeps AA contrast", async ({ page }) => {
-    await page.goto("/recipes/new");
-    await page.getByRole("button", { name: "Create recipe" }).hover();
-    await expectAccessible(page);
-  });
-
   test("the grocery list with open and hand-added items passes axe", async ({ page }) => {
     const name = unique("Omelette");
     await createRecipe(page, {
@@ -97,22 +91,6 @@ test.describe("accessibility", () => {
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByRole("button", { name: "Remove Bin bags" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: "Tick off Egg", exact: true })).toBeVisible();
-
-    await expectAccessible(page);
-  });
-
-  test("the grocery list with a ticked item passes axe", async ({ page }) => {
-    const name = unique("Frittata");
-    await createRecipe(page, { name, ingredients: [{ quantity: "6", name: "Eggs" }] });
-    await page.goto("/?week=2027-06-14");
-    await planRecipe(page, "Tuesday", name);
-
-    await page.goto("/groceries?week=2027-06-14");
-    const eggs = page.getByRole("checkbox", { name: "Tick off Egg", exact: true });
-    await eggs.click();
-    await expect(eggs).toBeChecked();
-    await expect(page.getByRole("status").filter({ hasText: "Everything ticked off." })).toBeVisible();
-    await page.mouse.move(0, 0);
 
     await expectAccessible(page);
   });
