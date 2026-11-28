@@ -33,8 +33,8 @@ a section; `font-display` for any other serif number or heading.
 
 ## Shapes
 
-Buttons and tags are pills (fully rounded), cards 16 px, fields 12 px. Every control is at least 44 px high, and the
-primitives (`.btn-*`, `.field`, `.card`, `.pill`) carry this, so a page rarely needs its own classes.
+Buttons and tags are pills (fully rounded), cards 16 px, fields 12 px. Every control is at least 44 px high on a touch screen (a tag chip is 36 px with a mouse), and the
+primitives (`.btn-*`, `.field`, `.card`, `.pill`, and `.tag-toggle` for a tag that filters) carry this, so a page rarely needs its own classes.
 
 ## Dropdowns
 
