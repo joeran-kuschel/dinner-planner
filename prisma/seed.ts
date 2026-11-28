@@ -4,12 +4,27 @@
  *
  * Run with: npm run db:seed
  */
-import type { GroceryCategory } from "../generated/prisma/enums";
 import { PrismaClient } from "../generated/prisma/client";
 import { createPgAdapter } from "../lib/prisma-adapter";
 import { addDays, startOfWeek, today } from "../lib/week";
 
-type SeedIngredient = [name: string, quantity: number | null, unit: string | null, category: GroceryCategory];
+/** The key of a shop section the migration creates (lib/grocery-category.ts has the ids and the order). */
+type SeedCategory =
+  | "PRODUCE"
+  | "BAKERY"
+  | "MEAT_FISH"
+  | "DAIRY_EGGS"
+  | "PASTA_RICE"
+  | "PANTRY"
+  | "HERBS_SPICES"
+  | "FROZEN"
+  | "DRINKS"
+  | "OTHER";
+
+/** The id the migration gives that section (`seedCategoryId` in lib/grocery-category.ts, not imported here: it needs Lingui's macros). */
+const categoryId = (key: SeedCategory) => `cat_${key.toLowerCase()}`;
+
+type SeedIngredient = [name: string, quantity: number | null, unit: string | null, category: SeedCategory];
 
 type SeedRecipe = {
   name: string;
@@ -145,7 +160,7 @@ async function main() {
           name,
           quantity,
           unit,
-          category,
+          categoryId: categoryId(category),
           position,
         })),
       },

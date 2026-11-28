@@ -19,7 +19,7 @@ import { LeaveGuard } from "@/components/leave-guard";
 import { TagInput } from "@/components/tag-input";
 import { RecipePhoto } from "@/components/recipe-photo";
 import { RequiredMark, RequiredNote } from "@/components/required-mark";
-import { DEFAULT_GROCERY_CATEGORY, type GroceryCategory, parseGroceryCategory } from "@/lib/grocery-category";
+import { type CategoryRow, parseCategoryId } from "@/lib/grocery-category";
 import { MAX_SERVINGS } from "@/lib/planner";
 import {
   EMPTY_RECIPE_FORM_STATE,
@@ -49,18 +49,22 @@ export type RecipeFormProps = {
     instructions: string | null;
     /** The recipe's photo, if it has one; `version` is its last change, see `recipePhotoUrl`. */
     photo?: { alt: string; version: number } | null;
-    ingredients: { name: string; quantity: number | null; unit: string | null; category: GroceryCategory }[];
+    /** `category` is the id of a shop section; the form falls back to "Other" for one that is gone. */
+    ingredients: { name: string; quantity: number | null; unit: string | null; category: string }[];
     tags: string[];
   };
   /** The tags in use, offered while typing one. */
   tagSuggestions?: string[];
   /** The units to offer in the ingredient rows. */
   unitSuggestions?: string[];
+  /** The shop sections the ingredient rows offer, in shop order (`loadCategories()`). */
+  categories: CategoryRow[];
   /** What a new recipe starts from instead of an empty form, e.g. a recipe imported from a link. */
   initialValues?: RecipeFormValues;
 };
 
-const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: DEFAULT_GROCERY_CATEGORY };
+/** An empty category is "Other": the select starts there. */
+const BLANK_ROW: IngredientValues = { name: "", quantity: "", unit: "", category: "" };
 
 /** A new recipe starts with three empty rows — enough to look fillable. */
 const NEW_RECIPE: RecipeFormValues = {
@@ -102,6 +106,7 @@ export function RecipeForm({
   recipe,
   tagSuggestions = [],
   unitSuggestions = [],
+  categories,
   initialValues,
 }: RecipeFormProps) {
   const [state, formAction, pending] = useActionState(action, EMPTY_RECIPE_FORM_STATE);
@@ -143,7 +148,7 @@ export function RecipeForm({
       <RecipeFields key={`fields-${state.attempt}`} values={values} />
       <PhotoFields recipe={recipe} alt={values.photoAlt} />
       <TagInput key={`tags-${state.attempt}`} initial={values.tags} suggestions={tagSuggestions} />
-      <IngredientRows key={`rows-${state.attempt}`} {...ingredients} units={unitSuggestions} />
+      <IngredientRows key={`rows-${state.attempt}`} {...ingredients} units={unitSuggestions} categories={categories} />
       <MethodField key={`method-${state.attempt}`} instructions={values.instructions} />
 
       <div className="flex items-center gap-3">
@@ -361,7 +366,8 @@ function IngredientRows({
   addRow,
   removeRow,
   units,
-}: ReturnType<typeof useIngredientRows> & { units: string[] }) {
+  categories,
+}: ReturnType<typeof useIngredientRows> & { units: string[]; categories: CategoryRow[] }) {
   const { i18n } = useLingui();
   const list = useRef<HTMLUListElement>(null);
   const focusAfterAdd = useRef<string | null>(null);
@@ -413,7 +419,7 @@ function IngredientRows({
 
       <ul ref={list} onKeyDown={onKeyDown} className="flex flex-col gap-3 lg:gap-2">
         {rows.map((row, index) => (
-          <IngredientRow key={row.id} row={row} number={index + 1} onRemove={() => removeRow(row.id)} />
+          <IngredientRow key={row.id} row={row} number={index + 1} categories={categories} onRemove={() => removeRow(row.id)} />
         ))}
       </ul>
       <datalist id="unit-suggestions">
@@ -438,7 +444,17 @@ function FieldName({ children }: { children: string }) {
   );
 }
 
-function IngredientRow({ row, number, onRemove }: { row: Row; number: number; onRemove: () => void }) {
+function IngredientRow({
+  row,
+  number,
+  categories,
+  onRemove,
+}: {
+  row: Row;
+  number: number;
+  categories: CategoryRow[];
+  onRemove: () => void;
+}) {
   const { i18n } = useLingui();
   return (
     <li className="flex flex-wrap items-end gap-2 lg:flex-nowrap">
@@ -477,10 +493,11 @@ function IngredientRow({ row, number, onRemove }: { row: Row; number: number; on
       <div className="flex min-w-60 flex-1 flex-col gap-1 lg:w-60 lg:flex-none">
         <FieldName>{t(i18n)`Category`}</FieldName>
         <CategorySelect
+          categories={categories}
           name="ingredientCategory"
           className="field"
           aria-label={t(i18n)`Category for ingredient ${number}`}
-          defaultValue={parseGroceryCategory(row.value.category)}
+          defaultValue={parseCategoryId(row.value.category, categories)}
         />
       </div>
       <button

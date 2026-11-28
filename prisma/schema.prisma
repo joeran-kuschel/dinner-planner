@@ -10,20 +10,18 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Where in the shop an item is found. The declaration order is the order of the
-/// grocery list's groups (a walk through the shop), so keep OTHER last.
-/// The labels live in lib/grocery-category.ts.
-enum GroceryCategory {
-  PRODUCE
-  BAKERY
-  MEAT_FISH
-  DAIRY_EGGS
-  PASTA_RICE
-  PANTRY
-  HERBS_SPICES
-  FROZEN
-  DRINKS
-  OTHER
+/// A shop section of the grocery list ("Bakery"), in the order of a walk through the shop (`position`, from 0).
+/// The ten the app starts with have a `key` (PRODUCE, BAKERY, ... OTHER) and no `name`: they are shown through their
+/// translated label (lib/grocery-category.ts) until the user names them. A category the user adds has a `name` and no
+/// `key`. OTHER is the one items fall back to, so it always exists and stays last.
+model GroceryCategory {
+  id       String  @id @default(cuid())
+  key      String? @unique
+  name     String?
+  position Int
+
+  ingredients Ingredient[]
+  entries     GroceryEntry[]
 }
 
 /// A reusable dinner recipe.
@@ -80,21 +78,23 @@ model RecipePhoto {
 
 /// One ingredient line belonging to a recipe.
 model Ingredient {
-  id       String  @id @default(cuid())
-  recipeId String
-  name     String
+  id         String  @id @default(cuid())
+  recipeId   String
+  name       String
   /// Null means "to taste" / unquantified.
-  quantity Float?
+  quantity   Float?
   /// Free-form unit such as g, ml, tbsp. Null for countables ("2 onions").
-  unit     String?
-  category GroceryCategory @default(OTHER)
-  note     String?
+  unit       String?
+  categoryId String
+  note       String?
   /// Display order within the recipe.
-  position Int     @default(0)
+  position   Int     @default(0)
 
-  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipe   Recipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  category GroceryCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([recipeId])
+  @@index([categoryId])
 }
 
 /// The dinner planned for one calendar day. At most one per day.
@@ -153,22 +153,25 @@ model GroceryKeepSeparate {
 
 /// Per-week grocery state: tick-off marks for derived lines, plus manually added extras.
 model GroceryEntry {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// UTC midnight of the Monday the list belongs to.
-  weekStart DateTime
+  weekStart  DateTime
   /// Normalised "name|unit" key, produced by groceryKey() in lib/grocery.ts.
-  key       String
-  label     String
-  quantity  Float?
-  unit      String?
-  category  GroceryCategory @default(OTHER)
+  key        String
+  label      String
+  quantity   Float?
+  unit       String?
+  categoryId String
   /// True for lines the user typed in; false for rows that only carry `checked`.
-  manual    Boolean  @default(false)
-  checked   Boolean  @default(false)
+  manual     Boolean  @default(false)
+  checked    Boolean  @default(false)
   /// A hand-added entry carried over from an earlier week that was deleted in this one: it is hidden from this
   /// week on and no longer carried (see lib/grocery-carry.ts). Deleting it in the week it was added deletes the row.
-  dismissed Boolean  @default(false)
+  dismissed  Boolean  @default(false)
+
+  category GroceryCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@unique([weekStart, key])
   @@index([weekStart])
+  @@index([categoryId])
 }

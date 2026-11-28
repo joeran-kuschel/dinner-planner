@@ -79,8 +79,8 @@ describe("parseIngredientLine", () => {
     expect(row("(optional)")).toEqual(["", "", "(optional)"]);
   });
 
-  it("files every row under Other and caps a very long name", () => {
-    expect(parseIngredientLine("1 apple").category).toBe("OTHER");
+  it("leaves the category empty, which the form reads as Other and caps a very long name", () => {
+    expect(parseIngredientLine("1 apple").category).toBe("");
     expect(parseIngredientLine(`1 ${"x".repeat(300)}`).name).toHaveLength(120);
   });
 

@@ -55,11 +55,11 @@ describe("prisma/seed.ts", () => {
     seed();
 
     const ingredients = await prisma.ingredient.findMany({ where: { name: { in: ["Parmesan", "Chicken thighs", "Crusty bread", "Spaghetti"] } } });
-    expect(Object.fromEntries(ingredients.map((i) => [i.name, i.category]))).toEqual({
-      Parmesan: "DAIRY_EGGS",
-      "Chicken thighs": "MEAT_FISH",
-      "Crusty bread": "BAKERY",
-      Spaghetti: "PANTRY",
+    expect(Object.fromEntries(ingredients.map((i) => [i.name, i.categoryId]))).toEqual({
+      Parmesan: "cat_dairy_eggs",
+      "Chicken thighs": "cat_meat_fish",
+      "Crusty bread": "cat_bakery",
+      Spaghetti: "cat_pantry",
     });
   });
 
@@ -115,7 +115,7 @@ describe("prisma/seed.ts", () => {
     const dal = await prisma.recipe.findFirstOrThrow({ where: { name: "Red Lentil Dal" } });
     await prisma.recipe.update({
       where: { id: dal.id },
-      data: { servings: 9, ingredients: { deleteMany: {}, create: [{ name: "Only this", position: 0 }] } },
+      data: { servings: 9, ingredients: { deleteMany: {}, create: [{ name: "Only this", position: 0, categoryId: "cat_other" }] } },
     });
     await prisma.recipe.create({ data: { name: "My own recipe" } });
 

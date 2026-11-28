@@ -83,7 +83,7 @@ describe("toggleGroceryLine", () => {
 
   it("keeps an existing row's label, manual flag and amount when ticking it", async () => {
     await prisma.groceryEntry.create({
-      data: { weekStart: WEEK, key: "wine|", label: "Wine", quantity: 2, manual: true },
+      data: { categoryId: "cat_other", weekStart: WEEK, key: "wine|", label: "Wine", quantity: 2, manual: true },
     });
 
     await toggleGroceryLine(formData({ weekStart: dayKey(WEEK), key: "wine|", label: "Other", checked: "true" }));
@@ -173,28 +173,43 @@ describe("addGroceryExtra", () => {
   });
 
   it("files an extra under the chosen category, and under Other by default", async () => {
-    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "DRINKS" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "cat_drinks" }));
     await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Bin bags" }));
 
     const rows = await entries();
-    expect(rows.map((row) => [row.label, row.category])).toEqual([
-      ["Bin bags", "OTHER"],
-      ["Wine", "DRINKS"],
+    expect(rows.map((row) => [row.label, row.categoryId])).toEqual([
+      ["Bin bags", "cat_other"],
+      ["Wine", "cat_drinks"],
     ]);
   });
 
-  it("files an extra under Other when the category is not one of ours", async () => {
-    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "LIQUOR" }));
-    expect((await entries())[0].category).toBe("OTHER");
+  it("files an extra under Other when the category id is unknown or tampered with", async () => {
+    for (const category of ["cat_liquor", "DRINKS", " cat_drinks", "x'; DROP TABLE \"GroceryCategory\"; --"]) {
+      await prisma.groceryEntry.deleteMany();
+      await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category }));
+      expect((await entries())[0].categoryId, category).toBe("cat_other");
+    }
+    await expect(prisma.groceryCategory.count()).resolves.toBe(10);
+  });
+
+  it("files an extra under Other when the category is empty", async () => {
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "" }));
+    expect((await entries())[0].categoryId).toBe("cat_other");
+  });
+
+  it("files an extra under a category the user added", async () => {
+    const market = await prisma.groceryCategory.create({ data: { name: "Market", position: 3 } });
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Honey", category: market.id }));
+    expect((await entries())[0].categoryId).toBe(market.id);
   });
 
   it("moves an extra to another category when it is added again", async () => {
-    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "PANTRY" }));
-    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "DRINKS" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "cat_pantry" }));
+    await addGroceryExtra(formData({ weekStart: dayKey(WEEK), label: "Wine", category: "cat_drinks" }));
 
     const rows = await entries();
     expect(rows).toHaveLength(1);
-    expect(rows[0].category).toBe("DRINKS");
+    expect(rows[0].categoryId).toBe("cat_drinks");
   });
 
   it("stores no unit and no amount when they are left empty", async () => {
@@ -285,9 +300,9 @@ describe("addGroceryExtra", () => {
 describe("removeGroceryExtra", () => {
   it("removes only the given extra", async () => {
     const wine = await prisma.groceryEntry.create({
-      data: { weekStart: WEEK, key: "wine|", label: "Wine", manual: true },
+      data: { categoryId: "cat_other", weekStart: WEEK, key: "wine|", label: "Wine", manual: true },
     });
-    await prisma.groceryEntry.create({ data: { weekStart: WEEK, key: "soap|", label: "Soap", manual: true } });
+    await prisma.groceryEntry.create({ data: { categoryId: "cat_other", weekStart: WEEK, key: "soap|", label: "Soap", manual: true } });
 
     await removeGroceryExtra(formData({ id: wine.id }));
 
@@ -297,7 +312,7 @@ describe("removeGroceryExtra", () => {
 
   it("accepts an id padded with whitespace", async () => {
     const wine = await prisma.groceryEntry.create({
-      data: { weekStart: WEEK, key: "wine|", label: "Wine", manual: true },
+      data: { categoryId: "cat_other", weekStart: WEEK, key: "wine|", label: "Wine", manual: true },
     });
 
     await removeGroceryExtra(formData({ id: ` ${wine.id} ` }));
@@ -306,7 +321,7 @@ describe("removeGroceryExtra", () => {
   });
 
   it("fails for an unknown id without revalidating", async () => {
-    await prisma.groceryEntry.create({ data: { weekStart: WEEK, key: "wine|", label: "Wine", manual: true } });
+    await prisma.groceryEntry.create({ data: { categoryId: "cat_other", weekStart: WEEK, key: "wine|", label: "Wine", manual: true } });
 
     await expect(removeGroceryExtra(formData({ id: "no-such-entry" }))).rejects.toThrow();
 
@@ -331,21 +346,29 @@ describe("entries carried over from an earlier week", () => {
 
   beforeEach(async () => {
     await prisma.groceryEntry.create({
-      data: { weekStart: WEEK, key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", category: "DRINKS", manual: true },
+      data: { weekStart: WEEK, key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", categoryId: "cat_drinks", manual: true },
     });
   });
 
   it("ticking one writes a hand-added row for this week with its details, and leaves the earlier week alone", async () => {
-    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" }));
+    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "cat_drinks" }));
 
     expect(await entries(NEXT_WEEK)).toMatchObject([
-      { key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", category: "DRINKS", manual: true, checked: true, dismissed: false },
+      { key: "wine|bottles", label: "Wine", quantity: 2, unit: "bottles", categoryId: "cat_drinks", manual: true, checked: true, dismissed: false },
     ]);
     expect(await entries()).toMatchObject([{ checked: false, manual: true }]);
   });
 
+  it("files a carried tick under Other when its category id is bogus or empty", async () => {
+    for (const category of ["cat_gone", ""]) {
+      await prisma.groceryEntry.deleteMany({ where: { weekStart: NEXT_WEEK } });
+      await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category }));
+      expect(await entries(NEXT_WEEK), category).toMatchObject([{ categoryId: "cat_other", manual: true, checked: true }]);
+    }
+  });
+
   it("ticking it again after unticking updates the same row", async () => {
-    const fields = { ...wine, carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" };
+    const fields = { ...wine, carried: "1", quantity: "2", unit: "bottles", category: "cat_drinks" };
     await toggleGroceryLine(formData({ ...fields, checked: "true" }));
     await toggleGroceryLine(formData({ ...fields, checked: "false" }));
 
@@ -367,7 +390,7 @@ describe("entries carried over from an earlier week", () => {
   });
 
   it("deleting one that was ticked in this week dismisses it, unticked", async () => {
-    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "DRINKS" }));
+    await toggleGroceryLine(formData({ ...wine, checked: "true", carried: "1", quantity: "2", unit: "bottles", category: "cat_drinks" }));
 
     await removeGroceryExtra(formData({ ...wine, carried: "1" }));
 
@@ -683,7 +706,7 @@ describe("addGroceryExtra and the plural fold", () => {
 
   it("keys an extra like the page does: a plural of a name on the page is that name", async () => {
     const recipe = await prisma.recipe.create({
-      data: { name: "Tart", servings: 2, ingredients: { create: [{ name: "quince", quantity: 1, unit: null, position: 0 }] } },
+      data: { name: "Tart", servings: 2, ingredients: { create: [{ name: "quince", quantity: 1, unit: null, position: 0, categoryId: "cat_other" }] } },
     });
     await prisma.plannedMeal.create({ data: { date: WEEK, recipeId: recipe.id, servings: 2 } });
 
@@ -702,7 +725,7 @@ describe("addGroceryExtra and the plural fold", () => {
   });
 
   it("does not count an earlier week's entry that was ticked or deleted", async () => {
-    await prisma.groceryEntry.create({ data: { weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true, checked: true } });
+    await prisma.groceryEntry.create({ data: { categoryId: "cat_other", weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true, checked: true } });
 
     await add("Quinces");
 
@@ -710,7 +733,7 @@ describe("addGroceryExtra and the plural fold", () => {
   });
 
   it("counts a carried entry", async () => {
-    await prisma.groceryEntry.create({ data: { weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true } });
+    await prisma.groceryEntry.create({ data: { categoryId: "cat_other", weekStart: addDays(WEEK, -7), key: "quince|", label: "quince", manual: true } });
 
     await add("Quinces");
 

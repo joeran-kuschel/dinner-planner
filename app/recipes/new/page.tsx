@@ -6,6 +6,7 @@ import { getServerI18n } from "@/lib/i18n/server";
 import { importRecipe } from "@/lib/recipe-import";
 import { ImportError, type ImportErrorCode } from "@/lib/recipe-import/errors";
 import { IMPORT_ERROR_MESSAGES } from "@/lib/recipe-import/messages";
+import { loadCategories } from "@/lib/grocery-category-server";
 import { tagNames } from "@/lib/recipe-search";
 import { unitSuggestions } from "@/lib/units";
 
@@ -65,6 +66,7 @@ export default async function NewRecipePage({ searchParams }: PageProps<"/recipe
       <NewRecipeScreen
         tagSuggestions={await tagNames()}
         unitSuggestions={await unitSuggestions(i18n)}
+        categories={await loadCategories()}
         openImport={importFlag === "1" && link === undefined}
         imported={imported}
       />

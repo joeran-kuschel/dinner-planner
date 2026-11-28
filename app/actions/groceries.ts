@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseQuantity, readText } from "@/lib/form-data";
-import { parseGroceryCategory } from "@/lib/grocery-category";
+import { OTHER_CATEGORY_ID, parseCategoryId } from "@/lib/grocery-category";
+import { loadCategories } from "@/lib/grocery-category-server";
 import { createCanonicaliser, normalizeName } from "@/lib/ingredients/canonical";
 import { MAX_MERGE_RULES, MAX_RULE_LABEL, MAX_RULE_NAME, readNameId, wouldLoop } from "@/lib/ingredients/merge-rules";
 import { loadKeepSeparate, loadMergeRules, loadPageNames } from "@/lib/ingredients/server";
@@ -36,14 +37,15 @@ export async function toggleGroceryLine(formData: FormData) {
           dismissed: false,
           quantity: parseQuantity(readText(formData, "quantity")),
           unit: readText(formData, "unit") || null,
-          category: parseGroceryCategory(formData.get("category")),
+          categoryId: parseCategoryId(formData.get("category"), await loadCategories()),
         }
       : {};
 
   await prisma.groceryEntry.upsert({
     where: { weekStart_key: { weekStart, key } },
     update: { checked, ...carried },
-    create: { weekStart, key, label: label || key, checked, ...carried },
+    // A tick on a derived line files nothing: its section always comes from the recipes, so the row says "Other".
+    create: { weekStart, key, label: label || key, checked, categoryId: OTHER_CATEGORY_ID, ...carried },
   });
 
   revalidatePath("/groceries");
@@ -59,7 +61,7 @@ export async function addGroceryExtra(formData: FormData) {
   const unit = readText(formData, "unit") || null;
   const quantity = parseQuantity(readText(formData, "quantity"));
 
-  const category = parseGroceryCategory(formData.get("category"));
+  const categoryId = parseCategoryId(formData.get("category"), await loadCategories());
   // The same key a derived line gets, so an extra named like an ingredient of the plan is that line.
   const [rules, separate, names] = await Promise.all([loadMergeRules(), loadKeepSeparate(), loadPageNames(weekStart)]);
   const canon = createCanonicaliser({
@@ -80,8 +82,8 @@ export async function addGroceryExtra(formData: FormData) {
   await prisma.groceryEntry.upsert({
     where: { weekStart_key: { weekStart, key: existing?.key ?? key } },
     // Adding an item that was deleted from this week (and from the weeks after it) brings it back.
-    update: { label, quantity, unit, category, manual: true, dismissed: false },
-    create: { weekStart, key, label, quantity, unit, category, manual: true },
+    update: { label, quantity, unit, categoryId, manual: true, dismissed: false },
+    create: { weekStart, key, label, quantity, unit, categoryId, manual: true },
   });
 
   revalidatePath("/groceries");
@@ -102,7 +104,7 @@ export async function removeGroceryExtra(formData: FormData) {
     await prisma.groceryEntry.upsert({
       where: { weekStart_key: { weekStart, key } },
       update: { dismissed: true, manual: true, checked: false },
-      create: { weekStart, key, label: label || key, manual: true, dismissed: true },
+      create: { weekStart, key, label: label || key, manual: true, dismissed: true, categoryId: OTHER_CATEGORY_ID },
     });
   } else {
     const id = readText(formData, "id");

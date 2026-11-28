@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updateRecipe } from "@/app/actions/recipes";
 import { RecipeForm } from "@/components/recipe-form";
 import { prisma } from "@/lib/db";
+import { loadCategories } from "@/lib/grocery-category-server";
 import { tagNames } from "@/lib/recipe-search";
 import { unitSuggestions } from "@/lib/units";
 import { getServerI18n } from "@/lib/i18n/server";
@@ -54,13 +55,14 @@ export default async function EditRecipePage({ params }: PageProps<"/recipes/[id
           instructions: recipe.instructions,
           tags: recipe.tags.map((tag) => tag.name),
           photo: recipe.photo && { alt: recipe.photo.alt, version: recipe.photo.updatedAt.getTime() },
-          ingredients: recipe.ingredients.map(({ name, quantity, unit, category }) => ({
+          ingredients: recipe.ingredients.map(({ name, quantity, unit, categoryId }) => ({
             name,
             quantity,
             unit,
-            category,
+            category: categoryId,
           })),
         }}
+        categories={await loadCategories()}
       />
     </div>
   );

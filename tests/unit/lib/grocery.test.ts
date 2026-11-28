@@ -10,6 +10,7 @@ import {
   mealSources,
   type MealInput,
 } from "@/lib/grocery";
+import { type CategoryRow, seededCategory } from "@/lib/grocery-category";
 import { createCanonicaliser } from "@/lib/ingredients/canonical";
 import { testI18n } from "@/tests/support/i18n";
 
@@ -20,7 +21,7 @@ const ing = (
   name: string,
   quantity: number | null,
   unit: string | null = null,
-  category: IngredientInput["category"] = "OTHER",
+  category: CategoryRow = seededCategory("OTHER"),
 ): IngredientInput => ({ name, quantity, unit, category });
 
 const meal = (
@@ -68,7 +69,7 @@ describe("aggregateIngredients", () => {
 
   it("builds one line per ingredient with key, label, quantity, unit and source", () => {
     expect(aggregateIngredients([meal("Pasta", [ing("Spaghetti", 200, "g")])])).toEqual([
-      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", category: "OTHER", sources: ["Pasta"], small: false },
+      { key: "spaghetti|g", label: "Spaghetti", quantity: 200, unit: "g", category: seededCategory("OTHER"), sources: ["Pasta"], small: false },
     ]);
   });
 
@@ -90,7 +91,7 @@ describe("aggregateIngredients", () => {
         meal("Salad", [ing("Tomatoes", 150, "g")]),
       ]);
       expect(lines).toEqual([
-        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", category: "OTHER", sources: ["Pasta", "Salad"], small: false },
+        { key: "tomatoes|g", label: "Tomatoes", quantity: 350, unit: "g", category: seededCategory("OTHER"), sources: ["Pasta", "Salad"], small: false },
       ]);
     });
 
@@ -136,7 +137,7 @@ describe("aggregateIngredients", () => {
     it("merges duplicates within one recipe and lists the recipe once", () => {
       const lines = aggregateIngredients([meal("Pizza", [ing("Cheese", 100, "g"), ing("Cheese", 50, "g")])]);
       expect(lines).toEqual([
-        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", category: "OTHER", sources: ["Pizza"], small: false },
+        { key: "cheese|g", label: "Cheese", quantity: 150, unit: "g", category: seededCategory("OTHER"), sources: ["Pizza"], small: false },
       ]);
     });
 
@@ -306,42 +307,80 @@ describe("formatQuantity", () => {
 });
 
 describe("categories", () => {
+  it("takes the category with the lowest position, whatever its key or id", () => {
+    const early: CategoryRow = { id: "zzz", key: null, name: "Early", position: 1 };
+    const late: CategoryRow = { id: "aaa", key: null, name: "Late", position: 7 };
+    for (const [a, b] of [[early, late], [late, early]]) {
+      const lines = aggregateIngredients([meal("A", [ing("Salt", 1, "g", a)]), meal("B", [ing("Salt", 1, "g", b)])]);
+      expect(lines[0]).toMatchObject({ quantity: 2, category: early });
+    }
+  });
+
+  it("keeps the first row on a tie in position", () => {
+    const one: CategoryRow = { id: "one", key: null, name: "One", position: 4 };
+    const two: CategoryRow = { id: "two", key: null, name: "Two", position: 4 };
+    const lines = aggregateIngredients([meal("A", [ing("Salt", 1, "g", one)]), meal("B", [ing("Salt", 1, "g", two)])]);
+    expect(lines[0].category).toBe(one);
+  });
+
   it("carries an ingredient's category onto its line", () => {
-    const [line] = aggregateIngredients([meal("Soup", [ing("Carrot", 2, null, "PRODUCE")])]);
-    expect(line.category).toBe("PRODUCE");
+    const [line] = aggregateIngredients([meal("Soup", [ing("Carrot", 2, null, seededCategory("PRODUCE"))])]);
+    expect(line.category).toEqual(seededCategory("PRODUCE"));
   });
 
   it("takes the category that comes first in the shop when recipes file an ingredient differently", () => {
     const soup = meal("Soup", [ing("Butter", 10, "g")]);
-    const cake = meal("Cake", [ing("Butter", 20, "g", "PANTRY")]);
-    const bread = meal("Bread", [ing("Butter", 5, "g", "DAIRY_EGGS")]);
+    const cake = meal("Cake", [ing("Butter", 20, "g", seededCategory("PANTRY"))]);
+    const bread = meal("Bread", [ing("Butter", 5, "g", seededCategory("DAIRY_EGGS"))]);
     // Other never wins over a real category, and the meal order makes no difference.
     for (const meals of [[soup, cake, bread], [bread, cake, soup], [cake, soup, bread]]) {
-      expect(aggregateIngredients(meals)[0]).toMatchObject({ quantity: 35, category: "DAIRY_EGGS" });
+      expect(aggregateIngredients(meals)[0]).toMatchObject({ quantity: 35, category: seededCategory("DAIRY_EGGS") });
     }
   });
 });
 
 describe("groupByCategory", () => {
-  const line = (label: string, category: IngredientInput["category"]) => ({ label, category });
+  const line = (label: string, category: CategoryRow) => ({ label, category });
+  const [produce, bakery, dairy, other] = (["PRODUCE", "BAKERY", "DAIRY_EGGS", "OTHER"] as const).map(seededCategory);
 
   it("orders the groups as the shop is walked, with Other last", () => {
     const groups = groupByCategory([
-      line("Tea towels", "OTHER"),
-      line("Milk", "DAIRY_EGGS"),
-      line("Pears", "PRODUCE"),
-      line("Bread", "BAKERY"),
+      line("Tea towels", other),
+      line("Milk", dairy),
+      line("Pears", produce),
+      line("Bread", bakery),
     ]);
-    expect(groups.map((group) => group.category)).toEqual(["PRODUCE", "BAKERY", "DAIRY_EGGS", "OTHER"]);
+    expect(groups.map((group) => group.category.key)).toEqual(["PRODUCE", "BAKERY", "DAIRY_EGGS", "OTHER"]);
   });
 
   it("keeps the incoming order inside a group and drops empty groups", () => {
-    const groups = groupByCategory([line("Pears", "PRODUCE"), line("Apples", "PRODUCE")]);
-    expect(groups).toEqual([{ category: "PRODUCE", lines: [line("Pears", "PRODUCE"), line("Apples", "PRODUCE")] }]);
+    const groups = groupByCategory([line("Pears", produce), line("Apples", produce)]);
+    expect(groups).toEqual([{ category: produce, lines: [line("Pears", produce), line("Apples", produce)] }]);
   });
 
   it("returns nothing for no lines", () => {
     expect(groupByCategory([])).toEqual([]);
+  });
+
+  it("orders by the row's position, not by the key or the id", () => {
+    const first: CategoryRow = { id: "z", key: null, name: "Zebra shop", position: 0 };
+    const last: CategoryRow = { id: "a", key: null, name: "Aardvark shop", position: 20 };
+    const groups = groupByCategory([line("a", last), line("b", other), line("c", first)]);
+    expect(groups.map((group) => group.category.id)).toEqual(["z", "cat_other", "a"]);
+  });
+
+  it("puts categories with the same position in the order of their ids", () => {
+    const b: CategoryRow = { id: "b", key: null, name: "B", position: 2 };
+    const a: CategoryRow = { id: "a", key: null, name: "A", position: 2 };
+    expect(groupByCategory([line("x", b), line("y", a)]).map((group) => group.category.id)).toEqual(["a", "b"]);
+    expect(groupByCategory([line("y", a), line("x", b)]).map((group) => group.category.id)).toEqual(["a", "b"]);
+  });
+
+  it("groups by the category's id, so two rows with one name stay two groups and one row with two copies is one", () => {
+    const twinA: CategoryRow = { id: "t1", key: null, name: "Twin", position: 1 };
+    const twinB: CategoryRow = { id: "t2", key: null, name: "Twin", position: 1 };
+    expect(groupByCategory([line("a", twinA), line("b", twinB)])).toHaveLength(2);
+    expect(groupByCategory([line("a", twinA), line("b", { ...twinA })])).toHaveLength(1);
   });
 });
 
@@ -367,15 +406,15 @@ describe("mealSources", () => {
 });
 
 describe("groceryListText", () => {
-  const base = { key: "k", quantity: null, unit: null, category: "OTHER", sources: [], manual: false, checked: false } as const;
+  const base = { key: "k", quantity: null, unit: null, category: seededCategory("OTHER"), sources: [], manual: false, checked: false } as const;
   const lines = [
-    { ...base, label: "Rice", quantity: 300, unit: "g", category: "PANTRY", sources: ["Risotto"] },
-    { ...base, label: "Onion", quantity: 1.5, category: "PRODUCE", sources: ["Risotto"] },
-    { ...base, label: "Salt", category: "PANTRY", sources: ["Risotto"] },
+    { ...base, label: "Rice", quantity: 300, unit: "g", category: seededCategory("PANTRY"), sources: ["Risotto"] },
+    { ...base, label: "Onion", quantity: 1.5, category: seededCategory("PRODUCE"), sources: ["Risotto"] },
+    { ...base, label: "Salt", category: seededCategory("PANTRY"), sources: ["Risotto"] },
     { ...base, label: "Napkins", manual: true },
     { ...base, label: "Wine", quantity: 2, unit: "bottles", manual: true },
-    { ...base, label: "Milk", quantity: 1, unit: "l", category: "DAIRY_EGGS", sources: ["Risotto"], checked: true },
-    { ...base, label: "Pepper", quantity: 1, unit: "tsp", category: "PANTRY", sources: ["Risotto"], pantry: true },
+    { ...base, label: "Milk", quantity: 1, unit: "l", category: seededCategory("DAIRY_EGGS"), sources: ["Risotto"], checked: true },
+    { ...base, label: "Pepper", quantity: 1, unit: "tsp", category: seededCategory("PANTRY"), sources: ["Risotto"], pantry: true },
   ] as Parameters<typeof groceryListText>[0]["lines"];
 
   it("lists the week, then each shop section with one line per item", () => {

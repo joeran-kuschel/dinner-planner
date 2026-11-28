@@ -20,7 +20,7 @@ const VALUES: RecipeFormValues = {
   instructions: "Whisk.",
   photoAlt: "",
   tags: ["quick"],
-  ingredients: [{ name: "flour", quantity: "200", unit: "g", category: "OTHER" }],
+  ingredients: [{ name: "flour", quantity: "200", unit: "g", category: "" }],
 };
 
 type Result = { ok: true; values: RecipeFormValues } | { ok: false; error: ImportErrorCode };

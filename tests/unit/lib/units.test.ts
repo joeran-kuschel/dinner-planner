@@ -46,9 +46,9 @@ describe("unitSuggestions", () => {
         servings: 2,
         ingredients: {
           create: [
-            { name: "Beans", quantity: 1, unit: "can" },
-            { name: "Rice", quantity: 100, unit: "g" },
-            { name: "Salt", quantity: null, unit: null },
+            { name: "Beans", quantity: 1, unit: "can", categoryId: "cat_other" },
+            { name: "Rice", quantity: 100, unit: "g", categoryId: "cat_other" },
+            { name: "Salt", quantity: null, unit: null, categoryId: "cat_other" },
           ],
         },
       },

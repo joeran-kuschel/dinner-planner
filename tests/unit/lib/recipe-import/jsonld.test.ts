@@ -203,9 +203,9 @@ describe("recipeFormValues", () => {
       photoAlt: "",
       tags: ["dessert", "british", "baking", "apple"],
       ingredients: [
-        { name: "apples", quantity: "500", unit: "g", category: "OTHER" },
-        { name: "flour", quantity: "200", unit: "g", category: "OTHER" },
-        { name: "salt", quantity: "1", unit: "pinch", category: "OTHER" },
+        { name: "apples", quantity: "500", unit: "g", category: "" },
+        { name: "flour", quantity: "200", unit: "g", category: "" },
+        { name: "salt", quantity: "1", unit: "pinch", category: "" },
       ],
     });
   });

@@ -96,7 +96,7 @@ async function seed(name: string, tags: string[], ingredients: string[] = []) {
     data: {
       name,
       tags: { connectOrCreate: tags.map((tag) => ({ where: { name: tag }, create: { name: tag } })) },
-      ingredients: { create: ingredients.map((ingredient, position) => ({ name: ingredient, position })) },
+      ingredients: { create: ingredients.map((ingredient, position) => ({ name: ingredient, position, categoryId: "cat_other" })) },
     },
   });
 }

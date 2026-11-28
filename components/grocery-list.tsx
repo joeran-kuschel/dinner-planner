@@ -6,7 +6,7 @@ import { type FormEvent, useEffect, useId, useOptimistic, useRef, useState, useS
 import { useFormStatus } from "react-dom";
 import { removeGroceryExtra, toggleGroceryLine } from "@/app/actions/groceries";
 import { formatGroceryQuantity, groupByCategory, type GroceryLine } from "@/lib/grocery";
-import { categoryLabel } from "@/lib/grocery-category";
+import { categoryName } from "@/lib/grocery-category";
 import { nameIdOfKey, normalizeName, unitIdOfKey } from "@/lib/ingredients/canonical";
 import { MergeLineButton, type MergeTarget } from "@/components/merge-lines-dialog";
 
@@ -96,12 +96,12 @@ export function GroceryList({ weekStart, lines, allInPantry = false }: GroceryLi
       {/* A ticked line stays where it is, struck through, so the list does not move under the thumb. */}
       <div className="md:columns-2 md:gap-6 print:columns-2 print:gap-6 [&>*]:mb-6 [&>*]:break-inside-avoid">
       {groupByCategory(lines).map(({ category, lines: group }) => {
-        const name = categoryLabel(category, i18n);
-        const headingId = `category-${category}`;
+        const name = categoryName(category, i18n);
+        const headingId = `category-${category.id}`;
         return (
           // On paper only what is still to buy: a section with nothing left is left out whole.
           <section
-            key={category}
+            key={category.id}
             aria-labelledby={headingId}
             className={`flex flex-col gap-2 print:gap-1 ${group.every((line) => line.checked || line.pantry) ? "print:hidden" : ""}`}
           >
@@ -235,7 +235,7 @@ function GroceryRow({
             <input type="hidden" name="carried" value="1" />
             <input type="hidden" name="quantity" value={line.quantity ?? ""} />
             <input type="hidden" name="unit" value={line.unit ?? ""} />
-            <input type="hidden" name="category" value={line.category} />
+            <input type="hidden" name="category" value={line.category.id} />
           </>
         ) : null}
         {/* The hidden field carries the value the action should persist, which is the opposite of the
