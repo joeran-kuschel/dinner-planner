@@ -10,6 +10,7 @@ KUBE_CONTEXT=docker-desktop
 NAMESPACE=dinner-planner
 HOST=dinner.local
 source k8s/tls-secret.sh
+source k8s/ingress-address.sh
 
 require_mkcert "$HOST"
 KUBECTL=(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE")
@@ -18,4 +19,4 @@ if "${KUBECTL[@]}" get secret "$TLS_SECRET" >/dev/null 2>&1; then
 else
   tls_secret_manifest "$HOST" | "${KUBECTL[@]}" create -f - >/dev/null
 fi
-echo "Done: https://$HOST has a new certificate."
+echo "Done: $(site_address "$HOST") has a new certificate."

@@ -9,7 +9,7 @@ device: a signed cookie, set once from a private link.
 ## The flow
 
 1. **Setup.** `npm run k8s:deploy` makes a random 256-bit key the first time and keeps it afterwards. `npm run
-   k8s:access-link` prints `https://dinner.local/access#<key>` (and a QR code when `qrencode` is installed). The key
+   k8s:access-link` prints `https://dinner.local/access#<key>` (with `:8443` after the host where the ingress publishes HTTPS on 8443, see [tls.md](tls.md#the-port); and a QR code when `qrencode` is installed). The key
    follows `#`, which a browser never sends to a server, so it is in no log of the app or of the shared ingress controller.
 2. **First visit on a device.** The link opens `/access` (`app/access/route.ts`). Its script reads the key from the
    address, removes it from the address bar and the history at once, posts it once as JSON to `/access` and goes on to

@@ -131,7 +131,7 @@ because the proxy should not be the only gate; `tests/infra/access.test.ts` fail
 needs the call. Without a key the app is open outside production (`npm run dev`, Vitest) and refuses everything with 503
 in production (the image sets `NODE_ENV=production`), so a missing Secret never leaves it open. The key is a Secret
 (`dinner-planner-access`) that `deploy.sh` makes once; `npm run k8s:access-link` prints the private link
-`https://dinner.local/access#<key>` (the key after `#` never reaches a server or a log) and `npm run k8s:rotate-access-key`
+`https://dinner.local/access#<key>` (with the ingress's port when it is not 443; the key after `#` never reaches a server or a log) and `npm run k8s:rotate-access-key`
 replaces it. Playwright runs with a test key and every browser context starts with its cookie (`use.storageState` in
 `playwright.config.ts`); `access.spec.ts` starts with none. Details: `documentation/backend/access-key.md`.
 
@@ -348,7 +348,9 @@ change.
   `devDependencies` breaks migrations and seeding in the cluster with
   `Cannot find module 'dotenv/config'`.
 - **Access is via Ingress at `https://dinner.local`.** Docker Desktop publishes
-  the ingress controller's LoadBalancer on `localhost:80` and `:443`, so `/etc/hosts` needs
+  the ingress controller's LoadBalancer on `localhost:80` and the HTTPS port its Service names (443; 8443 on a cluster
+  where another program holds 443, then the address is `https://dinner.local:8443`, which `deploy.sh` and
+  `npm run k8s:access-link` read from the Service, `k8s/ingress-address.sh`), so `/etc/hosts` needs
   `127.0.0.1 dinner.local` **and** `::1 dinner.local`: without the IPv6 line,
   macOS asks Bonjour about the `.local` name first and every request takes 5
   seconds longer. `deploy.sh` prints missing lines; it never edits `/etc/hosts`.

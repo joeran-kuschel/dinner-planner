@@ -27,8 +27,21 @@ certificate authority. Without them it stops and prints the commands, and instal
 brew install mkcert && mkcert -install   # once per machine; mkcert -install asks for your password
 ```
 
-Afterwards the deploy checks `https://dinner.local/healthz` against mkcert's authority and prints the address. The
+Afterwards the deploy checks `https://dinner.local/healthz` (on the controller's HTTPS port, see below) against mkcert's authority and prints the address. The
 Kubernetes probes talk to the pod directly and are not affected.
+
+## The port
+
+The shared ingress controller's Service says which port it publishes for HTTPS, and `deploy.sh` and `access-link.sh` read it
+(`k8s/ingress-address.sh`, a `kubectl get svc` only, the controller is never changed). It is 443 unless another program on the
+machine holds 443: since the Docker Desktop upgrade of 2026-11-20 recreated the cluster, a Caddy of another project does, and the
+controller was installed with **8443** (the deploy of 2026-11-28 was the first to report it), so the app is at `https://dinner.local:8443`. The deploy probes that port and prints the
+address with it, and the access link carries it too. If the Service cannot be read, the scripts assume 443.
+
+`http://dinner.local` redirects to `https://dinner.local` *without* a port, since the redirect (`ssl-redirect` on this app's Ingress) cannot
+name one: on a cluster that publishes 8443 it leads nowhere, so open the address with the port (the browser's bookmark or the
+access link). The alternatives need a change to the shared controller (snippet annotations are off), which is not done
+([#111](https://github.com/joeran-kuschel/dinner-planner/issues/111)).
 
 ## Renewing
 
@@ -46,7 +59,7 @@ authority's key (`rootCA-key.pem`) never leaves this machine.
 
 - No HSTS header: browsers cache it, and an expired local certificate could then lock the app out with no way to click
   through. Cookie flags such as `Secure` belong with the access key ([#68](https://github.com/joeran-kuschel/dinner-planner/issues/68)).
-- It does not restrict who can reach the ingress: Docker Desktop publishes ports 80 and 443 on every network
+- It does not restrict who can reach the ingress: Docker Desktop publishes ports 80 and the HTTPS port on every network
   interface. TLS protects the traffic, not the access.
 
 ## Tests

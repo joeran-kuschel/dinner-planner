@@ -20,6 +20,7 @@ case "$args" in
   *"get nodes -o jsonpath"*) printf 'desktop-control-plane' ;;
   *"get nodes"*) exit "\${FAIL_NODES:-0}" ;;
   *"get ingressclass nginx"*) exit "\${FAIL_INGRESS:-0}" ;;
+  *"get svc ingress-nginx-controller"*) [ -n "\${FAIL_SVC:-}" ] && exit 1; printf '%s' "\${FAKE_HTTPS_PORT-443}" ;;
   *"kustomize k8s"*) cat k8s/app.yaml ;;
   *"get secret dinner-planner-db"*) exit "\${SECRET_EXIT:-1}" ;;
   *"get secret dinner-planner-tls"*) exit "\${TLS_SECRET_EXIT:-1}" ;;
@@ -214,7 +215,29 @@ describe("deploy.sh", () => {
     expect(log("kubectl.log")).toContain("-n dinner-planner rollout status deployment/dinner-planner");
     // Over HTTPS, against mkcert's own authority, with dinner.local resolved to this machine.
     expect(log("curl.log")).toContain(`--cacert ${path.join(dir, "ca", "rootCA.pem")} --resolve dinner.local:443:127.0.0.1 https://dinner.local/healthz`);
-    expect(result.stdout).toContain("Open https://dinner.local");
+    expect(result.stdout).toContain("Open https://dinner.local ");
+    expect(log("kubectl.log")).toContain("--context docker-desktop -n ingress-nginx get svc ingress-nginx-controller");
+  });
+
+  it("probes and reports the port the ingress controller publishes for HTTPS when it is not 443", () => {
+    const result = run("deploy.sh", { FAKE_HTTPS_PORT: "8443" });
+
+    expect(log("curl.log")).toContain("--resolve dinner.local:8443:127.0.0.1 https://dinner.local:8443/healthz");
+    expect(result.stdout).toContain("Open https://dinner.local:8443 ");
+  });
+
+  it("falls back to 443 when the controller's Service cannot be read, and says which port it tried when nothing answers", () => {
+    const answered = run("deploy.sh", { FAIL_SVC: "1" });
+    expect(log("curl.log")).toContain("--resolve dinner.local:443:127.0.0.1 https://dinner.local/healthz");
+    expect(answered.stdout).toContain("Open https://dinner.local ");
+
+    const garbage = run("deploy.sh", { FAKE_HTTPS_PORT: "abc" });
+    expect(garbage.stdout).toContain("Open https://dinner.local ");
+
+    const silent = run("deploy.sh", { FAKE_HTTPS_PORT: "8443", FAIL_CURL: "1" });
+    expect(silent.status).not.toBe(0);
+    expect(silent.stderr).toContain("https://dinner.local:8443 did not answer");
+    expect(silent.stderr).toContain("localhost:8443");
   });
 
   it("stops before building when the cluster is not reachable", () => {
@@ -573,6 +596,7 @@ describe("renew-tls.sh", () => {
     expect(log("replaced.yaml")).toContain("type: kubernetes.io/tls");
     expect(log("mkcert.log")).toContain("dinner.local");
     expect(result.stdout).toContain("https://dinner.local has a new certificate");
+    expect(run("renew-tls.sh", { TLS_SECRET_EXIT: "0", FAKE_HTTPS_PORT: "8443" }).stdout).toContain("https://dinner.local:8443 has a new certificate");
     const key = /tls\.key: (\S+)/.exec(log("replaced.yaml"))![1];
     expect(log("kubectl.log")).not.toContain(key);
     for (const file of log("mkcert-files").trim().split("\n")) expect(fs.existsSync(file), file).toBe(false);
@@ -675,6 +699,13 @@ describe("access-link.sh", () => {
     expect(result.stdout).toContain("https://dinner.local/access#abc-DEF_123");
     expect(log("kubectl.log")).toContain("--context docker-desktop -n dinner-planner get secret dinner-planner-access");
     expect(result.stdout).toContain("npm run k8s:rotate-access-key");
+  });
+
+  it("puts the ingress's HTTPS port in the link when it is not 443, since the link is the one opened on each device", () => {
+    const result = run("access-link.sh", { FAKE_ACCESS_KEY: "abc-DEF_123", FAKE_HTTPS_PORT: "8443" });
+
+    expect(result.stdout).toContain("https://dinner.local:8443/access#abc-DEF_123");
+    expect(result.stdout).not.toContain("https://dinner.local/access");
   });
 
   it("adds a QR code when qrencode is installed", () => {

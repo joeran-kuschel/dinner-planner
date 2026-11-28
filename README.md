@@ -42,7 +42,7 @@ npm run k8s:deploy   # builds the images, imports them into the cluster, applies
 npm run k8s:seed     # optional sample data
 ```
 
-The app is then at https://dinner.local (http redirects there). It answers only to browsers that
+The app is then at https://dinner.local (http redirects there); where another program holds port 443 the ingress publishes HTTPS on 8443 and the deploy prints the address with it, https://dinner.local:8443. It answers only to browsers that
 hold its access key: run `npm run k8s:access-link` and open the link it prints once on each device (see
 [documentation/backend/access-key.md](documentation/backend/access-key.md)). The first deploy needs
 [mkcert](https://github.com/FiloSottile/mkcert) for the certificate and stops with the install commands
