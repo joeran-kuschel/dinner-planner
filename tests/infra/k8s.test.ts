@@ -165,6 +165,13 @@ describe("Kubernetes setup for Docker Desktop", () => {
       expect(read("k8s/tls-secret.sh")).toContain("--dry-run=client");
     });
 
+    it("only reads the shared controller's Service to learn its HTTPS port, in the pinned context", () => {
+      const code = codeOf("k8s/ingress-address.sh");
+      expect(code).toMatch(/kubectl --context "\$KUBE_CONTEXT" -n ingress-nginx get svc ingress-nginx-controller/);
+      expect(code.match(/kubectl(?! --context)/g) ?? []).toEqual([]);
+      expect(code).not.toMatch(/\b(apply|patch|annotate|edit|replace|delete|create|label|rollout)\b/);
+    });
+
     it("sets the redirect on this Ingress only, never on the shared controller", () => {
       expect(read("k8s/deploy.sh")).not.toMatch(/ingress-nginx.*(apply|patch|annotate)/);
       // No write to the controller's namespace by any spelling, and the TLS scripts do not name it at all.

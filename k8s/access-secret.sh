@@ -20,5 +20,6 @@ stringData:
 MANIFEST
 }
 
-# The private link for a key: access_link <host> <key>. The key follows `#`, which no server ever receives.
-access_link() { printf 'https://%s/access#%s' "$1" "$2"; }
+# The private link for a key: access_link <site address> <key> (the address from site_address in ingress-address.sh, which
+# has the ingress's port). The key follows `#`, which no server ever receives.
+access_link() { printf '%s/access#%s' "$1" "$2"; }

@@ -26,6 +26,8 @@ source k8s/tls-secret.sh
 source k8s/access-secret.sh
 # shellcheck source=k8s/image-cleanup.sh
 source k8s/image-cleanup.sh
+# shellcheck source=k8s/ingress-address.sh
+source k8s/ingress-address.sh
 KUBE_CONTEXT="$CLUSTER"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
@@ -144,10 +146,10 @@ prune_images "$TAG" "$PREVIOUS_TAG"
 
 step "Ready"
 
-# Docker Desktop publishes the ingress controller's LoadBalancer on localhost:80 and :443,
-# so the app is reachable once dinner.local points at localhost. Both lines are
-# needed: without the IPv6 one, macOS first asks Bonjour about the `.local`
-# name, which adds a 5-second delay to every request.
+# Docker Desktop publishes the ingress controller's LoadBalancer on localhost: port 80 and the HTTPS port its Service
+# names (443, or another one when something else holds 443, see k8s/ingress-address.sh), so the app is reachable once
+# dinner.local points at localhost. Both lines are needed: without the IPv6 one, macOS first asks Bonjour about the
+# `.local` name, which adds a 5-second delay to every request.
 for line in "127.0.0.1 ${HOST}" "::1 ${HOST}"; do
   if ! grep -qE "^${line%% *}[[:space:]]+${HOST}([[:space:]]|\$)" /etc/hosts 2>/dev/null; then
     echo "Add this line to /etc/hosts (needs sudo, so this script will not do it):"
@@ -164,16 +166,18 @@ CURL_TRUST=()
 if command -v mkcert >/dev/null 2>&1 && [ -f "$(mkcert -CAROOT)/rootCA.pem" ]; then
   CURL_TRUST=(--cacert "$(mkcert -CAROOT)/rootCA.pem")
 fi
+HTTPS_PORT="$(ingress_https_port)"
+SITE="$(site_address "$HOST" "$HTTPS_PORT")"
 for _ in $(seq 1 30); do
-  if curl -s -o /dev/null --max-time 3 --fail ${CURL_TRUST[@]+"${CURL_TRUST[@]}"} --resolve "${HOST}:443:127.0.0.1" "https://${HOST}/healthz"; then
-    echo "Open https://${HOST} (a device that has not opened its access link yet needs it first: npm run k8s:access-link)"
+  if curl -s -o /dev/null --max-time 3 --fail ${CURL_TRUST[@]+"${CURL_TRUST[@]}"} --resolve "${HOST}:${HTTPS_PORT}:127.0.0.1" "${SITE}/healthz"; then
+    echo "Open ${SITE} (a device that has not opened its access link yet needs it first: npm run k8s:access-link)"
     exit 0
   fi
   sleep 1
 done
 
-echo "The app is deployed, but https://${HOST} did not answer through the ingress on" >&2
-echo "localhost:443, or its certificate is not trusted (run 'mkcert -install'). Check that nothing" >&2
-echo "else holds port 443 and that the ingress controller has an address:" >&2
+echo "The app is deployed, but ${SITE} did not answer through the ingress on" >&2
+echo "localhost:${HTTPS_PORT}, or its certificate is not trusted (run 'mkcert -install'). Check that nothing" >&2
+echo "else holds port ${HTTPS_PORT} and that the ingress controller has an address:" >&2
 echo "  kubectl --context $CLUSTER -n ingress-nginx get svc" >&2
 exit 1

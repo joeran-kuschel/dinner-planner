@@ -10,9 +10,10 @@ KUBE_CONTEXT=docker-desktop
 NAMESPACE=dinner-planner
 HOST=dinner.local
 source k8s/access-secret.sh
+source k8s/ingress-address.sh
 
 KEY="$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get secret "$ACCESS_SECRET" -o 'go-template={{index .data "ACCESS_KEY" | base64decode}}')"
-LINK="$(access_link "$HOST" "$KEY")"
+LINK="$(access_link "$(site_address "$HOST")" "$KEY")"
 
 echo "Open this link once on each device that should use the planner:"
 echo
