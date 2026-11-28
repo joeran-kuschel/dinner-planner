@@ -28,7 +28,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         }
       });
 
-      test("the dinner suggestions are fully visible and on top of the next rows", async ({ page }) => {
+      // Light only: the geometry is the same in dark mode, and the dark pages are in the axe sweep above.
+      if (colorScheme === "light") test("the dinner suggestions are fully visible and on top of the next rows", async ({ page }) => {
         const name = unique("Suggest");
         await createRecipe(page, { name });
         await page.goto(`/?week=${WEEK}`);

@@ -24,13 +24,6 @@ test.describe("page titles", () => {
     }
   });
 
-  test("the week plan has the same title in different weeks", async ({ page }) => {
-    for (const week of ["2027-01-04", "2027-01-11"]) {
-      await page.goto(`/?week=${week}`);
-      await expect(page, week).toHaveTitle("Week plan - Dinner Planner");
-    }
-  });
-
   test("a long recipe name is shortened in the title but not on the page", async ({ page }) => {
     const name = `${unique("Long")} ${"very ".repeat(20)}soup`;
     const id = await createRecipe(page, { name });
@@ -38,14 +31,6 @@ test.describe("page titles", () => {
     const title = await page.title();
     expect(title.endsWith("… - Dinner Planner")).toBe(true);
     expect(Array.from(title.slice(0, -" - Dinner Planner".length))).toHaveLength(60);
-  });
-
-  test("a recipe name with HTML characters is shown as text in the title", async ({ page }) => {
-    const name = unique("<b>Fish</b> & chips");
-    const id = await createRecipe(page, { name });
-    await page.goto(`/recipes/${id}`);
-    await expect(page).toHaveTitle(`${name} - Dinner Planner`);
-    await expect(page.locator("head b")).toHaveCount(0);
   });
 
   test("a bad address and a deleted recipe keep the app's name", async ({ page }) => {
@@ -93,13 +78,4 @@ test.describe("page titles", () => {
     await expect(page).toHaveTitle(`Edit ${name} - Dinner Planner`);
   });
 
-  test("the week plan and the grocery list are titled in German", async ({ page }) => {
-    await page.context().addCookies([{ name: "locale", value: "de", url: "http://localhost:3100" }]);
-    await page.goto("/");
-    await expect(page).toHaveTitle("Wochenplan - Abendessen-Planer");
-    await page.goto("/groceries");
-    await expect(page).toHaveTitle("Einkaufsliste - Abendessen-Planer");
-    await page.goto("/recipes");
-    await expect(page).toHaveTitle("Rezepte - Abendessen-Planer");
-  });
 });

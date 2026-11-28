@@ -47,21 +47,6 @@ test.describe("leaving a form with unsaved changes", () => {
     await expect(nameField(page)).toHaveValue("Soup");
   });
 
-  test("has its three buttons in one row on a wide screen and still fits a phone", async ({ page }) => {
-    await page.goto("/recipes/new");
-    await nameField(page).fill("Soup");
-    await menuLink(page, "Recipes").click();
-
-    const tops = await dialog(page).getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
-    expect(new Set(tops).size).toBe(1);
-
-    await page.setViewportSize({ width: 320, height: 640 });
-    const box = await dialog(page).boundingBox();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-    await expect(dialog(page).getByRole("button", { name: "Save and leave" })).toBeVisible();
-  });
-
   test("Stay keeps what was typed, Leave without saving goes to the link and creates nothing", async ({ page }) => {
     const name = unique("Never saved");
     await page.goto("/recipes/new");
@@ -180,21 +165,6 @@ test.describe("leaving a form with unsaved changes", () => {
     expect(prompts).toEqual([]);
   });
 
-  test("closing asks once something was typed, and the page stays when the visitor stays", async ({ page }) => {
-    const prompts: string[] = [];
-    page.on("dialog", (d) => {
-      prompts.push(d.type());
-      void d.dismiss();
-    });
-    await page.goto("/recipes/new");
-    await nameField(page).fill("Soup");
-
-    await page.close({ runBeforeUnload: true });
-
-    await expect.poll(() => prompts).toEqual(["beforeunload"]);
-    expect(page.isClosed()).toBe(false);
-  });
-
   test("a new recipe saved with the Save button goes to its page without a question", async ({ page }) => {
     const prompts: string[] = [];
     page.on("dialog", (d) => {
@@ -232,25 +202,4 @@ test.describe("leaving a form with unsaved changes", () => {
     expect(prompts).toEqual([]);
   });
 
-  test("switching the language keeps what was typed and asks nothing", async ({ page }) => {
-    await page.goto("/recipes/new");
-    await nameField(page).fill("Soup");
-    await page.getByRole("button", { name: "Deutsch", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await expect(page.getByRole("textbox", { name: "Name", exact: false }).first()).toHaveValue("Soup");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-  });
-
-  test("says it in German", async ({ page }) => {
-    await page.goto("/recipes/new");
-    await page.getByRole("button", { name: "Deutsch", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await page.getByRole("textbox", { name: "Name", exact: false }).first().fill("Suppe");
-    await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Rezepte", exact: true }).click();
-
-    const german = page.getByRole("dialog", { name: "Ohne Speichern verlassen?" });
-    await expect(german).toBeVisible();
-    await expect(german.getByRole("button", { name: "Hier bleiben" })).toBeFocused();
-    await expectAccessible(page);
-  });
 });

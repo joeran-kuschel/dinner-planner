@@ -11,13 +11,17 @@ import os from "node:os";
 import path from "node:path";
 import {
   PHASES,
+  SLOW_INFRA_TESTS,
   TOTAL_LIMIT_MS,
+  canSkipSlowInfra,
+  changedFiles,
   databaseReachable,
   exitCode,
   formatReport,
   publishToGitHub,
   runCheck,
   stopAllStages,
+  withoutSlowInfra,
 } from "./check-lib";
 
 async function main() {
@@ -35,7 +39,12 @@ async function main() {
   }
 
   const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "dinner-planner-check-"));
-  const results = await runCheck(PHASES, { totalLimitMs: TOTAL_LIMIT_MS, logDir });
+  // The slow infra tests guard files that rarely change: they run when one of those did (and always on a push to main).
+  const skipSlow = canSkipSlowInfra(changedFiles());
+  if (skipSlow) {
+    console.log(`vitest: ${SLOW_INFRA_TESTS.length} slow infra test files left out, since nothing they guard changed (k8s/, scripts/, .github/, Dockerfile, tests/infra, tests/support …)`);
+  }
+  const results = await runCheck(skipSlow ? withoutSlowInfra(PHASES) : PHASES, { totalLimitMs: TOTAL_LIMIT_MS, logDir });
   const totalSeconds = (Date.now() - started) / 1000;
   console.log(formatReport(results, totalSeconds));
   publishToGitHub(results, totalSeconds);

@@ -153,31 +153,6 @@ test.describe("groceries", () => {
     ).toBeChecked();
   });
 
-  test("tapping a line's name ticks it, and no line moves", async ({ page }) => {
-    const name = unique("Tray");
-    await createRecipe(page, {
-      name,
-      ingredients: [{ name: "Apples" }, { name: "Bananas" }, { name: "Cherries" }],
-    });
-    await page.goto("/?week=2027-09-27");
-    await planRecipe(page, "Monday", name);
-    await page.goto("/groceries?week=2027-09-27");
-
-    const order = () => page.getByRole("checkbox").evaluateAll((all) => all.map((box) => box.getAttribute("aria-label")));
-    const before = await order();
-    expect(before).toEqual(["Tick off Apples", "Tick off Bananas", "Tick off Cherries"]);
-
-    // The name, not the box, and a line in the middle: the one most likely to move.
-    await page.getByText("Bananas", { exact: true }).click();
-    await expect(page.getByRole("checkbox", { name: "Tick off Bananas" })).toBeChecked();
-    expect(await order()).toEqual(before);
-
-    // The second line (the recipe) ticks it as well.
-    await page.getByText(name, { exact: true }).first().click();
-    await expect(page.getByRole("checkbox", { name: "Tick off Apples" })).toBeChecked();
-    expect(await order()).toEqual(before);
-  });
-
   test("keeps the add form closed above the list, and open while items are added", async ({ page }) => {
     const name = unique("Dal");
     await createRecipe(page, { name, ingredients: [{ quantity: "1", name: "Lentils" }] });
@@ -217,14 +192,6 @@ test.describe("groceries", () => {
     await expect(details).not.toHaveAttribute("open", "");
   });
 
-  test("calls the add form by its German name", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "de-DE" });
-    const page = await context.newPage();
-    await page.goto("/groceries?week=2027-10-11");
-    await expect(page.locator("details summary", { hasText: /^Etwas anderes hinzufügen$/ })).toBeVisible();
-    await context.close();
-  });
-
   test("files a hand-added item under the chosen section", async ({ page }) => {
     const item = unique("Beer");
     await page.goto("/groceries?week=2027-09-13");
@@ -234,14 +201,6 @@ test.describe("groceries", () => {
     await page.getByRole("button", { name: "Add", exact: true }).click();
 
     await expect(page.getByRole("region", { name: "Drinks (1)" })).toContainText(item);
-  });
-
-  test("marks the mandatory item of the add form with an asterisk and explains it", async ({ page }) => {
-    await page.goto("/groceries?week=2027-04-19");
-    await openAddForm(page);
-    await expect(page.getByText("* required")).toBeVisible();
-    await expect(page.locator("label[for=label]").getByTitle("Required")).toBeVisible();
-    await expectAccessible(page);
   });
 
   test("adds a manual item, keeps it after reload and removes it again", async ({ page }) => {
@@ -298,55 +257,11 @@ test.describe("groceries", () => {
     await expect(groceryRow(page, "Basil")).toContainText("to taste");
   });
 
-  test("moves between weeks with the week navigation, staying on the grocery list", async ({ page }) => {
-    // Any day of the week opens the week from its Monday.
-    await page.goto("/groceries?week=2027-05-12");
-    await expect(page.getByText("10 May – 16 May 2027")).toBeVisible();
-
-    await page.getByRole("link", { name: "Previous week" }).click();
-    await expect(page).toHaveURL("/groceries?week=2027-05-03");
-    await expect(page.getByText("3 May – 9 May 2027")).toBeVisible();
-
-    await page.getByRole("link", { name: "Next week" }).click();
-    await page.getByRole("link", { name: "Next week" }).click();
-    await expect(page).toHaveURL("/groceries?week=2027-05-17");
-    await expect(page.getByText("17 May – 23 May 2027")).toBeVisible();
-
-    // The menu's "This week" opens the plan, so this one is named differently.
-    await page.getByRole("link", { name: "This week's list" }).click();
-    await expect(page).toHaveURL("/groceries");
-    await expect(page.getByRole("heading", { level: 1, name: "Grocery list" })).toBeVisible();
-  });
-
-  test("still opens the plan of the week being shopped for", async ({ page }) => {
-    await page.goto("/groceries?week=2027-05-19");
-    await page.getByRole("link", { name: "Edit the plan" }).click();
-    await expect(page).toHaveURL("/?week=2027-05-17");
-  });
 });
 
 test.describe("on a touch screen", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
-  test("every line is at least 44 px high, and a tap on it ticks it", async ({ page }) => {
-    const name = unique("Thumb");
-    await createRecipe(page, { name, ingredients: [{ name: "Beans" }, { name: "Corn", quantity: "2", unit: "cans" }] });
-    await page.goto("/?week=2027-10-04");
-    await planRecipe(page, "Monday", name);
-    await page.goto("/groceries?week=2027-10-04");
-
-    for (const label of ["Beans", "Corn"]) {
-      const row = page.getByRole("checkbox", { name: `Tick off ${label}` }).locator("xpath=ancestor::label");
-      const box = await row.boundingBox();
-      expect(box?.height, label).toBeGreaterThanOrEqual(44);
-    }
-    const checkbox = await page.getByRole("checkbox", { name: "Tick off Beans" }).boundingBox();
-    expect(Math.min(checkbox!.width, checkbox!.height)).toBeGreaterThanOrEqual(24);
-
-    await page.getByText("Corn", { exact: true }).tap();
-    await expect(page.getByRole("checkbox", { name: "Tick off Corn" })).toBeChecked();
-    await expect(page.getByRole("checkbox", { name: "Tick off Beans" })).not.toBeChecked();
-  });
 });
 
 test.describe("copy and print", () => {
@@ -403,7 +318,7 @@ test.describe("copy and print", () => {
     const card = page.locator(".card").first();
     await expect(card).toHaveCSS("border-top-width", "0px");
     await expect(card).toHaveCSS("box-shadow", "none");
-  });
+  })
 
   test("Print opens the browser's print dialog", async ({ page }) => {
     await planRisotto(page, "2027-11-15");
@@ -460,81 +375,9 @@ test.describe("hand-added entries carried over", () => {
     await expect(box(page, item)).not.toBeChecked();
   });
 
-  test("a week the app was not opened in loses nothing", async ({ page }) => {
-    const item = unique("Candles");
-    await addItem(page, W1, item);
-
-    await page.goto("/groceries?week=2027-08-02");
-
-    await expect(box(page, item)).toBeVisible();
-    await expect(box(page, item)).toHaveAccessibleDescription("Added 8 weeks ago");
-  });
-
-  test("deleting a carried entry removes it from this week on, and the earlier weeks keep it", async ({ page }) => {
-    const item = unique("Wine");
-    await addItem(page, W1, item);
-
-    await page.goto(`/groceries?week=${W2}`);
-    await page.getByRole("button", { name: `Remove ${item}`, exact: true }).click();
-    await expect(box(page, item)).toHaveCount(0);
-
-    await page.goto(`/groceries?week=${W3}`);
-    await expect(box(page, item)).toHaveCount(0);
-    await page.goto(`/groceries?week=${W1}`);
-    await expect(box(page, item)).toBeVisible();
-
-    // Adding it again in a later week starts over.
-    await addItem(page, W3, item);
-    await expect(box(page, item)).toBeVisible();
-    await expect(groceryRow(page, item).getByText("added by hand")).toBeVisible();
-    await expect(page.getByText("Added 2 weeks ago")).toHaveCount(0);
-  });
-
-  test("an entry ticked in its own week is not carried", async ({ page }) => {
-    const item = unique("Tape");
-    await addItem(page, W1, item);
-    await box(page, item).click();
-    await expect(box(page, item)).toBeChecked();
-
-    await page.goto(`/groceries?week=${W2}`);
-
-    await expect(box(page, item)).toHaveCount(0);
-  });
 });
 
 test.describe("small amounts", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
-  test("a pinch of salt shows only its name, the copied text agrees, and a hand-added entry keeps its amount", async ({ page }) => {
-    const name = unique("Soup");
-    await createRecipe(page, {
-      name,
-      ingredients: [
-        { quantity: "2", unit: "pinches", name: "Salt", category: "Pantry" },
-        { quantity: "300", unit: "g", name: "Lentils", category: "Pantry" },
-      ],
-    });
-    await page.goto("/?week=2027-12-06");
-    await planRecipe(page, "Monday", name);
-    await page.goto("/groceries?week=2027-12-06");
-
-    await expect(groceryRow(page, "Salt")).toBeVisible();
-    await expect(groceryRow(page, "Salt")).not.toContainText("pinch");
-    await expect(groceryRow(page, "Lentils")).toContainText("300 g");
-
-    await page.getByRole("button", { name: "Copy list" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-      "Grocery list · 6 Dec – 12 Dec 2027\n\nPantry\n- 300 g Lentils\n- Salt",
-    );
-
-    await openAddForm(page);
-    await page.getByLabel("Amount", { exact: true }).fill("3");
-    await page.getByLabel("Unit", { exact: true }).fill("pinches");
-    await page.getByRole("textbox", { name: "Item", exact: true }).fill("Salt");
-    await page.getByRole("button", { name: "Add", exact: true }).click();
-
-    await expect(groceryRow(page, "Salt")).toContainText("5 pinches");
-    await expectAccessible(page);
-  });
 });

@@ -23,7 +23,7 @@ agent runs on the developer's machine, so a green run there and a green run here
 A newer push to the same pull request cancels the run in progress; runs on `main` are never cancelled. A run stops
 after 20 minutes.
 
-The actions are pinned to a commit (`uses: …@<sha> # v4`), not to a tag that can move, and checkout does not keep the
+The actions are pinned to a commit (`uses: …@<sha> # v4`), not to a tag that can move, and checkout fetches the whole history (the check compares the branch with `main` to decide whether the slow infra tests run, [testing-check.md](testing-check.md#what-the-suite-is-for-and-what-it-leaves-out)) and does not keep the
 token in `.git/config`. `.github/dependabot.yml` opens a pull request weekly when an action has a new version. It does not cover the Playwright image ("The browser" below): that one is bumped by hand, with Playwright.
 
 ## Safe for pull requests from forks

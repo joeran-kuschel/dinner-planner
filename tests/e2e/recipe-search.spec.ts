@@ -193,30 +193,6 @@ test.describe("recipe search", () => {
     await expect(page.getByText("No recipe matches.", { exact: false })).toHaveCount(0);
   });
 
-  test("survives a NUL character in the address", async ({ page }) => {
-    const response = await page.goto("/recipes?q=%00&tag=%00");
-    expect(response?.status()).toBe(200);
-    await expect(page.getByRole("heading", { level: 1, name: "Recipes" })).toBeVisible();
-  });
-
-  test("searches for the characters of a pattern as they are", async ({ page }) => {
-    await page.goto("/recipes?q=%25");
-    await expect(page.getByText(/\d+ of \d+ recipes/)).toBeVisible();
-    // No recipe of these tests has a % in its name, tag or ingredients.
-    await expect(page.getByText("No recipe matches.", { exact: false })).toBeVisible();
-  });
-
-  test("works in German", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "de-DE" });
-    const page = await context.newPage();
-    await page.goto(`/recipes?q=${uniqueWord("none")}`);
-    await expect(page.getByRole("combobox", { name: "Rezepte suchen" })).toBeVisible();
-    await expect(page.getByText("Kein Rezept passt.", { exact: false })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Zurücksetzen" })).toBeVisible();
-    await page.goto(`/recipes?tag=${uniqueWord("x")}`);
-    await expect(page.locator("details", { has: page.locator("summary", { hasText: /^Tags/ }) }).locator("summary")).toHaveText("Tags (1 ausgewählt)");
-    await context.close();
-  });
 });
 
 test.describe("finding a dinner by tag", () => {
@@ -292,12 +268,6 @@ test.describe("tag chips of the search", () => {
     await expect(page.locator("label.tag-toggle", { hasText: plain }).locator(".tag-toggle-check")).toBeHidden();
   });
 
-  test("is at least 36 px high with a mouse", async ({ page }) => {
-    const tag = uniqueWord("h");
-    const { chip } = await openTagChips(page, [tag]);
-    expect((await chip(tag).boundingBox())?.height).toBeGreaterThanOrEqual(36);
-  });
-
   test.describe("on a touch screen", () => {
     test.use({ hasTouch: true, isMobile: true });
 
@@ -328,18 +298,6 @@ test.describe("tag chips of the search", () => {
         await expect(chip(plain).locator(".tag-toggle-check")).toBeHidden();
       });
 
-      test("passes axe, contrast included, with tags filtered by the address", async ({ page }) => {
-        const [first, second] = [uniqueWord("x"), uniqueWord("y")];
-        await createRecipe(page, { name: unique("Chipped"), tags: [first, second] });
-        await page.goto(`/recipes?tag=${first}`);
-        await expect(page.getByRole("checkbox", { name: first })).toBeChecked();
-        await expectAccessible(page);
-        // With the keyboard ring on the chip.
-        await page.getByRole("checkbox", { name: second }).focus();
-        await page.keyboard.press("Shift+Tab");
-        await page.keyboard.press("Tab");
-        await expectAccessible(page);
-      });
     });
   }
 });

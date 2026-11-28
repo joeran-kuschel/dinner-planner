@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -47,6 +47,61 @@ export const PHASES: Stage[][] = [
 ];
 
 export const TOTAL_LIMIT_MS = 11 * MINUTE;
+
+/**
+ * The Vitest files that run real shell scripts and real timeouts: about a quarter of the suite's time, for files that rarely
+ * change (issue #117). The check leaves them out unless a file they guard changed, and always runs them on a push to `main`.
+ */
+export const SLOW_INFRA_TESTS = [
+  "tests/infra/k8s-deploy-scripts.test.ts",
+  "tests/infra/db-backup-scripts.test.ts",
+  "tests/infra/db-rotate-script.test.ts",
+  "tests/infra/check.test.ts",
+];
+
+/** A change to any of these can break one of the slow infra tests (the scripts, the manifests, the image, the test helpers). */
+const SLOW_INFRA_TRIGGER =
+  /^(k8s|scripts|\.github|tests\/infra|tests\/support)\/|^(Dockerfile|\.dockerignore|compose\.yaml|package\.json|package-lock\.json|vitest\.config\.mts|tsconfig\.json)$/;
+
+/**
+ * Whether the slow infra tests can be left out: only when the changed files are known (`null` is "do not know": run
+ * everything) and none of them is one those tests guard.
+ */
+export const canSkipSlowInfra = (changed: string[] | null): boolean =>
+  changed !== null && !changed.some((file) => SLOW_INFRA_TRIGGER.test(file));
+
+/** The plan with the slow infra tests excluded from the Vitest stage. */
+export const withoutSlowInfra = (phases: Stage[][]): Stage[][] =>
+  phases.map((phase) =>
+    phase.map((stage) =>
+      stage.name === "vitest" ? { ...stage, command: `${stage.command} ${SLOW_INFRA_TESTS.map((file) => `--exclude ${file}`).join(" ")}` } : stage,
+    ),
+  );
+
+/**
+ * The files this branch changes against `main` (committed, uncommitted and new), or `null` when that cannot be told: a push to
+ * `main` on GitHub (everything runs there), no git, or no `main` to compare with.
+ */
+export function changedFiles(
+  env: Record<string, string | undefined> = process.env,
+  git: (args: string[]) => string = (args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
+): string[] | null {
+  if (env.GITHUB_EVENT_NAME === "push") return null;
+  try {
+    const base = ["origin/main", "main"].map((ref) => {
+      try {
+        return git(["merge-base", "HEAD", ref]).trim();
+      } catch {
+        return "";
+      }
+    }).find(Boolean);
+    if (!base) return null;
+    const lines = (text: string) => text.split("\n").filter(Boolean);
+    return [...new Set([...lines(git(["diff", "--name-only", base])), ...lines(git(["ls-files", "--others", "--exclude-standard"]))])];
+  } catch {
+    return null;
+  }
+}
 
 /** A stage that used this share of its limit is slowing down: the report says so, and so does GitHub. */
 export const WARN_SHARE = 0.6;

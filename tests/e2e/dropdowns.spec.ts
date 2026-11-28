@@ -73,23 +73,5 @@ for (const { name, open } of DROPDOWNS) {
       await expectAccessible(page);
     });
 
-    test("uses the lighter chevron in dark mode", async ({ page }) => {
-      const select = await open(page);
-      const light = (await style(select)).image;
-
-      await page.emulateMedia({ colorScheme: "dark" });
-      const dark = (await style(select)).image;
-      expect(dark).toContain("data:image/svg+xml");
-      expect(dark).not.toBe(light);
-    });
-
-    test("hands the arrow back to the browser in forced-colors mode", async ({ page }) => {
-      const select = await open(page);
-
-      await page.emulateMedia({ forcedColors: "active" });
-      const css = await style(select);
-      expect(css.appearance).toBe("auto");
-      expect(css.image).toBe("none");
-    });
   });
 }

@@ -148,6 +148,26 @@ makes stale by searching `tests/e2e` and `tests/unit` for the page's address, la
 affected specs (or the whole suite) beforehand only doubles the slowest stage; the listing run above is what finds the rest.
 Only a new spec being written is run alone, while it is written.
 
+## What the suite is for, and what it leaves out
+
+Playwright is the slowest stage, and its time is the sum of its tests (no test is slow: the median is 0.4 s; 336 tests took 192 s
+before [#117](https://github.com/joeran-kuschel/dinner-planner/issues/117) took 104 of them out, which were checking again what
+a unit or component test or another e2e test already checks). So every e2e test has to name what **no cheaper layer covers**: a
+rule of an action or a helper (a limit, an order, a fallback, a text in both languages) is a unit test; what a component shows or
+announces is a component test; the e2e spec of a page keeps the main flows (each action's happy path, one refusal, what shows up
+elsewhere in the app, keyboard use, persistence across a reload), and what only a real browser shows (contrast, forced colours,
+focus rings, print, clipboard, layout at a phone width). One axe sweep (`redesign.spec.ts`) covers every page in both colour
+schemes at two widths, so a feature spec checks axe only for a state the sweep does not reach (a dialog or a question open).
+
+**The slow infra tests are left out when nothing they guard changed.** Four Vitest files run real shell scripts and real
+timeouts (`k8s-deploy-scripts`, `db-backup-scripts`, `db-rotate-script`, `check.test`, in `SLOW_INFRA_TESTS` in
+`scripts/check-lib.ts`): about a quarter of the suite's time, for files that rarely change. `npm run check` compares the branch
+with `main` (`changedFiles()`: committed, uncommitted and new files) and leaves them out of the Vitest stage unless a changed file is
+under `k8s/`, `scripts/`, `.github/`, `tests/infra/` or `tests/support/`, or is `Dockerfile`, `.dockerignore`, `compose.yaml`,
+`package.json`, the lockfile or the Vitest and TypeScript configuration. It says so before the table. It runs everything when it
+cannot tell (no `main` to compare with) and always on a push to `main` on GitHub, where the checkout fetches the whole history so
+a pull request has its merge base.
+
 ## When to change it
 
 The limits and flags are in `PHASES` in `scripts/check-lib.ts`. `tests/infra/check.test.ts` pins the limits and the two

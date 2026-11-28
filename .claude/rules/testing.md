@@ -28,7 +28,8 @@ How tests are written here. How the whole suite is run before a push or merge is
   context starts with its cookie (`use.storageState` in `playwright.config.ts`); `access.spec.ts` starts with none.
 - **Keep the suite fast: every e2e test names what no cheaper layer covers.** A rule of an action or helper is a unit test, what a
   component shows a component test; a page's e2e spec keeps the main flows and what only a browser shows (contrast, focus, print,
-  layout).
+  layout). One axe sweep (`redesign.spec.ts`) covers every page; a feature spec adds axe only for a state the sweep does not reach.
+  Four slow infra Vitest files run only when what they guard changed (`documentation/backend/testing-check.md`).
 - A test that documents a known bug is marked `it.fails` / `test.fail` with a `// BUG:` comment until the bug is fixed. A `test.fail`
   fails the run when the test starts to pass.
 - During development run only the new tests and those the change touches; the whole suite runs in `npm run check`.
