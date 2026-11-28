@@ -378,12 +378,17 @@ test.describe("the grocery categories page", () => {
       await expect((await shown(page)).at(-1)).toBe("Other");
     });
 
-    test("a refusal that comes twice is announced twice (the alert is a new element)", async ({ page }) => {
+    test("a refusal that comes twice has a new address each time, so the alert is announced again", async ({ page }) => {
       await open(page);
       await add(page, "bakery");
-      const first = await alert(page).elementHandle();
+      await expect(alert(page)).toHaveText("There is already a category with that name.");
+      const first = new URL(page.url()).searchParams.get("n");
+      expect(first).toMatch(/^\d+$/);
+
       await add(page, "bakery");
-      await expect.poll(async () => first!.evaluate((element) => element.isConnected)).toBe(false);
+      // (An element handle of the first alert is no use here: when the second submit goes in before the page has loaded its script,
+      // the form posts the plain way and the whole page is new, which destroys the handle's context.)
+      await expect.poll(() => new URL(page.url()).searchParams.get("n")).not.toBe(first);
       await expect(alert(page)).toHaveText("There is already a category with that name.");
     });
 
