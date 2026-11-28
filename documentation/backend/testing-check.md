@@ -173,3 +173,20 @@ a pull request has its merge base.
 The limits and flags are in `PHASES` in `scripts/check-lib.ts`. `tests/infra/check.test.ts` pins the limits and the two
 Playwright flags, so changing them is a deliberate step. A stage that keeps getting close to its limit should be made
 faster, not given more time.
+
+## How Playwright runs (details kept out of CLAUDE.md)
+
+- It runs the same standalone server as the Docker image (`node .next/standalone/server.js`, with `public/` and `.next/static`
+  copied in), not `next start`, which Next.js does not support with `output: "standalone"`. Inside `npm run check` the build is its own
+  stage (`E2E_PREBUILT=1`); `npm run test:e2e` builds and starts its own server on :3100.
+- The schema `e2e` is recreated from the migrations on every run, so the development data in `public` is never touched. The browser
+  asks for `en-GB`, so specs run in English.
+- Every test starts with an empty database: the automatic fixture in `tests/e2e/support/test.ts` truncates every table of the `e2e`
+  schema before each test (`emptySchema()` in `tests/support/migrate.ts`), so tests are independent, can use any week and can be
+  repeated (`--repeat-each`). This relies on one worker: with several, each would need a schema of its own.
+- The app's access key is a test key and every browser context starts with its cookie (`use.storageState` in `playwright.config.ts`);
+  `access.spec.ts` starts with none.
+- Vitest: every test file gets its own schema with the migrations applied (`tests/support/setup-server.ts`,
+  `tests/support/migrate.ts`), emptied before each test and dropped afterwards; the macros of Lingui are compiled with the Babel
+  plugin (`tests/support/lingui-macro.mts`); tests run in `Europe/Berlin`, not UTC, to catch planner days built from local time.
+
