@@ -34,7 +34,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
-- Tooling: the end-to-end tests run side by side, each worker with a server and a database schema of its own: 233 tests take about 50 seconds instead of 147 on a 14-core Mac, with three workers on GitHub ([#117](https://github.com/joeran-kuschel/dinner-planner/issues/117)).
+- Tooling: the end-to-end tests run side by side, each worker with a server and a database schema of its own: 233 tests take about 50 seconds instead of 147 on a 14-core Mac, with two workers on GitHub ([#117](https://github.com/joeran-kuschel/dinner-planner/issues/117)).
 - Tooling: the end-to-end suite is about a quarter faster (103 of its 336 tests were removed because a unit, component or other end-to-end test already checks the same), and the check leaves out four slow script tests unless a file they guard changed ([#117](https://github.com/joeran-kuschel/dinner-planner/issues/117)).
 - Tooling: the grocery list's shop sections are now rows in the database instead of being fixed in the code, the first step toward sections you can add, rename and move; nothing changes on screen, every ingredient and list entry stays in its section ([#29](https://github.com/joeran-kuschel/dinner-planner/issues/29), stage 1).
 - The tags in the recipe search are now chips you tick like a button, bigger and easier to hit (44 px on a touch screen), with a check mark and an accent outline when selected, a visible hover and a clear focus ring for the keyboard ([#92](https://github.com/joeran-kuschel/dinner-planner/issues/92)).

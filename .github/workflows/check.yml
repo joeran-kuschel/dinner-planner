@@ -82,11 +82,12 @@ jobs:
       - run: npx next typegen
 
       # Every Playwright worker runs a server and a schema of its own, side by side. The runner has 4 cores, a worker needs about one
-      # (a browser and a server), and `npm run check` runs the typecheck beside it: 3 leaves room for it and the database. Without
-      # this the default (a third of the cores) would be one worker. documentation/backend/testing-check.md, "How many workers".
+      # (a browser and a server), and `npm run check` runs the typecheck beside it. 3 workers timed out in this image (tests over 10 s,
+      # Chromium sessions closed); 2 passed. Without this the default (a third of the cores) would be one worker.
+      # documentation/backend/testing-check.md, "How many workers".
       - run: npm run check
         env:
-          E2E_WORKERS: 3
+          E2E_WORKERS: 2
 
       # Traces and screenshots of a failed Playwright test (the stage reports with the line reporter,
       # so there is no HTML report).

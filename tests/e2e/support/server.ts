@@ -79,19 +79,27 @@ export async function startServer(index: number, databaseUrl: string): Promise<E
 
   const url = e2eUrl(index);
   const deadline = Date.now() + 60_000;
+  let lastAnswer = "none";
   for (;;) {
     if (child.pid === undefined) await spawnFailed;
     if (exited) throw new Error(`The server for worker ${index} stopped while starting:\n${output}`);
-    try {
-      if ((await fetch(`${url}/healthz`)).ok) break;
-    } catch {
-      // not listening yet
+    // `localhost` is `::1` first in some containers (GitHub's Playwright image), and the server binds what `localhost` is there, but
+    // Node's own `fetch` does not fall back from `127.0.0.1` to it. The browser and curl do, so only this poll asks both addresses.
+    for (const base of [`http://127.0.0.1:${port}`, `http://[::1]:${port}`]) {
+      try {
+        // A call that hangs must not hold the loop past the deadline.
+        const answer = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(3_000) });
+        if (answer.ok) return { url, schema: e2eSchema(index), stop };
+        lastAnswer = `${base}: status ${answer.status}`;
+      } catch (error) {
+        const cause = error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : "";
+        lastAnswer = `${base}: ${error instanceof Error ? error.message : error}${cause}`;
+      }
     }
     if (Date.now() > deadline) {
       await stop();
-      throw new Error(`The server for worker ${index} did not answer /healthz within 60 s:\n${output}`);
+      throw new Error(`The server for worker ${index} did not answer ${url}/healthz within 60 s, last answer: ${lastAnswer}\n${output}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  return { url, schema: e2eSchema(index), stop };
 }

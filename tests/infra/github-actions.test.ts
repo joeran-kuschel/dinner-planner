@@ -45,9 +45,9 @@ describe("the GitHub Actions check", () => {
     expect(checkout?.with?.["fetch-depth"]).toBe(0);
   });
 
-  it("gives Playwright 3 workers: the default (a third of the runner's 4 cores) would be one", () => {
+  it("gives Playwright 2 workers: the default (a third of the runner's 4 cores) would be one, and 3 timed out in the runner's image", () => {
     const check = steps.find((step) => step.run === "npm run check");
-    expect(String(check?.env?.E2E_WORKERS)).toBe("3");
+    expect(String(check?.env?.E2E_WORKERS)).toBe("2");
   });
 
   it("does not cancel runs on main", () => {

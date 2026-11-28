@@ -72,7 +72,7 @@ not). `tests/e2e/isolation.spec.ts` shows the effect: run as a whole file, its s
 most 4 (`tests/e2e/support/workers.ts`), since every worker is a browser plus a server and the tests are timing-sensitive.
 Measured on a 14-core Mac, 233 tests: 1 worker 147 s, 2 workers 72 s, 3 workers 56 s, 4 workers 49 s, 6 workers 44 s, and five runs
 in a row at 4 workers passed. GitHub's workflow sets `E2E_WORKERS` itself (`.github/workflows/check.yml`), because a runner has
-4 cores and a third of that would be one worker. Three workers on a 4-core runner (with the typecheck beside them) is not measured on GitHub yet: if a run fails on the 10 s limit with no test at fault, set it to 2.
+4 cores and a third of that would be one worker. In the runner's own image, limited to 4 cores, 3 workers made tests exceed the 10 s limit and closed browser sessions, while 2 workers passed, so the workflow uses 2. Raise it only after measuring a run on GitHub.
 
 ## Leftover Vitest schemas
 
