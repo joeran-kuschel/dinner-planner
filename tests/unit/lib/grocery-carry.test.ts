@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { seededCategory } from "@/lib/grocery-category";
 import { carriedEntries, type CarryRow } from "@/lib/grocery-carry";
 import { parseDayKey } from "@/lib/week";
 
@@ -15,7 +16,7 @@ function row(weekStart: Date, fields: Partial<CarryRow> = {}): CarryRow {
     label: "Wine",
     quantity: null,
     unit: null,
-    category: "OTHER",
+    category: seededCategory("OTHER"),
     manual: true,
     checked: false,
     dismissed: false,
@@ -28,7 +29,7 @@ const keys = (rows: CarryRow[], weekStart: Date) => carriedEntries(rows, weekSta
 describe("carriedEntries", () => {
   it("carries an unticked hand-added entry into the next week, one week old", () => {
     expect(carriedEntries([row(W1)], W2)).toEqual([
-      { key: "wine|", label: "Wine", quantity: null, unit: null, category: "OTHER", weeksAgo: 1 },
+      { key: "wine|", label: "Wine", quantity: null, unit: null, category: seededCategory("OTHER"), weeksAgo: 1 },
     ]);
   });
 
@@ -77,9 +78,9 @@ describe("carriedEntries", () => {
   });
 
   it("takes the amount, unit and section from the latest unticked row", () => {
-    const rows = [row(W1, { quantity: 1, unit: "bottle", category: "DRINKS" }), row(W2, { quantity: 3, unit: "bottle", category: "OTHER" })];
+    const rows = [row(W1, { quantity: 1, unit: "bottle", category: seededCategory("DRINKS") }), row(W2, { quantity: 3, unit: "bottle", category: seededCategory("OTHER") })];
 
-    expect(carriedEntries(rows, W3)[0]).toMatchObject({ quantity: 3, unit: "bottle", category: "OTHER" });
+    expect(carriedEntries(rows, W3)[0]).toMatchObject({ quantity: 3, unit: "bottle", category: seededCategory("OTHER") });
   });
 
   it("keeps items apart by their key", () => {

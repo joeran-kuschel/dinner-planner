@@ -33,6 +33,7 @@ starts with that day. How to write an entry and cut a release: [documentation/ba
 
 ### Changed
 
+- Tooling: the grocery list's shop sections are now rows in the database instead of being fixed in the code, the first step toward sections you can add, rename and move; nothing changes on screen, every ingredient and list entry stays in its section ([#29](https://github.com/joeran-kuschel/dinner-planner/issues/29), stage 1).
 - The tags in the recipe search are now chips you tick like a button, bigger and easier to hit (44 px on a touch screen), with a check mark and an accent outline when selected, a visible hover and a clear focus ring for the keyboard ([#92](https://github.com/joeran-kuschel/dinner-planner/issues/92)).
 - Tooling: the GitHub check runs inside Playwright's own image (pinned by digest, and a test keeps its version equal to Playwright's) instead of installing the browser's system libraries from Ubuntu's mirror on every run, which stalled and failed pull requests several times ([#100](https://github.com/joeran-kuschel/dinner-planner/issues/100)).
 - The arrow of every dropdown (the recipe list's sort, the day in "Cook again", the category of a grocery item and of a recipe's ingredient) sits 14 px from the border instead of against it ([#96](https://github.com/joeran-kuschel/dinner-planner/issues/96)).

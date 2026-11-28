@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { parsePositiveInt, parseQuantity, rawText } from "@/lib/form-data";
 import { MAX_TAG_LENGTH, MAX_TAGS, parseTags, tagsWithinLimits } from "@/lib/tags";
-import { parseGroceryCategory } from "@/lib/grocery-category";
+import { parseCategoryId, type CategoryRow } from "@/lib/grocery-category";
+import { loadCategories } from "@/lib/grocery-category-server";
 import { MAX_SERVINGS } from "@/lib/planner";
 import { processPhoto, type ProcessedPhoto } from "@/lib/recipe-photo";
 import { MAX_PHOTO_ALT_LENGTH } from "@/lib/recipe-photo-shared";
@@ -44,7 +45,8 @@ function readValues(formData: FormData): RecipeFormValues {
       name,
       quantity: quantities[index] ?? "",
       unit: units[index] ?? "",
-      category: parseGroceryCategory(categories[index]),
+      // Kept as posted: an id that is gone becomes "Other" when it is saved (and when the form shows it again).
+      category: categories[index] ?? "",
     })),
   };
 }
@@ -102,7 +104,7 @@ async function retryOnTagRace<T>(save: () => Promise<T>): Promise<T> {
 /** Tags no recipe uses any more, so the filter and the suggestions list only what is in use. */
 const pruneTags = () => prisma.tag.deleteMany({ where: { recipes: { none: {} } } });
 
-function toIngredientData(values: RecipeFormValues) {
+function toIngredientData(values: RecipeFormValues, categories: readonly CategoryRow[]) {
   return values.ingredients.flatMap((row, index) => {
     const name = row.name.trim();
     if (!name) return []; // blank rows are how the UI represents "not filled in yet"
@@ -114,7 +116,7 @@ function toIngredientData(values: RecipeFormValues) {
         name,
         quantity,
         unit: row.unit.trim() || null,
-        category: parseGroceryCategory(row.category),
+        categoryId: parseCategoryId(row.category, categories),
         position: index,
       },
     ];
@@ -187,11 +189,12 @@ export async function createRecipe(
   const change = await readPhotoChange(formData, values, null);
   if ("error" in change) return reject(prev, values, change.error);
 
+  const categories = await loadCategories();
   const recipe = await retryOnTagRace(() =>
     prisma.recipe.create({
       data: {
         ...toRecipeData(values),
-        ingredients: { create: toIngredientData(values) },
+        ingredients: { create: toIngredientData(values, categories) },
         tags: { connectOrCreate: toTagData(values) },
         ...(change.kind === "set" ? { photo: { create: toPhotoData(change) } } : {}),
       },
@@ -221,13 +224,14 @@ export async function updateRecipe(
 
   // Ingredient rows have no stable identity in the form, so the whole set is
   // replaced. Cheaper than diffing, and it keeps row order authoritative.
+  const categories = await loadCategories();
   await retryOnTagRace(() =>
     prisma.$transaction([
       prisma.recipe.update({
         where: { id },
         data: {
           ...toRecipeData(values),
-          ingredients: { deleteMany: {}, create: toIngredientData(values) },
+          ingredients: { deleteMany: {}, create: toIngredientData(values, categories) },
           tags: { set: [], connectOrCreate: toTagData(values) },
           ...photoUpdate(change),
         },

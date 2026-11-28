@@ -7,15 +7,18 @@ import { Client } from "pg";
 // into an ESM graph.
 const MIGRATIONS_DIR = path.join(process.cwd(), "prisma", "migrations");
 
-/** The migration SQL in `prisma/migrations`, in order. */
-function migrationSql(): string[] {
+/** The migrations in `prisma/migrations` as `{ name, sql }`, in order. Tests of one migration apply them in two steps. */
+export function migrations(): { name: string; sql: string }[] {
   return fs
     .readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
-    .map((name) => fs.readFileSync(path.join(MIGRATIONS_DIR, name, "migration.sql"), "utf-8"));
+    .map((name) => ({ name, sql: fs.readFileSync(path.join(MIGRATIONS_DIR, name, "migration.sql"), "utf-8") }));
 }
+
+/** The migration SQL in `prisma/migrations`, in order. */
+const migrationSql = () => migrations().map(({ sql }) => sql);
 
 /** `postgresql://…/db?schema=<name>` — the form Prisma expects. */
 export function urlForSchema(baseUrl: string, schema: string): string {
@@ -60,7 +63,8 @@ export async function createMigratedSchema(baseUrl: string, schema: string): Pro
 
 /**
  * Delete every row of every table in `schema`, keeping the tables. Prisma's own bookkeeping table is
- * left alone. Every table is named with its schema, never through the search path, so this can only
+ * left alone, and so is `GroceryCategory`: its ten rows are made by a migration (the app relies on them, "Other"
+ * above all) and every ingredient and grocery entry needs one, so emptying it would break the next insert. Every table is named with its schema, never through the search path, so this can only
  * ever reach `schema`.
  *
  * The end-to-end tests call this before each test, so that none of them sees what another left
@@ -73,10 +77,11 @@ export async function emptySchema(client: Client, schema: string): Promise<void>
   }
 
   const { rows } = await client.query<{ tablename: string }>(
-    "SELECT tablename FROM pg_tables WHERE schemaname = $1 AND tablename <> '_prisma_migrations'",
+    "SELECT tablename FROM pg_tables WHERE schemaname = $1 AND tablename NOT IN ('_prisma_migrations', 'GroceryCategory')",
     [schema],
   );
   if (rows.length === 0) return;
+  // TRUNCATE ... CASCADE on the other tables does not reach GroceryCategory: the foreign keys point at it.
   const tables = rows.map((row) => `${quoteIdent(schema)}.${quoteIdent(row.tablename)}`);
   await client.query(`TRUNCATE ${tables.join(", ")} CASCADE`);
 }

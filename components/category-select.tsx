@@ -2,16 +2,22 @@
 
 import { useLingui } from "@lingui/react";
 import type { SelectHTMLAttributes } from "react";
-import { categoryLabel, DEFAULT_GROCERY_CATEGORY, GROCERY_CATEGORIES } from "@/lib/grocery-category";
+import { type CategoryRow, categoryName, otherCategoryId } from "@/lib/grocery-category";
 
-/** The shop sections as a `<select>`, "Other" unless told otherwise. The caller supplies the label. */
-export function CategorySelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
+/**
+ * The shop sections as a `<select>`, in shop order, "Other" unless a `defaultValue` (a category id) says otherwise.
+ * The caller supplies the label and the sections (`loadCategories()` on the server).
+ */
+export function CategorySelect({
+  categories,
+  ...props
+}: { categories: readonly CategoryRow[] } & SelectHTMLAttributes<HTMLSelectElement>) {
   const { i18n } = useLingui();
   return (
-    <select defaultValue={DEFAULT_GROCERY_CATEGORY} {...props}>
-      {GROCERY_CATEGORIES.map((category) => (
-        <option key={category} value={category}>
-          {categoryLabel(category, i18n)}
+    <select defaultValue={otherCategoryId(categories)} {...props}>
+      {categories.map((category) => (
+        <option key={category.id} value={category.id}>
+          {categoryName(category, i18n)}
         </option>
       ))}
     </select>

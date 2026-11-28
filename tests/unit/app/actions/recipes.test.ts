@@ -66,8 +66,8 @@ async function seedRecipe(name = "Old name") {
       servings: 2,
       ingredients: {
         create: [
-          { name: "Old A", quantity: 1, unit: "g", position: 0 },
-          { name: "Old B", quantity: 2, unit: null, position: 1 },
+          { name: "Old A", quantity: 1, unit: "g", position: 0, categoryId: "cat_other" },
+          { name: "Old B", quantity: 2, unit: null, position: 1, categoryId: "cat_other" },
         ],
       },
     },
@@ -100,23 +100,36 @@ describe("createRecipe", () => {
     expectRecipeViewsRevalidated();
   });
 
-  it("stores each ingredient's category, Other when it is missing or unknown", async () => {
+  it("stores each ingredient's category by id, Other when it is empty, missing, unknown or tampered with", async () => {
     await submitCreate(
       recipeForm({
-        ingredientName: ["Tomatoes", "Onion", "Salt", "Milk"],
-        ingredientQuantity: ["", "", "", ""],
-        ingredientUnit: ["", "", "", ""],
-        ingredientCategory: ["PRODUCE", "", "SPICES", "DAIRY_EGGS"],
+        ingredientName: ["Tomatoes", "Onion", "Salt", "Milk", "Flour", "Rice"],
+        ingredientQuantity: ["", "", "", "", "", ""],
+        ingredientUnit: ["", "", "", "", "", ""],
+        ingredientCategory: ["cat_produce", "", "cat_spices", "cat_dairy_eggs", "PANTRY", "cat_produce'; --"],
       }),
     );
 
     const recipe = await onlyRecipe();
-    expect(recipe.ingredients.map((i) => [i.name, i.category])).toEqual([
-      ["Tomatoes", "PRODUCE"],
-      ["Onion", "OTHER"],
-      ["Salt", "OTHER"],
-      ["Milk", "DAIRY_EGGS"],
+    expect(recipe.ingredients.map((i) => [i.name, i.categoryId])).toEqual([
+      ["Tomatoes", "cat_produce"],
+      ["Onion", "cat_other"],
+      ["Salt", "cat_other"],
+      ["Milk", "cat_dairy_eggs"],
+      ["Flour", "cat_other"],
+      ["Rice", "cat_other"],
     ]);
+  });
+
+  it("files every ingredient under Other when the form sends no categories at all", async () => {
+    await submitCreate(recipeForm());
+    expect((await onlyRecipe()).ingredients.map((i) => i.categoryId)).toEqual(["cat_other", "cat_other"]);
+  });
+
+  it("stores a category the user added", async () => {
+    const market = await prisma.groceryCategory.create({ data: { name: "Market", position: 3 } });
+    await submitCreate(recipeForm({ ingredientCategory: [market.id, ""] }));
+    expect((await onlyRecipe()).ingredients.map((i) => i.categoryId)).toEqual([market.id, "cat_other"]);
   });
 
   it("keeps a category with its row when blank rows are skipped", async () => {
@@ -125,10 +138,10 @@ describe("createRecipe", () => {
         ingredientName: ["", "Bread"],
         ingredientQuantity: ["", ""],
         ingredientUnit: ["", ""],
-        ingredientCategory: ["FROZEN", "BAKERY"],
+        ingredientCategory: ["cat_frozen", "cat_bakery"],
       }),
     );
-    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.category])).toEqual([["Bread", "BAKERY"]]);
+    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.categoryId])).toEqual([["Bread", "cat_bakery"]]);
   });
 
   it("trims every text field and stores blank optional fields as null", async () => {
@@ -263,8 +276,8 @@ describe("createRecipe", () => {
           photoAlt: "",
           tags: [],
           ingredients: [
-            { name: "Tomatoes", quantity: "800", unit: "g", category: "OTHER" },
-            { name: "Onion", quantity: "1", unit: "", category: "OTHER" },
+            { name: "Tomatoes", quantity: "800", unit: "g", category: "" },
+            { name: "Onion", quantity: "1", unit: "", category: "" },
           ],
         },
       });
@@ -338,7 +351,7 @@ describe("createRecipe", () => {
         ingredientName: ["", "Salt"],
         ingredientQuantity: ["1,5", "lots"],
         ingredientUnit: ["kg", ""],
-        ingredientCategory: ["PRODUCE", "PANTRY"],
+        ingredientCategory: ["cat_produce", "cat_pantry"],
       }),
     );
 
@@ -347,8 +360,8 @@ describe("createRecipe", () => {
       servings: " 0 ",
       description: "",
       ingredients: [
-        { name: "", quantity: "1,5", unit: "kg", category: "PRODUCE" },
-        { name: "Salt", quantity: "lots", unit: "", category: "PANTRY" },
+        { name: "", quantity: "1,5", unit: "kg", category: "cat_produce" },
+        { name: "Salt", quantity: "lots", unit: "", category: "cat_pantry" },
       ],
     });
   });
@@ -519,13 +532,44 @@ describe("updateRecipe", () => {
           ingredientName: ["Tomatoes"],
           ingredientQuantity: ["1"],
           ingredientUnit: ["kg"],
-          ingredientCategory: ["PRODUCE"],
+          ingredientCategory: ["cat_produce"],
         }),
       ),
       `/recipes/${recipe.id}`,
     );
 
-    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.category])).toEqual([["Tomatoes", "PRODUCE"]]);
+    expect((await onlyRecipe()).ingredients.map((i) => [i.name, i.categoryId])).toEqual([["Tomatoes", "cat_produce"]]);
+  });
+
+  it("files an updated ingredient under Other for a bogus or empty category id", async () => {
+    const recipe = await seedRecipe();
+
+    await expectRedirect(
+      updateRecipe(
+        EMPTY_RECIPE_FORM_STATE,
+        recipeForm({
+          id: recipe.id,
+          ingredientName: ["A", "B"],
+          ingredientQuantity: ["", ""],
+          ingredientUnit: ["", ""],
+          ingredientCategory: ["cat_nope", ""],
+        }),
+      ),
+      `/recipes/${recipe.id}`,
+    );
+
+    expect((await onlyRecipe()).ingredients.map((i) => i.categoryId)).toEqual(["cat_other", "cat_other"]);
+  });
+
+  it("echoes a rejected form's category ids as posted, so the choice survives", async () => {
+    const recipe = await seedRecipe();
+
+    const state = await updateRecipe(
+      EMPTY_RECIPE_FORM_STATE,
+      recipeForm({ id: recipe.id, name: " ", ingredientName: ["A"], ingredientCategory: ["cat_frozen"] }),
+    );
+
+    expect(state.values?.ingredients).toMatchObject([{ name: "A", category: "cat_frozen" }]);
   });
 
   it("removes every ingredient when the form sends none", async () => {
@@ -591,7 +635,7 @@ describe("updateRecipe", () => {
     );
 
     expect(shown(state)).toMatchObject({ error: "Give the recipe a name.", attempt: 1 });
-    expect(state.values?.ingredients).toEqual([{ name: "New", quantity: "800", unit: "g", category: "OTHER" }]);
+    expect(state.values?.ingredients).toEqual([{ name: "New", quantity: "800", unit: "g", category: "" }]);
     const stored = await onlyRecipe();
     expect(stored.name).toBe("Old name");
     expect(stored.ingredients.map((i) => i.name)).toEqual(["Old A", "Old B"]);

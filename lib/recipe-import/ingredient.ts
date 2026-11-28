@@ -1,4 +1,3 @@
-import { DEFAULT_GROCERY_CATEGORY } from "@/lib/grocery-category";
 import type { IngredientValues } from "@/lib/recipe-form";
 
 /**
@@ -158,5 +157,6 @@ export function parseIngredientLine(line: string): IngredientValues {
   // What is left after the amount; else the whole line, even a bracketed one, so that no row comes out empty.
   const name = cleanName(rest) || cleanName(whole) || whole.slice(0, MAX_NAME_LENGTH);
   if (quantity === "0") quantity = "";
-  return { name, quantity, unit, category: DEFAULT_GROCERY_CATEGORY };
+  // An empty category is "Other": the form starts the row there.
+  return { name, quantity, unit, category: "" };
 }

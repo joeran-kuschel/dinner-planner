@@ -9,7 +9,7 @@
 
 import type { I18n } from "@lingui/core";
 import { t } from "@lingui/core/macro";
-import { categoryLabel, GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/grocery-category";
+import { categoryName, type CategoryRow } from "@/lib/grocery-category";
 import { type Canonicaliser, normalizeName } from "@/lib/ingredients/canonical";
 import { isSmallAmount } from "@/lib/ingredients/measures";
 
@@ -17,7 +17,7 @@ export type IngredientInput = {
   name: string;
   quantity: number | null;
   unit: string | null;
-  category: GroceryCategory;
+  category: CategoryRow;
 };
 
 export type MealInput = {
@@ -36,7 +36,7 @@ export type GroceryLine = {
   /** Null when at least one source ingredient had no quantity ("to taste"). */
   quantity: number | null;
   unit: string | null;
-  category: GroceryCategory;
+  category: CategoryRow;
   /** Recipe names this line came from, for the "used in" hint. */
   sources: string[];
   manual: boolean;
@@ -143,7 +143,7 @@ export function aggregateIngredients(
       existing.ownUnitIds.add(id.ownUnitId);
       // Recipes may file the same ingredient differently. The category that comes first in the
       // shop wins, whatever the order of the meals, so the line never moves when the plan changes.
-      if (GROCERY_CATEGORIES.indexOf(ingredient.category) < GROCERY_CATEGORIES.indexOf(existing.category)) {
+      if (ingredient.category.position < existing.category.position) {
         existing.category = ingredient.category;
       }
       if (!existing.sources.includes(meal.recipe.name)) {
@@ -182,11 +182,14 @@ export function aggregateIngredients(
  */
 export function groupByCategory<T extends Pick<GroceryLine, "category">>(
   lines: T[],
-): { category: GroceryCategory; lines: T[] }[] {
-  return GROCERY_CATEGORIES.map((category) => ({
-    category,
-    lines: lines.filter((line) => line.category === category),
-  })).filter((group) => group.lines.length > 0);
+): { category: CategoryRow; lines: T[] }[] {
+  const groups = new Map<string, { category: CategoryRow; lines: T[] }>();
+  for (const line of lines) {
+    const group = groups.get(line.category.id);
+    if (group) group.lines.push(line);
+    else groups.set(line.category.id, { category: line.category, lines: [line] });
+  }
+  return [...groups.values()].sort((a, b) => a.category.position - b.category.position || a.category.id.localeCompare(b.category.id));
 }
 
 /**
@@ -233,7 +236,7 @@ export function groceryListText(
       if (line.quantity === null) return line.unit ? `- ${line.label} (${line.unit})` : `- ${line.label}`;
       return `- ${formatQuantity(line.quantity, line.unit, i18n)} ${line.label}`;
     });
-    return [categoryLabel(category, i18n), ...items].join("\n");
+    return [categoryName(category, i18n), ...items].join("\n");
   });
 
   return [`${t(i18n)`Grocery list`} · ${weekRange}`, ...sections].join("\n\n");

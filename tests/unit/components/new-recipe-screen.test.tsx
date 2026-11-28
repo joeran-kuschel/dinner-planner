@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { SEEDED_CATEGORIES } from "@/lib/grocery-category";
 import { NewRecipeScreen } from "@/components/new-recipe-screen";
 import type { RecipeFormValues } from "@/lib/recipe-form";
 import { polyfillDialog } from "@/tests/support/dialog";
@@ -12,6 +13,8 @@ vi.mock("@/lib/attach-file", () => attach);
 
 beforeAll(() => polyfillDialog());
 
+const CATEGORIES = [...SEEDED_CATEGORIES];
+
 const IMPORTED: RecipeFormValues = {
   name: "Lemon pancakes",
   description: "Thin and quick.",
@@ -22,14 +25,14 @@ const IMPORTED: RecipeFormValues = {
   photoAlt: "",
   tags: ["breakfast", "quick"],
   ingredients: [
-    { name: "flour", quantity: "200", unit: "g", category: "OTHER" },
-    { name: "eggs", quantity: "2", unit: "", category: "OTHER" },
+    { name: "flour", quantity: "200", unit: "g", category: "" },
+    { name: "eggs", quantity: "2", unit: "", category: "" },
   ],
 };
 
 function renderScreen(props: Partial<Parameters<typeof NewRecipeScreen>[0]> = {}) {
   const user = userEvent.setup();
-  renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={["g"]} openImport={false} {...props} />);
+  renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={["g"]} categories={CATEGORIES} openImport={false} {...props} />);
   return { user };
 }
 
@@ -113,7 +116,7 @@ describe("NewRecipeScreen", () => {
   });
 
   it("replaces what was typed when another recipe is imported, with a fresh form", async () => {
-    const second = { ...IMPORTED, name: "Waffles", ingredients: [{ name: "batter", quantity: "", unit: "", category: "OTHER" }], tags: [] };
+    const second = { ...IMPORTED, name: "Waffles", ingredients: [{ name: "batter", quantity: "", unit: "", category: "" }], tags: [] };
     vi.stubGlobal(
       "fetch",
       vi
@@ -165,7 +168,7 @@ describe("NewRecipeScreen with a photo", () => {
   }
   const importRecipe = async () => {
     const user = userEvent.setup();
-    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} openImport />);
+    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} categories={CATEGORIES} openImport />);
     await user.type(screen.getByLabelText("Link to the recipe"), "https://example.com/pancakes{Enter}");
     await waitFor(() => expect(name()).toHaveValue("Lemon pancakes"));
   };
@@ -220,7 +223,7 @@ describe("NewRecipeScreen with a photo", () => {
         .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, values: second, photoUrl: null }))),
     );
     const user = userEvent.setup();
-    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} openImport />);
+    renderWithI18n(<NewRecipeScreen tagSuggestions={[]} unitSuggestions={[]} categories={CATEGORIES} openImport />);
     await user.type(screen.getByLabelText("Link to the recipe"), "https://example.com/a{Enter}");
     await waitFor(() => expect(attach.attachFile).toHaveBeenCalledTimes(1));
 

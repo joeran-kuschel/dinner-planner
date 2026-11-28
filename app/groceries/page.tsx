@@ -9,6 +9,7 @@ import { RequiredMark, RequiredNote } from "@/components/required-mark";
 import { WeekNav } from "@/components/week-nav";
 import { prisma } from "@/lib/db";
 import { CategorySelect } from "@/components/category-select";
+import { loadCategories } from "@/lib/grocery-category-server";
 import { getServerI18n } from "@/lib/i18n/server";
 import { aggregateIngredients, type GroceryLine, groceryListText, mealSources } from "@/lib/grocery";
 import { carriedEntries, carryRowsWhere } from "@/lib/grocery-carry";
@@ -30,19 +31,20 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
   const weekStart = resolveWeekStart(typeof week === "string" ? week : null);
   const weekKey = dayKey(weekStart);
 
-  const [meals, storedEntries, storedEarlierEntries, staples, ingredientNames, rules, separate] = await Promise.all([
+  const [meals, storedEntries, storedEarlierEntries, staples, ingredientNames, rules, separate, categories] = await Promise.all([
     prisma.plannedMeal.findMany({
       where: { date: { gte: weekStart, lt: addDays(weekStart, 7) } },
-      include: { recipe: { include: { ingredients: { orderBy: { position: "asc" } } } } },
+      include: { recipe: { include: { ingredients: { orderBy: { position: "asc" }, include: { category: true } } } } },
     }),
-    prisma.groceryEntry.findMany({ where: { weekStart } }),
+    prisma.groceryEntry.findMany({ where: { weekStart }, include: { category: true } }),
     // What the earlier weeks left unticked; see lib/grocery-carry.ts.
-    prisma.groceryEntry.findMany({ where: carryRowsWhere(weekStart) }),
+    prisma.groceryEntry.findMany({ where: carryRowsWhere(weekStart), include: { category: true } }),
     prisma.pantryStaple.findMany({ orderBy: { name: "asc" } }),
     // What a staple can be, offered while typing one.
     prisma.ingredient.findMany({ select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
     loadMergeRules(),
     loadKeepSeparate(),
+    loadCategories(),
   ]);
 
   // What a line is called and counted in follows the dictionary and the user's merges; rows stored under an
@@ -211,7 +213,7 @@ export default async function GroceriesPage({ searchParams }: PageProps<"/grocer
             <label className="label" htmlFor="category">
               {t(i18n)`Category`}
             </label>
-            <CategorySelect id="category" name="category" className="field mt-1" />
+            <CategorySelect categories={categories} id="category" name="category" className="field mt-1" />
           </div>
           <button type="submit" className="btn-primary">
             {t(i18n)`Add`}

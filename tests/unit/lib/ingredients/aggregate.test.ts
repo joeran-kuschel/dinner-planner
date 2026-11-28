@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { aggregateIngredients, type IngredientInput, type MealInput, PLAIN_NAMES } from "@/lib/grocery";
+import { seededCategory } from "@/lib/grocery-category";
 import { createCanonicaliser } from "@/lib/ingredients/canonical";
 
 const ing = (name: string, quantity: number | null, unit: string | null = null): IngredientInput => ({
   name,
   quantity,
   unit,
-  category: "OTHER",
+  category: seededCategory("OTHER"),
 });
 const meal = (recipe: string, ingredients: IngredientInput[], servings = 2, recipeServings = 2): MealInput => ({
   servings,

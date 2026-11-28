@@ -109,12 +109,14 @@ without one. Keep that when touching the form. `sharp` is a runtime dependency (
 native binary ships in the Alpine app image). Details:
 `documentation/backend/recipe-photos.md`.
 
-**Grocery lines are grouped by a fixed `GroceryCategory` enum.** Ingredients and
-hand-added extras carry one (default `OTHER`, which stays last). The category is
-not part of a line's key, so it never touches tick state; merged lines take the
-category that comes first in the enum wins. A category from a form goes through
-`parseGroceryCategory()`, never straight to Prisma. Details:
-`documentation/backend/grocery-categories.md`.
+**Grocery lines are grouped by shop sections that are rows of the `GroceryCategory` table.** Ingredients and
+hand-added extras carry a `categoryId` (the fallback is "Other", `OTHER_CATEGORY_ID`); the sections are in shop order
+(`position`) and the ten the migration creates (`SEEDED_CATEGORIES`, ids `cat_<key>`) have a `key` and no `name`: they
+show their translated label until they are named (`categoryName()`). The category is not part of a line's key, so it
+never touches tick state; merged lines take the category with the lowest `position`. Lines and ingredient queries
+carry the whole row (`include: { category: true }`), forms post an id through `parseCategoryId(raw, categories)`
+(`loadCategories()` on the server), never straight to Prisma; an unknown id is "Other". Tests keep the seeded rows
+(`emptySchema` and `resetDatabase` leave the table alone). Details: `documentation/backend/grocery-categories.md`.
 
 **Tags are a `Tag` table, stored normalised and pruned when unused.** Every tag
 goes through `normalizeTag()` / `parseTags()` (`lib/tags.ts`): lowercase, so the
@@ -248,7 +250,7 @@ lib/
   prisma-adapter.ts     builds the pg adapter, honouring ?schema= — see "Things worth knowing"
   week.ts               day/week helpers — see "Dates" above
   grocery.ts            grocery aggregation, grouping + formatting
-  grocery-category.ts   the shop-section enum's order, labels and form parsing; safe for client code
+  grocery-category.ts   the shop sections: the row type, the seeded rows, names and id parsing; safe for client code (grocery-category-server.ts loads them)
   ingredients/          canonical.ts (a line's key and name), names.ts (the English/German dictionary), measures.ts (units), merge-rules.ts, rows.ts; server.ts loads the user's merges
   planner.ts            dinner-name matching, shared by the day card and setPlannedMeal
   recipe-form.ts        recipe form state types (kept out of the "use server" file)

@@ -3,6 +3,7 @@ import path from "node:path";
 import { Client } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
+import { SEEDED_CATEGORIES } from "@/lib/grocery-category";
 import { createMigratedSchema, dropSchema, emptySchema } from "@/tests/support/migrate";
 
 /** The connection of this test file's own schema, which is also where `prisma` writes. */
@@ -28,7 +29,7 @@ async function fillEveryTable() {
   const recipe = await prisma.recipe.create({
     data: {
       name: "Soup",
-      ingredients: { create: [{ name: "Leek" }] },
+      ingredients: { create: [{ name: "Leek", categoryId: "cat_produce" }] },
       tags: { create: [{ name: "quick" }] },
       photo: {
         create: { full: new Uint8Array([1]), fullWidth: 1, fullHeight: 1, thumb: new Uint8Array([1]), alt: "A soup" },
@@ -36,7 +37,7 @@ async function fillEveryTable() {
     },
   });
   await prisma.plannedMeal.create({ data: { date: new Date("2027-01-04T00:00:00Z"), recipeId: recipe.id } });
-  await prisma.groceryEntry.create({ data: { weekStart: new Date("2027-01-04T00:00:00Z"), key: "leek|", label: "Leek" } });
+  await prisma.groceryEntry.create({ data: { weekStart: new Date("2027-01-04T00:00:00Z"), key: "leek|", label: "Leek", categoryId: "cat_produce" } });
 }
 
 describe("emptySchema", () => {
@@ -49,6 +50,16 @@ describe("emptySchema", () => {
     for (const table of ["Recipe", "Ingredient", "RecipePhoto", "Tag", "_RecipeToTag", "PlannedMeal", "GroceryEntry"]) {
       expect(await count(SCHEMA, table), table).toBe(0);
     }
+  });
+
+  it("keeps the shop sections, which a migration made and every ingredient and grocery entry needs", async () => {
+    await fillEveryTable();
+
+    await emptySchema(client, SCHEMA);
+
+    const { rows } = await client.query(`SELECT id, key, name, position FROM "${SCHEMA}"."GroceryCategory" ORDER BY position`);
+    expect(rows).toEqual(SEEDED_CATEGORIES.map((category) => ({ ...category })));
+    await expect(fillEveryTable()).resolves.toBeUndefined();
   });
 
   it("also empties a table it has never heard of, so a new model needs no change here", async () => {

@@ -7,7 +7,7 @@
  * Safe for client code (it imports no Prisma client).
  */
 
-import type { GroceryCategory } from "@/lib/grocery-category";
+import type { CategoryRow } from "@/lib/grocery-category";
 
 /** The part of a `GroceryEntry` row the rule reads. */
 export type CarryRow = {
@@ -16,7 +16,7 @@ export type CarryRow = {
   label: string;
   quantity: number | null;
   unit: string | null;
-  category: GroceryCategory;
+  category: CategoryRow;
   manual: boolean;
   checked: boolean;
   dismissed: boolean;

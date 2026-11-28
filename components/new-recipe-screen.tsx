@@ -7,6 +7,7 @@ import { createRecipe } from "@/app/actions/recipes";
 import { ImportRecipeDialog } from "@/components/import-recipe-dialog";
 import { RecipeForm } from "@/components/recipe-form";
 import { attachFile } from "@/lib/attach-file";
+import type { CategoryRow } from "@/lib/grocery-category";
 import type { RecipeFormValues } from "@/lib/recipe-form";
 
 /**
@@ -16,11 +17,14 @@ import type { RecipeFormValues } from "@/lib/recipe-form";
 export function NewRecipeScreen({
   tagSuggestions,
   unitSuggestions,
+  categories,
   openImport,
   imported: serverImported,
 }: {
   tagSuggestions: string[];
   unitSuggestions: string[];
+  /** The shop sections the ingredient rows offer. */
+  categories: CategoryRow[];
   /** Open the dialog on arrival (the menu's "Add from a link"). */
   openImport: boolean;
   /** A recipe the server already imported (the page without JavaScript, or a link with `?from=`). */
@@ -85,6 +89,7 @@ export function NewRecipeScreen({
         action={createRecipe}
         tagSuggestions={tagSuggestions}
         unitSuggestions={unitSuggestions}
+        categories={categories}
         initialValues={imported?.values}
       />
     </>

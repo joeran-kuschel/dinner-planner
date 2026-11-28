@@ -4,10 +4,13 @@ import { msg } from "@lingui/core/macro";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { polyfillDialog } from "@/tests/support/dialog";
+import { type CategoryRow, SEEDED_CATEGORIES } from "@/lib/grocery-category";
 import { EMPTY_RECIPE_FORM_STATE, type RecipeFormState, type RecipeFormValues } from "@/lib/recipe-form";
 import { expectNoAxeViolations } from "@/tests/support/axe";
 import { renderWithI18n } from "@/tests/support/render";
 import { RecipeForm, type RecipeFormProps } from "@/components/recipe-form";
+
+const CATEGORIES: CategoryRow[] = [...SEEDED_CATEGORIES];
 
 type Action = RecipeFormProps["action"];
 type Recipe = NonNullable<RecipeFormProps["recipe"]>;
@@ -22,8 +25,8 @@ const RISOTTO: Recipe = {
   instructions: "Soften the onion\nToast the rice",
   tags: ["vegetarian", "italian"],
   ingredients: [
-    { name: "Arborio rice", quantity: 300, unit: "g", category: "PANTRY" },
-    { name: "Salt", quantity: null, unit: null, category: "OTHER" },
+    { name: "Arborio rice", quantity: 300, unit: "g", category: "cat_pantry" },
+    { name: "Salt", quantity: null, unit: null, category: "cat_other" },
   ],
 };
 
@@ -37,8 +40,8 @@ const REJECTED_VALUES: RecipeFormValues = {
   photoAlt: "",
   tags: ["soup", "quick"],
   ingredients: [
-    { name: "Leek", quantity: "2", unit: "", category: "PRODUCE" },
-    { name: "Stock", quantity: "1,5", unit: "l", category: "PANTRY" },
+    { name: "Leek", quantity: "2", unit: "", category: "cat_produce" },
+    { name: "Stock", quantity: "1,5", unit: "l", category: "cat_pantry" },
   ],
 };
 
@@ -59,7 +62,13 @@ function renderForm(
 ) {
   const user = userEvent.setup();
   const result = renderWithI18n(
-    <RecipeForm action={action} recipe={recipe} unitSuggestions={unitSuggestions} initialValues={initialValues} />,
+    <RecipeForm
+      action={action}
+      recipe={recipe}
+      unitSuggestions={unitSuggestions}
+      categories={CATEGORIES}
+      initialValues={initialValues}
+    />,
   );
   return { user, ...result };
 }
@@ -226,7 +235,7 @@ describe("RecipeForm", () => {
 
     it("offers the tags in use while typing", () => {
       const { container } = renderWithI18n(
-        <RecipeForm action={vi.fn<Action>(async (prev) => prev)} tagSuggestions={["pasta", "vegan"]} />,
+        <RecipeForm action={vi.fn<Action>(async (prev) => prev)} tagSuggestions={["pasta", "vegan"]} categories={CATEGORIES} />,
       );
       expect([...container.querySelectorAll("datalist option")].map((o) => (o as HTMLOptionElement).value)).toEqual(["pasta", "vegan"]);
     });
@@ -308,7 +317,7 @@ describe("RecipeForm", () => {
 
     it("files a new ingredient under Other", () => {
       renderForm();
-      expect(category(1)).toHaveValue("OTHER");
+      expect(category(1)).toHaveValue("cat_other");
     });
 
     it("offers every category, Other last", () => {
@@ -329,18 +338,18 @@ describe("RecipeForm", () => {
 
     it("shows the saved category of each ingredient", () => {
       renderForm(undefined, RISOTTO);
-      expect(category(1)).toHaveValue("PANTRY");
-      expect(category(2)).toHaveValue("OTHER");
+      expect(category(1)).toHaveValue("cat_pantry");
+      expect(category(2)).toHaveValue("cat_other");
     });
 
     it("posts the chosen category with each row", async () => {
       const action = vi.fn<Action>(async (prev) => prev);
       const { user } = renderForm(action, RISOTTO);
-      await user.selectOptions(category(2), "PRODUCE");
+      await user.selectOptions(category(2), "cat_produce");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => expect(action).toHaveBeenCalled());
-      expect(submittedData(action).getAll("ingredientCategory")).toEqual(["PANTRY", "PRODUCE"]);
+      expect(submittedData(action).getAll("ingredientCategory")).toEqual(["cat_pantry", "cat_produce"]);
     });
 
     it("keeps the chosen categories after a rejection", async () => {
@@ -349,13 +358,44 @@ describe("RecipeForm", () => {
       await user.click(screen.getByRole("button", { name: "Create recipe" }));
       await screen.findByRole("alert");
 
-      expect(category(1)).toHaveValue("PRODUCE");
-      expect(category(2)).toHaveValue("PANTRY");
+      expect(category(1)).toHaveValue("cat_produce");
+      expect(category(2)).toHaveValue("cat_pantry");
+    });
+
+    it("shows Other for an empty category (an imported row) and for one that no longer exists", () => {
+      const rows = [
+        { name: "Flour", quantity: "", unit: "", category: "" },
+        { name: "Milk", quantity: "", unit: "", category: "cat_deleted" },
+      ];
+      renderForm(undefined, undefined, undefined, { ...REJECTED_VALUES, ingredients: rows });
+      expect(category(1)).toHaveValue("cat_other");
+      expect(category(2)).toHaveValue("cat_other");
+    });
+
+    it("offers a category the user added by its name, in the order it is given, and posts its id", async () => {
+      const market: CategoryRow = { id: "c-market", key: null, name: "Market", position: 1 };
+      const categories = [SEEDED_CATEGORIES[0], market, SEEDED_CATEGORIES[9]];
+      const action = vi.fn<Action>(async (prev) => prev);
+      const user = userEvent.setup();
+      renderWithI18n(<RecipeForm action={action} categories={categories} />);
+      expect(within(category(1)).getAllByRole("option").map((option) => option.textContent)).toEqual([
+        "Fruit and vegetables",
+        "Market",
+        "Other",
+      ]);
+
+      await user.selectOptions(category(1), "Market");
+      await user.type(field("Name"), "Honey cake");
+      await user.type(screen.getByRole("textbox", { name: "Name of ingredient 1" }), "Honey");
+      await user.click(screen.getByRole("button", { name: "Create recipe" }));
+
+      await waitFor(() => expect(action).toHaveBeenCalled());
+      expect(submittedData(action).getAll("ingredientCategory")[0]).toBe("c-market");
     });
 
     it("is named in German", () => {
-      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
-      expect(screen.getByRole("combobox", { name: "Kategorie für Zutat 1" })).toHaveValue("OTHER");
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} categories={CATEGORIES} />, { locale: "de" });
+      expect(screen.getByRole("combobox", { name: "Kategorie für Zutat 1" })).toHaveValue("cat_other");
       expect(within(screen.getByRole("combobox", { name: "Kategorie für Zutat 1" })).getByRole("option", { name: "Obst und Gemüse" })).toBeInTheDocument();
     });
   });
@@ -431,7 +471,7 @@ describe("RecipeForm", () => {
 
   describe("initial values (an imported recipe)", () => {
     const render = (action: Action = vi.fn<Action>(async (prev) => prev)) =>
-      renderWithI18n(<RecipeForm action={action} initialValues={REJECTED_VALUES} />);
+      renderWithI18n(<RecipeForm action={action} categories={CATEGORIES} initialValues={REJECTED_VALUES} />);
 
     it("fills a new recipe's form from the values it is given, without an id", async () => {
       const action = vi.fn<Action>(async (prev) => prev);
@@ -553,7 +593,7 @@ describe("RecipeForm", () => {
     });
 
     it("is named in German", () => {
-      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} categories={CATEGORIES} />, { locale: "de" });
       expect(screen.getByLabelText("Zubereitungszeit (Min.)")).toBeInTheDocument();
       expect(screen.getAllByText("Zutat", { selector: "span" })).toHaveLength(4);
       expect(screen.getAllByText("Kategorie", { selector: "span" })).toHaveLength(4);
@@ -977,7 +1017,7 @@ describe("RecipeForm", () => {
       });
 
       it("names the size limit in German", async () => {
-        renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+        renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} categories={CATEGORIES} />, { locale: "de" });
         const user = userEvent.setup();
         await user.upload(screen.getByLabelText("Fotodatei"), tooBig());
 
@@ -988,7 +1028,7 @@ describe("RecipeForm", () => {
     });
 
     it("is labelled in German", () => {
-      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} recipe={WITH_PHOTO} />, { locale: "de" });
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} recipe={WITH_PHOTO} categories={CATEGORIES} />, { locale: "de" });
       expect(screen.getByRole("img", { name: "A plate of risotto" })).toBeInTheDocument();
       expect(screen.getByLabelText("Foto ersetzen")).toBeInTheDocument();
       expect(screen.getByRole("checkbox", { name: "Foto entfernen" })).toBeInTheDocument();
@@ -1043,7 +1083,7 @@ describe("RecipeForm", () => {
     });
 
     it("says so in German", () => {
-      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} />, { locale: "de" });
+      renderWithI18n(<RecipeForm action={vi.fn<Action>(async (prev) => prev)} categories={CATEGORIES} />, { locale: "de" });
       expect(screen.getByText("Pflichtfeld")).toBeInTheDocument();
       expect(within(screen.getByText("Name", { selector: "label", normalizer: withoutMark })).getByTitle("Pflichtfeld")).toBeInTheDocument();
     });
@@ -1087,7 +1127,7 @@ describe("RecipeForm", () => {
   describe("in German", () => {
     function renderGerman(action: Action = vi.fn<Action>(async (prev) => prev), recipe?: Recipe) {
       const user = userEvent.setup();
-      const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} />, { locale: "de" });
+      const result = renderWithI18n(<RecipeForm action={action} recipe={recipe} categories={CATEGORIES} />, { locale: "de" });
       return { user, ...result };
     }
 

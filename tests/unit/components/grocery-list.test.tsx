@@ -7,6 +7,7 @@ import { expectNoAxeViolations } from "@/tests/support/axe";
 import { polyfillDialog } from "@/tests/support/dialog";
 import { testI18n } from "@/tests/support/i18n";
 import { renderWithI18n } from "@/tests/support/render";
+import { type CategoryRow, seededCategory } from "@/lib/grocery-category";
 import { GroceryList, type GroceryListProps } from "@/components/grocery-list";
 
 const actions = vi.hoisted(() => ({
@@ -24,7 +25,7 @@ function line(overrides: Partial<Line> & Pick<Line, "label">): Line {
     key: `${overrides.label.toLowerCase()}|${overrides.unit ?? ""}`,
     quantity: null,
     unit: null,
-    category: "OTHER",
+    category: seededCategory("OTHER"),
     sources: [],
     manual: false,
     checked: false,
@@ -186,9 +187,9 @@ describe("GroceryList", () => {
   });
 
   describe("categories", () => {
-    const MILK = line({ label: "Milk", category: "DAIRY_EGGS" });
-    const APPLE = line({ label: "Apple", category: "PRODUCE" });
-    const BASIL = line({ label: "Basil", category: "PRODUCE" });
+    const MILK = line({ label: "Milk", category: seededCategory("DAIRY_EGGS") });
+    const APPLE = line({ label: "Apple", category: seededCategory("PRODUCE") });
+    const BASIL = line({ label: "Basil", category: seededCategory("PRODUCE") });
     const headings = () => screen.getAllByRole("heading").map((heading) => heading.textContent);
 
     it("groups open lines under a heading per category, in shopping order", () => {
@@ -214,13 +215,20 @@ describe("GroceryList", () => {
       expect(within(dairy).getByRole("checkbox", { name: "Tick off Milk" })).toBeChecked();
     });
 
+    it("orders by position and names a category the user added, and a renamed seeded one", () => {
+      const market: CategoryRow = { id: "c-market", key: null, name: "Market", position: 0 };
+      const renamed: CategoryRow = { ...seededCategory("DAIRY_EGGS"), name: "Cold shelf" };
+      renderList([line({ label: "Cream", category: renamed }), line({ label: "Honey", category: market }), APPLE]);
+      expect(headings()).toEqual(["Market (1)", "Fruit and vegetables (1)", "Cold shelf (1)"]);
+    });
+
     it("uses the German names", () => {
       renderWithI18n(<GroceryList weekStart="2026-09-28" lines={[APPLE, MILK]} />, { locale: "de" });
       expect(headings()).toEqual(["Obst und Gemüse (1)", "Milchprodukte und Eier (1)"]);
     });
 
     it("has no axe violations", async () => {
-      const { container } = renderList([RICE, MILK, APPLE, { ...SALT, category: "PANTRY" }]);
+      const { container } = renderList([RICE, MILK, APPLE, { ...SALT, category: seededCategory("PANTRY") }]);
       await expectNoAxeViolations(container);
     });
   });
@@ -457,7 +465,7 @@ describe("GroceryList", () => {
 });
 
 describe("GroceryList: entries carried over from an earlier week", () => {
-  const CARRIED = line({ label: "Soap", manual: true, quantity: 2, unit: "bars", category: "OTHER", carriedWeeks: 1 });
+  const CARRIED = line({ label: "Soap", manual: true, quantity: 2, unit: "bars", category: seededCategory("DRINKS"), carriedWeeks: 1 });
   const OLD = line({ label: "Wine", manual: true, entryId: "e-wine", carriedWeeks: 3 });
 
   it("says where a carried line comes from, in words a screen reader reads with the checkbox", () => {
@@ -493,9 +501,23 @@ describe("GroceryList: entries carried over from an earlier week", () => {
       label: "Soap",
       quantity: "2",
       unit: "bars",
-      category: "OTHER",
+      category: "cat_drinks",
       checked: "true",
     });
+  });
+
+  it("carries the category's id in the hidden field, not its name", () => {
+    const { container } = renderList([CARRIED]);
+
+    expect(container.querySelector<HTMLInputElement>('input[type="hidden"][name="category"]')).toHaveValue("cat_drinks");
+  });
+
+  it("carries the id of a category the user added", () => {
+    const market: CategoryRow = { id: "c-market", key: null, name: "Market", position: 2 };
+    const { container } = renderList([{ ...CARRIED, category: market }]);
+
+    expect(container.querySelector<HTMLInputElement>('input[type="hidden"][name="category"]')).toHaveValue("c-market");
+    expect(screen.getByRole("heading", { name: "Market (1)" })).toBeInTheDocument();
   });
 
   it("does not post carried details for an ordinary line", async () => {
