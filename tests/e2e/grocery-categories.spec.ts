@@ -148,11 +148,7 @@ test.describe("the grocery categories page", () => {
     await expect(nameField(page, 10)).toHaveValue("Pet food");
   });
 
-  // BUG: after a move the page is rendered again from scratch (the whole page element, `<ol>` included, is a new DOM node: a
-  // server action that ends in `redirect()` to the page's own address does not keep the client component), so
-  // `CategoryManager`'s refs are gone: the focus falls to <body> and nothing is announced. Delete keeps the component. When
-  // this is fixed, the test starts failing: turn it into a normal test.
-  test.fail("moves a section up and down, and the keyboard focus stays on the button that was used", async ({ page }) => {
+  test("moves a section up and down, and the keyboard focus stays on the button that was used", async ({ page }) => {
     await open(page);
 
     await moveUp(page, "Pantry").click();
@@ -183,8 +179,7 @@ test.describe("the grocery categories page", () => {
     await expectOrder(page, [...SEEDED.slice(0, 5), "Herbs & spices", "Pantry", ...SEEDED.slice(7)]);
   });
 
-  // BUG: same cause as above.
-  test.fail("moves the focus to the other arrow when a section reaches the end of the list", async ({ page }) => {
+  test("moves the focus to the other arrow when a section reaches the end of the list", async ({ page }) => {
     await open(page);
     await moveUp(page, "Bakery").click();
 

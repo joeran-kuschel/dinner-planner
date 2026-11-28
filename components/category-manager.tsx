@@ -47,6 +47,8 @@ export function CategoryManager({
   const known = useRef(new Map(categories.map((category) => [category.id, categoryName(category, i18n)])));
   const [announcement, setAnnouncement] = useState("");
   const order = categories.map((category) => category.id).join(",");
+  // While an earlier refusal is on screen, a change that goes through sends the page back to its bare address, which clears it.
+  const clear = error ? <input type="hidden" name="clear" value="1" /> : null;
 
   // After a move the section is somewhere else in the list, and the browser drops the focus of a button that moves:
   // put it back on the same button (or on the other one, when the section reached an end) and say where it is now.
@@ -103,9 +105,11 @@ export function CategoryManager({
             <li key={category.id} className="flex flex-wrap items-end gap-2 p-3">
               <form id={`rename-${category.id}`} action={renameGroceryCategory}>
                 <input type="hidden" name="id" value={category.id} />
+                {clear}
               </form>
               <form id={`move-${category.id}`} action={moveGroceryCategory}>
                 <input type="hidden" name="id" value={category.id} />
+                {clear}
               </form>
 
               <div className="min-w-48 flex-1 basis-full sm:basis-0">
@@ -188,7 +192,7 @@ export function CategoryManager({
                     }
                     confirmLabel={t(i18n)`Delete category`}
                     action={deleteGroceryCategory}
-                    fields={{ id: category.id }}
+                    fields={{ id: category.id, ...(error ? { clear: "1" } : {}) }}
                     focusAfter="new-category"
                   />
                 )}
@@ -199,6 +203,7 @@ export function CategoryManager({
       </ol>
 
       <form action={addGroceryCategory} className="card flex flex-wrap items-end gap-2 p-3">
+        {clear}
         <div className="min-w-48 flex-1">
           <label className="label" htmlFor="new-category">
             {t(i18n)`Add a category`}

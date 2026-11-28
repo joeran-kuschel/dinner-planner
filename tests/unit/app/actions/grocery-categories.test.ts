@@ -50,7 +50,8 @@ async function refusal(action: Promise<unknown>) {
   return query;
 }
 
-const expectSuccess = (action: Promise<unknown>) => expectRedirect(action, PAGE);
+/** A change that went through shows the page again in place (no redirect: that would render it from scratch). */
+const expectSuccess = (action: Promise<unknown>) => expect(action).resolves.toBeUndefined();
 
 const expectRevalidated = () =>
   expect(vi.mocked(revalidatePath).mock.calls).toEqual([["/groceries"], [PAGE], ["/recipes", "layout"]]);
@@ -613,6 +614,22 @@ describe("deleteGroceryCategory", () => {
       await prisma.$executeRawUnsafe(`DROP TRIGGER refuse ON "${schema}"."GroceryCategory"`);
       await prisma.$executeRawUnsafe(`DROP FUNCTION "${schema}".refuse_category_delete()`);
     }
+  });
+});
+
+describe("a change made while a refusal is on screen (the forms post clear=1)", () => {
+  it("sends the page back to its bare address, so the alert does not outlive the change", async () => {
+    await expectRedirect(renameGroceryCategory(formData({ id: "cat_pantry", name: "Cupboard", clear: "1" })), PAGE);
+    expect((await sections()).find((row) => row.id === "cat_pantry")?.name).toBe("Cupboard");
+
+    await expectRedirect(moveGroceryCategory(formData({ id: "cat_bakery", direction: "up", clear: "1" })), PAGE);
+    await expectRedirect(addGroceryCategory(formData({ name: "Pet food", clear: "1" })), PAGE);
+    await expectRedirect(deleteGroceryCategory(formData({ id: "cat_drinks", clear: "1" })), PAGE);
+  });
+
+  it("does not redirect without it, so the page keeps its client state", async () => {
+    await expectSuccess(moveGroceryCategory(formData({ id: "cat_bakery", direction: "up" })));
+    expect(vi.mocked(redirect)).not.toHaveBeenCalled();
   });
 });
 

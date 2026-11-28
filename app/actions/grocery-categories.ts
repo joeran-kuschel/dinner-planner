@@ -39,10 +39,15 @@ function refuse(error: CategoryError, typed?: { id?: string; name: string }): ne
   redirect(`${PAGE}?${query}`);
 }
 
-/** The page, without an error from an earlier refusal: after a change that went through. */
-function done(): never {
+/**
+ * A change that went through. The page is shown again in place, so the client component keeps its state (the focus on the
+ * button that moved a section, the announcements): a redirect to the page's own address renders it from scratch. Only when
+ * the page shows an error from an earlier refusal (its forms then post `clear=1`) it is redirected to the bare address, so the
+ * alert does not outlive the change.
+ */
+function done(formData: FormData): void {
   revalidateCategories();
-  redirect(PAGE);
+  if (readText(formData, "clear") === "1") redirect(PAGE);
 }
 
 /** The sections in shop order, as the database has them. */
@@ -98,7 +103,7 @@ export async function addGroceryCategory(formData: FormData) {
     return null;
   });
   if (refused) refuse(refused, { name });
-  done();
+  done(formData);
 }
 
 /**
@@ -110,21 +115,21 @@ export async function renameGroceryCategory(formData: FormData) {
   const id = readText(formData, "id");
   if (!id) throw new Error("renameGroceryCategory: missing `id`");
   const row = await prisma.groceryCategory.findUnique({ where: { id } });
-  if (!row) return done(); // deleted in another tab: the page is shown again without it
+  if (!row) return done(formData); // deleted in another tab: the page is shown again without it
 
   const name = normalizeCategoryName(readText(formData, "name"));
   if (!name) {
     if (row.key === null) refuse("empty", { id, name });
     await prisma.groceryCategory.update({ where: { id }, data: { name: null } });
-    return done();
+    return done(formData);
   }
   if (name.length > MAX_CATEGORY_NAME) refuse("long", { id, name: name.slice(0, MAX_CATEGORY_NAME + 1) });
   const { i18n } = await getServerI18n();
-  if (row.name === null && name === categoryName(row, i18n)) return done();
+  if (row.name === null && name === categoryName(row, i18n)) return done(formData);
   if (await nameIsTaken(name, id)) refuse("duplicate", { id, name });
 
   await prisma.groceryCategory.update({ where: { id }, data: { name } });
-  done();
+  done(formData);
 }
 
 /** Move a section one place up or down. "Other" does not move, and nothing moves past it. */
@@ -146,7 +151,7 @@ export async function moveGroceryCategory(formData: FormData) {
     // Every position is written from the new order: a tie in the old one cannot survive a move.
     await renumber(tx, order, new Map());
   });
-  done();
+  done(formData);
 }
 
 /** Delete a section: what was filed under it (ingredients and list entries) moves to "Other" in the same step. */
@@ -172,5 +177,5 @@ export async function deleteGroceryCategory(formData: FormData) {
       );
     }),
   );
-  done();
+  done(formData);
 }
