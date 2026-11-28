@@ -143,8 +143,10 @@ One exception keeps the gate fast: because Playwright stops at the first failure
 about twelve minutes). When the Playwright stage fails on a test, the agent runs the specs once outside the gate, without
 `--max-failures` (`E2E_PREBUILT=1 npx playwright test --timeout=10000 --reporter=line`), fixes every test that is merely
 out of date and then runs `npm run check` once more. That listing run is a diagnosis, not a retry: it never decides that a
-push is ready, and the report names both runs. Before the gate, the agent also runs the specs that open the changed pages
-together.
+push is ready, and the report names both runs. Before the gate the agent does not run Playwright: it finds the specs a change
+makes stale by searching `tests/e2e` and `tests/unit` for the page's address, labels, roles and selectors, since a run of the
+affected specs (or the whole suite) beforehand only doubles the slowest stage; the listing run above is what finds the rest.
+Only a new spec being written is run alone, while it is written.
 
 ## When to change it
 

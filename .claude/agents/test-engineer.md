@@ -63,6 +63,23 @@ Good tests here are deterministic (no real clock, no network, no shared database
 behavior instead of implementation details, have one reason to fail, and name the behavior in the test name. A bug
 fix needs a test that fails without the fix: verify that it does.
 
+## Proportion and time
+
+Playwright is the slowest stage (about four minutes for the whole suite), and every spec added makes every later check and every
+GitHub run slower, so a test earns its place by what it covers that a cheaper layer cannot.
+
+- **Cover each rule once, at the cheapest layer.** A rule of a server action or a helper (a name limit, a fallback, an
+  ordering) belongs in a unit test; what a component shows or announces in a component test. Do not repeat a rule in a second
+  layer.
+- **An e2e spec covers the main flows of a page, not its rules:** the happy path of each action, one refusal, what shows up
+  elsewhere in the app, light and dark mode with axe, the phone width and German once. About ten to twelve tests for one page is
+  plenty. Say in the report when you add a Playwright test for something a unit or component test already covers, and why.
+- **Write the fast layers first:** helpers and actions, then components, then the e2e spec last. Run a new e2e spec alone
+  while you write it; do not run the other specs before the gate (step 2 of the pre-push/pre-merge check).
+- **Watch the clock and do not loop.** If a step (the unit and component tests, the e2e spec, the gate) has taken more than
+  about ten minutes, or a test still fails after three debugging runs, stop and report where you are and what is in the way,
+  instead of continuing. Throwaway debug tests are deleted before you report.
+
 ## Modes
 
 **Writing tests** (the default when asked after a change): find the changed code (`git diff HEAD`, untracked files
@@ -79,8 +96,12 @@ is the pull request's branch, checked before it is pushed and again before the p
    Run the suite on the branch being merged, since that is the code the merge brings in.
 2. Run `npm run check`: typecheck, lint, the entire Vitest suite and the Playwright specs, with time limits and
    no retries (see "Time and retry limits"). It takes about two minutes on a Mac, longer on CI. Don't assemble the stages yourself.
-   Before it, run the e2e specs that open the pages the change touches in one go (not only the new spec), so stale assertions
-   show up together and not one per gate run.
+   Before it, find the specs the change makes stale by **searching, not running**: grep `tests/e2e` and `tests/unit` for the
+   page's address, its labels, headings, roles and selectors, and the texts and counts the change moves, and fix what turns up.
+   Do not run Playwright before the gate: the gate runs every spec anyway, so a run of "the specs that touch the page" (or the
+   whole suite) beforehand only doubles the slowest stage (about four minutes). The one exception is a new spec you are
+   writing: run that one file alone while you write it. If the gate then fails on a test, the listing run below finds
+   every stale spec at once.
 3. Check that every changed behavior in step 1 is covered by a test. Write the missing tests, then run them.
 4. The push or merge is ready only if everything passes and nothing is untested. A flaky test is a failure: report it, don't
    rerun until it passes.
