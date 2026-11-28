@@ -23,7 +23,8 @@ Feature documentation, split into the user interface and the backend.
 - [Recipe import](backend/recipe-import.md): "Add from a link", what may be fetched, how the recipe is read, the test switch
 - [Planned meals](backend/planned-meals.md): how `setPlannedMeal` turns a picked or typed dinner into a stored day
 - [Translations (i18n)](backend/i18n.md): Lingui and the `.po` catalogs, writing translatable code, choosing and switching the language
-
+- [Kubernetes deployment](backend/kubernetes.md): images, the cluster, the three Secrets, the address and the hosts lines
+- [Forms and server actions](backend/forms-and-actions.md): `"use server"` files, the React 19 form reset, the day card's auto-save, dates, the `pg` adapter
 - [Image cleanup and disk space](backend/image-cleanup.md): what `deploy.sh` removes after a deploy, the free-space check, and what to do when the disk is full anyway
 - [Database backups](backend/database-backups.md): hourly dumps of the cluster database, restore, and the launchd job
 - [The pre-push / pre-merge check](backend/testing-check.md): `npm run check`, its stages, time limits and the no-retry rule
